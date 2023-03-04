@@ -41,7 +41,8 @@ public:
 	    : mp_(io),
 	      geometry_(geometry),
 	      basis_(geometry, ne),
-	      hoppings_(geometry.numberOfSites(), geometry.numberOfSites())
+	      hoppings_(geometry.numberOfSites(), geometry.numberOfSites()),
+	      ninj_(geometry.numberOfSites(), geometry.numberOfSites())
 	{
 		const SizeType n = geometry_.numberOfSites();
 
@@ -49,6 +50,7 @@ public:
 			for (SizeType i = 0; i < n; ++i) {
 
 				hoppings_(i, j) = geometry_(i, 0, j, 0, 0);
+				ninj_(i, j) = geometry_(i, 0, j, 0, 1);
 			}
 		}
 	}
@@ -288,6 +290,7 @@ private:
 	void calcDiagonalElements(typename PsimagLite::Vector<RealType>::Type& diag,
 	                          const BasisBaseType& basis) const
 	{
+		constexpr RealType zeroPointFive = 0.5;
 		SizeType hilbert = basis.size();
 		SizeType nsite = geometry_.numberOfSites();
 		SizeType orb = 0;
@@ -298,9 +301,18 @@ private:
 			ComplexOrRealType s = 0;
 			for (SizeType i = 0; i < nsite; ++i) {
 
+				// ninj term
+				RealType ne = basis.getN(ket, 0, i, 0, orb);
+
+				for (SizeType j = 0; j < nsite; ++j) {
+					ComplexOrRealType value = zeroPointFive*ninj_(i, j);
+					if (PsimagLite::real(value) == 0 && PsimagLite::imag(value) == 0) continue;
+					RealType tmp2 = basis.getN(ket, 0, j, 0, orb);
+					s += value * ne * tmp2;
+				}
+
 				// Potential term
 				RealType tmp = mp_.potentialV[i];
-				RealType ne = basis.getN(ket, 0, i, 0, orb);
 				s += tmp * ne;
 			}
 
@@ -313,6 +325,7 @@ private:
 	const GeometryType& geometry_;
 	BasisType basis_;
 	MatrixType hoppings_;
+	MatrixType ninj_;
 	mutable typename PsimagLite::Vector<BasisType*>::Type garbage_;
 }; // class FermionSpinless
 } // namespace LanczosPlusPlus
