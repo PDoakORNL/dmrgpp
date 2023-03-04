@@ -12,6 +12,7 @@
 #include "../Models/Heisenberg/Heisenberg.h"
 #include "../Models/Kitaev/Kitaev.h"
 #include "../Models/HubbardOneOrbitalRashbaSOC/HubbardOneOrbitalRashbaSOC.h"
+#include "../Models/FermionSpinless/FermionSpinless.hh"
 
 namespace LanczosPlusPlus {
 
@@ -29,6 +30,7 @@ class ModelSelector {
 	typedef FeBasedSc<ComplexOrRealType,BasisFeAsSpinOrbitType, InputType> FeBasedScSpinOrbitType;
 	typedef Heisenberg<ComplexOrRealType,GeometryType, InputType> HeisenbergType;
 	typedef Kitaev<ComplexOrRealType,GeometryType, InputType> KitaevType;
+	typedef FermionSpinless<ComplexOrRealType, GeometryType, InputType> FermionSpinlessType;
 	typedef typename PsimagLite::Real<ComplexOrRealType>::Type RealType;
 
 public:
@@ -52,7 +54,7 @@ public:
 		SizeType ndown = 0;
 		SizeType szPlusConst = 0;
 
-		if (model != "Kitaev" && model != "HubbardOneBandRashbaSOC") {
+		if (model != "Kitaev" && model != "HubbardOneBandRashbaSOC" && model != "FermionSpinless") {
 			try {
 				io.readline(nup,"TargetElectronsUp=");
 				io.readline(ndown,"TargetElectronsDown=");
@@ -61,7 +63,7 @@ public:
 			}
 		}
 
-		if (model == "HubbardOneBandRashbaSOC")
+		if (model == "HubbardOneBandRashbaSOC" || model == "FermionSpinless")
 			io.readline(szPlusConst,"TargetElectronsTotal=");
 
 		PsimagLite::Matrix<ComplexOrRealType> spinOrbit;
@@ -89,6 +91,8 @@ public:
 			modelPtr_ = new KitaevType(io,geometry);
 		} else if (model == "HubbardOneBandRashbaSOC") {
 			modelPtr_ = new HubbardOneBandRashbaSOCType(szPlusConst, io, geometry);
+		} else if (model == "FermionSpinless") {
+			modelPtr_ = new FermionSpinlessType(szPlusConst, io, geometry);
 		} else {
 			PsimagLite::String str("No known model " + model + "\n");
 			throw PsimagLite::RuntimeError(str);

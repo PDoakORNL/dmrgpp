@@ -99,6 +99,7 @@ default flavor = production
 
 default compiler = < compilerCPP GNU
 group basics = (
+CPPFLAGS += -DUSE_BOOST
 < dependency PsimagLite
 < default compiler
 < compilerCPPOptions ansi
