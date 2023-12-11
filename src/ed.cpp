@@ -69,7 +69,7 @@ int main(int argc,char **argv)
 	bool versionOnly = false;
 	SizeType threadsInCmdLine = 0;
 
-	/* PSIDOC LanczosDriver
+	/* PSIDOC EdDriver
 	\begin{itemize}
 	\item[-f file] Input file to use. DMRG++ inputs can be used.
 	\item[-S number] Override Threads= in input line if preset, and set threads
