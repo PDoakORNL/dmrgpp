@@ -151,7 +151,7 @@ sub buildHoppingMatrix
 		$h->{tphysical}, $h->{tbath});
 
 	my $rows = $h->{lx} * $h->{ly} * (1 + $h->{bathsPerSite});
-	#symmetrizeMatrix(\@matrix, $rows);
+	symmetrizeMatrix(\@matrix, $rows);
 	my $smatrix = matrixToString(\@matrix, $rows);
 }
 
