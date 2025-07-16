@@ -57,8 +57,6 @@ public:
 		}
 	}; // class OrbsPerSite
 
-	static int const FERMION_SIGN = BasisType::FERMION_SIGN;
-
 	BasisImmm(const GeometryType& geometry, SizeType nup,SizeType ndown)
 	    : nup_(nup),
 	      ndown_(ndown),
@@ -157,7 +155,7 @@ public:
 		}
 		SizeType c = basis1_.getN(x);
 		int ret = 1;
-		if (c&1) ret = FERMION_SIGN;
+		if (c&1) ret = ProgramGlobals::FERMION_SIGN;
 		return ret * basis2_.doSign(y,site,orb);
 	}
 

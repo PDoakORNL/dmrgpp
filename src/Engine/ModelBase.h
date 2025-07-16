@@ -92,7 +92,7 @@ public:
 	                 const VectorType& psi,
 	                 const BasisBaseType& basis) const
 	{
-		static const int FERMION_SIGN = -1;
+		static const int FERMION_SIGN = ProgramGlobals::FERMION_SIGN;
 
 		std::fill(psiNew.begin(), psiNew.end(), 0.0);
 		const SizeType hilbert = basis.size();

@@ -121,8 +121,6 @@ public:
 
 	enum TermEnum {HOPPING, J_PM, J_ZZ};
 
-	static int const FERMION_SIGN = BasisType::FERMION_SIGN;
-
 	FeBasedSc(SizeType nup,SizeType ndown,InputType& io,const GeometryType& geometry)
 	    : mp_(io),
 	      geometry_(geometry),
@@ -353,7 +351,7 @@ private:
 					if (s1i == 0) h = PsimagLite::conj(h);
 					WordType bra1= ket1 ^(BasisType::bitmask(ii)|BasisType::bitmask(jj));
 					SizeType temp = basis.perfectIndex(bra1,ket2);
-					RealType extraSign = (s1i==1) ? FERMION_SIGN : 1;
+					RealType extraSign = (s1i==1) ? ProgramGlobals::FERMION_SIGN : 1;
 					RealType tmp2 = basis_.doSign(ket1,ket2,i,orb,j,orb2,SPIN_UP);
 					ComplexOrRealType cTemp = h*extraSign*tmp2;
 					sparseRow.add(temp,cTemp);
@@ -364,7 +362,7 @@ private:
 					if (s2i == 0) h = PsimagLite::conj(h);
 					WordType bra2= ket2 ^(BasisType::bitmask(ii)|BasisType::bitmask(jj));
 					SizeType temp = basis.perfectIndex(ket1,bra2);
-					RealType extraSign = (s2i==1) ? FERMION_SIGN : 1;
+					RealType extraSign = (s2i==1) ? ProgramGlobals::FERMION_SIGN : 1;
 					RealType tmp2 = basis_.doSign(ket1,ket2,i,orb,j,orb2,SPIN_DOWN);
 					ComplexOrRealType cTemp = h*extraSign*tmp2;
 					sparseRow.add(temp,cTemp);
@@ -428,7 +426,7 @@ private:
 		WordType bra2 = ket2 ^ (BasisType::bitmask(ii)|BasisType::bitmask(jj));
 		SizeType temp = basis.perfectIndex(bra1,bra2);
 		RealType sign = jTermSign(ket1,ket2,i,orb1,i,orb2,basis);
-		sparseRow.add(temp,FERMION_SIGN*mp_.hubbardU[3]*sign);
+		sparseRow.add(temp,ProgramGlobals::FERMION_SIGN*mp_.hubbardU[3]*sign);
 	}
 
 	void setSpinOrbitOffDiagonal(SparseRowType &sparseRow,

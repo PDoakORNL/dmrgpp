@@ -38,7 +38,6 @@ public:
 	typedef LabeledOperator LabeledOperatorType;
 
 	static SizeType orbitals_;
-	static int const FERMION_SIGN  = -1;
 	static SizeType nsite_;
 	static PsimagLite::Matrix<SizeType> comb_;
 
@@ -177,7 +176,7 @@ public:
 		x1 = j*orbitals_+orb2;
 		sum += getNbyKet(ket,x0,x1);
 
-		return (sum & 1) ? FERMION_SIGN : 1;
+		return (sum & 1) ? ProgramGlobals::FERMION_SIGN : 1;
 	}
 
 	SizeType getNbyKet(SizeType ket) const
@@ -235,7 +234,7 @@ public:
 		x1 = ind*orbitals_+orb;
 		sum += getNbyKet(a,x0,x1);
 
-		return (sum & 1) ? FERMION_SIGN : 1;
+		return (sum & 1) ? ProgramGlobals::FERMION_SIGN : 1;
 	}
 
 	void print(std::ostream& os, bool isBinary) const
@@ -259,7 +258,7 @@ public:
 		SizeType x0 = i*orbitals_+orb1;
 		SizeType x1 = i*orbitals_+orb2;
 		SizeType sum = getNbyKet(ket,x0,x1);
-		return (sum & 1) ? FERMION_SIGN : 1;
+		return (sum & 1) ? ProgramGlobals::FERMION_SIGN : 1;
 	}
 
 private:

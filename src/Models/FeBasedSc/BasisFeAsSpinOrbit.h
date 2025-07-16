@@ -30,6 +30,7 @@ class BasisFeAsSpinOrbit : public BasisBase<GeometryType_> {
 	typedef ProgramGlobals::PairIntType PairIntType;
 
 	static SizeType orbitals_;
+
 	static const SizeType SPIN_UP = ProgramGlobals::SPIN_UP;
 
 public:
@@ -42,8 +43,6 @@ public:
 	typedef typename BaseType::VectorWordType VectorWordType;
 	typedef typename PsimagLite::Vector<PairWordType>::Type VectorPairWordType;
 	typedef BasisOneSpinType::LabeledOperatorType LabeledOperatorType;
-
-	static int const FERMION_SIGN = -1;
 
 	BasisFeAsSpinOrbit(const GeometryType& geometry,
 	                   SizeType nup1,

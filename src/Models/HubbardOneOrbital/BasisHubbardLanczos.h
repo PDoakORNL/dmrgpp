@@ -21,7 +21,6 @@ public:
 	typedef typename BaseType::WordType WordType;
 	typedef typename BaseType::VectorWordType VectorWordType;
 	typedef typename BaseType::LabeledOperatorType LabeledOperatorType;
-	static int const FERMION_SIGN = BasisType::FERMION_SIGN;
 
 	BasisHubbardLanczos(const GeometryType& geometry, SizeType nup,SizeType ndown)
 	    : nup_(nup),
@@ -117,12 +116,12 @@ public:
 			SizeType j = ind;
 			WordType mask = a;
 			mask &= ((1 << (i+1)) - 1) ^ ((1 << j) - 1);
-			int s=(PsimagLite::BitManip::count(mask) & 1) ? -1 : 1;
+			int s=(PsimagLite::BitManip::count(mask) & 1) ? ProgramGlobals::FERMION_SIGN : 1;
 			// Is there an up at i?
 			if (BasisType::bitmask(i) & a) s = -s;
 			return s;
 		}
-		int s=(PsimagLite::BitManip::count(a) & 1) ? -1 : 1; // Parity of up
+		int s=(PsimagLite::BitManip::count(a) & 1) ? ProgramGlobals::FERMION_SIGN : 1; // Parity of up
 		if (ind==0) return s;
 
 		// ind>0 from now on
@@ -130,7 +129,7 @@ public:
 		SizeType j = ind;
 		WordType mask = b;
 		mask &= ((1 << (i+1)) - 1) ^ ((1 << j) - 1);
-		s=(PsimagLite::BitManip::count(mask) & 1) ? -1 : 1;
+		s=(PsimagLite::BitManip::count(mask) & 1) ? ProgramGlobals::FERMION_SIGN : 1;
 		// Is there a down at i?
 		if (BasisType::bitmask(i) & b) s = -s;
 		return s;

@@ -24,8 +24,6 @@ public:
 	typedef typename BaseType::VectorWordType VectorWordType;
 	typedef LabeledOperator LabeledOperatorType;
 
-	static int const FERMION_SIGN = -1;
-
 	BasisTjMultiOrbLanczos(const GeometryType& geometry,
 	                       SizeType nup,
 	                       SizeType ndown,
@@ -396,7 +394,7 @@ private:
 		x1 = j;
 		sum += getNbyKet(ket,x0,x1);
 
-		return (sum & 1) ? FERMION_SIGN : 1;
+		return (sum & 1) ? ProgramGlobals::FERMION_SIGN : 1;
 	}
 
 	SizeType getNbyKet(SizeType ket,SizeType from,SizeType upto) const

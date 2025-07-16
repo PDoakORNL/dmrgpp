@@ -46,8 +46,6 @@ public:
 	typedef typename BaseType::VectorType VectorType;
 	typedef PsimagLite::SparseRowCached<SparseMatrixType> SparseRowType;
 
-	static int const FERMION_SIGN = BasisType::FERMION_SIGN;
-
 	Immm(SizeType nup,
 	     SizeType ndown,
 	     const ParametersModelType& mp,
@@ -211,7 +209,7 @@ private:
 				if (s1i+s1j==1) {
 					WordType bra1= ket1 ^(BasisType::bitmask(ii)|BasisType::bitmask(jj));
 					SizeType temp = basis.perfectIndex(bra1,ispace,SPIN_UP);
-					RealType extraSign = (s1i==1) ? FERMION_SIGN : 1;
+					RealType extraSign = (s1i==1) ? ProgramGlobals::FERMION_SIGN : 1;
 					RealType tmp2 = basis.doSign(ket1,ket2,i,orb,j,orb2,SPIN_UP);
 					ComplexOrRealType cTemp = h*extraSign*tmp2;
 					sparseRow.add(temp,cTemp);
@@ -220,7 +218,7 @@ private:
 				if (s2i+s2j==1) {
 					WordType bra2= ket2 ^(BasisType::bitmask(ii)|BasisType::bitmask(jj));
 					SizeType temp = basis.perfectIndex(bra2,ispace,SPIN_DOWN);
-					RealType extraSign = (s2i==1) ? FERMION_SIGN : 1;
+					RealType extraSign = (s2i==1) ? ProgramGlobals::FERMION_SIGN : 1;
 					RealType tmp2 = basis.doSign(ket1,ket2,i,orb,j,orb2,SPIN_DOWN);
 					ComplexOrRealType cTemp = h*extraSign*tmp2;
 					sparseRow.add(temp,cTemp);

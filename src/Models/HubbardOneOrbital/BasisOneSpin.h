@@ -18,7 +18,6 @@ namespace LanczosPlusPlus {
 		typedef ProgramGlobals::WordType WordType;
 		typedef LabeledOperator LabeledOperatorType;
 
-		static int const FERMION_SIGN  = -1;
 		static SizeType nsite_;
 		static PsimagLite::Matrix<SizeType> comb_;
 
@@ -115,7 +114,7 @@ namespace LanczosPlusPlus {
 			x1 = j;
 			sum += getNbyKet(ket,x0,x1);
 
-			return (sum & 1) ? FERMION_SIGN : 1;
+			return (sum & 1) ? ProgramGlobals::FERMION_SIGN : 1;
 		}
 
 		bool getBra(WordType& bra,

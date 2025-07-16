@@ -29,8 +29,6 @@ public:
 
 	enum TermEnum {HOPPING = 0, NINJ = 1, SUPER = 2};
 
-	static const int FERMION_SIGN = -1;
-
 	HubbardHelper(const GeometryType& geometry,
 	              const ModelParamsType& mp)
 	    : geometry_(geometry),
@@ -220,7 +218,7 @@ private:
 				bra1 = bra1 ^ BasisType::bitmask(j);
 
 				SizeType temp = basis.perfectIndex(bra1, ket2);
-				//RealType extraSign = (s1j == 1) ? FERMION_SIGN : 1;
+				//RealType extraSign = (s1j == 1) ? ProgramGlobals::FERMION_SIGN : 1;
 				ComplexOrRealType cTemp = h*tmp2; //*extraSign;
 				//if (s1j == 1) cTemp = PsimagLite::conj(cTemp);
 				assert(temp<basis.size());
@@ -235,7 +233,7 @@ private:
 				bra2 = bra2 ^ BasisType::bitmask(j);
 
 				SizeType temp = basis.perfectIndex(ket1, bra2);
-				//RealType extraSign = (s2j == 1) ? FERMION_SIGN : 1;
+				//RealType extraSign = (s2j == 1) ? ProgramGlobals::FERMION_SIGN : 1;
 				ComplexOrRealType cTemp = h*tmp2; //*extraSign;
 				//if (s2j == 1) cTemp = PsimagLite::conj(cTemp);
 				assert(temp<basis.size());
@@ -252,10 +250,10 @@ private:
 				WordType bra1 = ket1 ^ (BasisType::bitmask(j));
 				WordType bra2 = ket2 ^ (BasisType::bitmask(i));
 				SizeType temp = basis.perfectIndex(bra1, bra2);
-				//RealType extraSign = (s2j == 0) ? FERMION_SIGN : 1;
+				//RealType extraSign = (s2j == 0) ? ProgramGlobals::FERMION_SIGN : 1;
 				RealType tmp2 = ProgramGlobals::doSign(ket1, j)*ProgramGlobals::doSign(ket2, i);
 				const SizeType count1 = PsimagLite::BitManip::count(ket1); // + s1i;
-				if (count1 & 1) tmp2 *= FERMION_SIGN;
+				if (count1 & 1) tmp2 *= ProgramGlobals::FERMION_SIGN;
 				ComplexOrRealType cTemp = hr*tmp2; //*extraSign;
 				//if (s1i == 1) cTemp = PsimagLite::conj(rashbaHoppings_(j, i));
 				assert(temp<basis.size());
@@ -267,10 +265,10 @@ private:
 				WordType bra1 = ket1 ^ (BasisType::bitmask(i));
 				WordType bra2 = ket2 ^(BasisType::bitmask(j));
 				SizeType temp = basis.perfectIndex(bra1, bra2);
-				//RealType extraSign = (s2i == 0) ? FERMION_SIGN : 1;
+				//RealType extraSign = (s2i == 0) ? ProgramGlobals::FERMION_SIGN : 1;
 				RealType tmp2 = ProgramGlobals::doSign(ket1, i)*ProgramGlobals::doSign(ket2, j);
 				const SizeType count1 = PsimagLite::BitManip::count(ket1); // + s1j;
-				if (count1 & 1) tmp2 *= FERMION_SIGN;
+				if (count1 & 1) tmp2 *= ProgramGlobals::FERMION_SIGN;
 				ComplexOrRealType cTemp = PsimagLite::conj(hr)*tmp2; //*extraSign;
 				//if (s1j == 1) cTemp = PsimagLite::conj(rashbaHoppings_(j, i));
 				assert(temp<basis.size());

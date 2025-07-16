@@ -35,7 +35,6 @@ namespace LanczosPlusPlus {
 		typedef ProgramGlobals::WordType WordType;
 		typedef LabeledOperator LabeledOperatorType;
 
-		static int const FERMION_SIGN  = -1;
 		static SizeType nsite_;
 		static PsimagLite::Matrix<SizeType> comb_;
 
@@ -169,7 +168,7 @@ namespace LanczosPlusPlus {
 			}
 
 			SizeType c = PsimagLite::BitManip::count(ketA);
-			int ret = (c&1) ? FERMION_SIGN : 1;
+			int ret = (c&1) ? ProgramGlobals::FERMION_SIGN : 1;
 			return ret * doSign(ketB,site);
 		}
 
@@ -201,7 +200,7 @@ namespace LanczosPlusPlus {
 			x1 = j*orbs()+orb2;
 			sum += getNbyKet(ket,x0,x1);
 
-			return (sum & 1) ? FERMION_SIGN : 1;
+			return (sum & 1) ? ProgramGlobals::FERMION_SIGN : 1;
 		}
 
 		int doSignGf(WordType a,SizeType ind,SizeType orb) const
@@ -445,7 +444,7 @@ namespace LanczosPlusPlus {
 
 			a &= ((1 << (i+1)) - 1) ^ ((1 << nsite_) - 1);
 			// Parity of single occupied between i and nsite-1
-			int s=(PsimagLite::BitManip::count(a) & 1) ? FERMION_SIGN : 1;
+			int s=(PsimagLite::BitManip::count(a) & 1) ? ProgramGlobals::FERMION_SIGN : 1;
 			return s;
 		}
 

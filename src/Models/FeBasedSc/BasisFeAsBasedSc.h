@@ -42,8 +42,6 @@ public:
 	typedef BasisOneSpinFeAs BasisType;
 	typedef BasisType::LabeledOperatorType LabeledOperatorType;
 
-	static int const FERMION_SIGN = BasisType::FERMION_SIGN;
-
 	BasisFeAsBasedSc(const GeometryType& geometry,
 	                 SizeType nup,
 	                 SizeType ndown,

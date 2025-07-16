@@ -44,8 +44,6 @@ public:
 	typedef PsimagLite::Matrix<SizeType> MatrixSizeType;
 	typedef PsimagLite::SparseRow<SparseMatrixType> SparseRowType;
 
-	static int const FERMION_SIGN = BasisType::FERMION_SIGN;
-
 	TjMultiOrb(SizeType nup,
 	           SizeType ndown,
 	           InputType& io,
@@ -675,7 +673,7 @@ private:
 					WordType bra1= ket1 ^ (BasisType::bitmask(i*mp_.orbitals+orb)|
 					                       BasisType::bitmask(j*mp_.orbitals+orb2));
 					SizeType temp = basis.perfectIndex(bra1,ket2);
-					RealType extraSign = (s1i==1) ? FERMION_SIGN : 1;
+					RealType extraSign = (s1i==1) ? ProgramGlobals::FERMION_SIGN : 1;
 					RealType tmp2 = basis_.doSign(ket1,ket2,i,orb,j,orb2,SPIN_UP);
 					ComplexOrRealType cTemp = h*extraSign*tmp2;
 					sparseRow.add(temp,cTemp);
@@ -685,7 +683,7 @@ private:
 					WordType bra2= ket2 ^(BasisType::bitmask(i*mp_.orbitals+orb)|
 					                      BasisType::bitmask(j*mp_.orbitals+orb2));
 					SizeType temp = basis.perfectIndex(ket1,bra2);
-					RealType extraSign = (s2i==1) ? FERMION_SIGN : 1;
+					RealType extraSign = (s2i==1) ? ProgramGlobals::FERMION_SIGN : 1;
 					RealType tmp2 = basis_.doSign(ket1,ket2,i,orb,j,orb2,SPIN_DOWN);
 					ComplexOrRealType cTemp = h*extraSign*tmp2;
 					sparseRow.add(temp,cTemp);

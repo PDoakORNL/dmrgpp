@@ -100,6 +100,8 @@ struct ProgramGlobals {
 	typedef std::pair<int,int> PairIntType;
 	typedef unsigned int long WordType;
 
+	static int FERMION_SIGN;
+
 	enum {FERMION,BOSON};
 
 	enum {SPIN_UP,SPIN_DOWN};
@@ -110,7 +112,7 @@ struct ProgramGlobals {
 	{
 		WordType mask = (1 << i) - 1;
 		// Parity of single occupied between i and nsite-1
-		return (PsimagLite::BitManip::count(a & mask) & 1) ? -1 : 1;
+		return (PsimagLite::BitManip::count(a & mask) & 1) ? FERMION_SIGN : 1;
 	}
 
 	template<typename T>

@@ -23,7 +23,6 @@ public:
 	typedef typename PsimagLite::Vector<PairWordType>::Type VectorPairWordType;
 	typedef typename BaseType::VectorWordType VectorWordType;
 	typedef typename BaseType::LabeledOperatorType LabeledOperatorType;
-	static int const FERMION_SIGN = BasisType::FERMION_SIGN;
 
 	BasisRashbaSOC(const GeometryType& geometry, SizeType ne)
 	    : ne_(ne)

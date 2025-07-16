@@ -196,6 +196,14 @@ int main(int argc,char **argv)
 
 	PsimagLite::String solverOptions;
 	io.readline(solverOptions,"SolverOptions=");
+	try {
+		int fermionSign = -1;
+		io.readline(fermionSign, "FermionSign=");
+		std::cerr<<"WARNING= FermionSign="<<fermionSign<<"\n";
+		std::cout<<"WARNING= FermionSign="<<fermionSign<<"\n";
+		LanczosPlusPlus::ProgramGlobals::FERMION_SIGN=fermionSign;
+	} catch (std::exception&) {}
+
 	PsimagLite::Vector<PsimagLite::String>::Type tokens;
 	PsimagLite::split(tokens, solverOptions, ",");
 	for (SizeType i = 0; i < tokens.size(); ++i) {
