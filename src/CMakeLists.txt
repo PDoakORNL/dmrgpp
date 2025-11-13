@@ -68,7 +68,7 @@ add_executable(dmrg $<TARGET_OBJECTS:Common> $<TARGET_OBJECTS:Su2Related>
 target_compile_definitions(dmrg PUBLIC USE_BOOST)
 
 target_link_libraries(dmrg PUBLIC kronutil psimaglite HDF5::HDF5 BLAS::BLAS
-                                  LAPACK::LAPACK ${ADDITIONAL_LIBRARIES})
+                                  LAPACK::LAPACK)
 target_include_directories(dmrg PRIVATE ${CMAKE_CURRENT_BINARY_DIR} Engine)
 target_sources(dmrg PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/GitRevision.h)
 
@@ -93,14 +93,8 @@ add_executable(
 target_include_directories(observe PRIVATE ${CMAKE_CURRENT_BINARY_DIR} Engine)
 target_compile_definitions(observe PUBLIC USE_BOOST)
 target_sources(observe PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/GitRevision.h)
-target_link_libraries(
-  observe
-  kronutil
-  psimaglite
-  HDF5::HDF5
-  BLAS::BLAS
-  LAPACK::LAPACK
-  ${ADDITIONAL_LIBRARIES})
+target_link_libraries(observe kronutil psimaglite HDF5::HDF5 BLAS::BLAS
+                      LAPACK::LAPACK)
 
 # Toolbox executable now
 add_executable(toolboxdmrg toolboxdmrg.cpp Qn.cpp ProgramGlobals.cpp
@@ -115,11 +109,5 @@ add_executable(omegas $<TARGET_OBJECTS:Common> $<TARGET_OBJECTS:Su2Related>
                       Qn.cpp manyOmegas.cpp)
 target_include_directories(omegas PRIVATE ${CMAKE_CURRENT_BINARY_DIR} Engine)
 target_compile_definitions(omegas PUBLIC USE_BOOST)
-target_link_libraries(
-  omegas
-  kronutil
-  psimaglite
-  HDF5::HDF5
-  BLAS::BLAS
-  LAPACK::LAPACK
-  ${ADDITIONAL_LIBRARIES})
+target_link_libraries(omegas kronutil psimaglite HDF5::HDF5 BLAS::BLAS
+                      LAPACK::LAPACK)
