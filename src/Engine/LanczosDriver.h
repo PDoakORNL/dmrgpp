@@ -3,7 +3,7 @@
 #include "AllocatorCpu.h"
 #include "PsimagLite.h"
 #include "../Version.h"
-#include "../../../PsimagLite/src/Version.h"
+#include "../../../dmrgpp/PsimagLite/src/Version.h"
 #include <unistd.h>
 #include <cstdlib>
 #include <getopt.h>

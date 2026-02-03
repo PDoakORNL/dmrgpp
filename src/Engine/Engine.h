@@ -57,12 +57,8 @@ public:
 	typedef PsimagLite::ParametersForSolver<RealType> ParametersForSolverType;
 	typedef typename PsimagLite::Vector<ComplexOrRealType>::Type VectorType;
 	typedef typename PsimagLite::Vector<VectorType>::Type VectorVectorType;
-	typedef PsimagLite::LanczosSolver<ParametersForSolverType,
-	InternalProductType,
-	VectorType> LanczosSolverType;
-	typedef PsimagLite::LanczosSolver<ParametersForSolverType,
-	InternalProductDefaultType,
-	VectorType> LanczosSolverDefaultType;
+	typedef PsimagLite::LanczosSolver<InternalProductType> LanczosSolverType;
+	typedef PsimagLite::LanczosSolver<InternalProductDefaultType> LanczosSolverDefaultType;
 	typedef PsimagLite::Matrix<ComplexOrRealType> MatrixType;
 	typedef PsimagLite::Matrix<RealType> MatrixRealType;
 	typedef typename LanczosSolverType::TridiagonalMatrixType TridiagonalMatrixType;
