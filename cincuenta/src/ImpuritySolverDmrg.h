@@ -237,7 +237,7 @@ private:
 	void scaleGimp()
 	{
 		const SizeType n      = gimp_.size();
-		const RealType factor = -0.5 / M_PI;
+		const RealType factor = -M_PI;
 		for (SizeType i = 0; i < n; ++i)
 			gimp_[i] *= factor;
 	}
