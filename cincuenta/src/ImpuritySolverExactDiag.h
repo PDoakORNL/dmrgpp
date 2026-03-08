@@ -250,9 +250,9 @@ private:
 	                          const BasisType&         basis,
 	                          const ModelParamsType&   mp)
 	{
-		// doType(0, energy, gs, basis, mp);
+		doType(0, energy, gs, basis, mp);
 
-		doType(1, energy, gs, basis, mp);
+		// doType(1, energy, gs, basis, mp);
 	}
 
 	// <gs|c' (iwn-Hbar)^{-1}c|gs> for what == 0; and the counterpart for what == 1
