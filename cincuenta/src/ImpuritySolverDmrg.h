@@ -92,6 +92,8 @@ private:
 		const PsimagLite::String label2
 		    = "potentialV=[" + potentialV + "," + potentialV + "];\n";
 
+		std::cout << label << "\n";
+		std::cout << label2 << "\n";
 		return data + label + label2;
 	}
 

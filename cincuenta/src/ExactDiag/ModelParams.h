@@ -23,11 +23,11 @@ template <typename RealType> struct ModelParams {
 				potentialV[center] = 0;
 			}
 
-			hoppings(center, i) = hoppings(i, center) = bathParams[i];
-
 			SizeType offset = (i < center) ? 0 : 1;
 			assert(i >= offset);
-			potentialV[i] = bathParams[i + bath - offset];
+
+			hoppings(center, i) = hoppings(i, center) = bathParams[i - offset];
+			potentialV[i]                             = bathParams[i + bath - offset];
 		}
 	}
 
