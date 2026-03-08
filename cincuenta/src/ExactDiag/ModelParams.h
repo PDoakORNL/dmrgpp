@@ -17,9 +17,17 @@ template <typename RealType> struct ModelParams {
 		sites = bath + 1;
 		potentialV.resize(sites);
 		hoppings.resize(sites, sites);
-		for (SizeType i = 0; i < bath; ++i) {
-			potentialV[i + 1]  = bathParams[i];
-			hoppings(i + 1, 0) = hoppings(0, i + 1) = bathParams[i + bath];
+		for (SizeType i = 0; i < sites; ++i) {
+			if (i == center) {
+				continue;
+				potentialV[center] = 0;
+			}
+
+			hoppings(center, i) = hoppings(i, center) = bathParams[i];
+
+			SizeType offset = (i < center) ? 0 : 1;
+			assert(i >= offset);
+			potentialV[i] = bathParams[i + bath - offset];
 		}
 	}
 

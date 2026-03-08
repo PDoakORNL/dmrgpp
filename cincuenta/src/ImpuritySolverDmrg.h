@@ -65,7 +65,7 @@ public:
 		InputNgType::Writeable::readFile(data3, params_.omegaTemplate);
 		PsimagLite::String data4 = addBathParams(data3, bathParams);
 
-		doType(DmrgType::TYPE_0, data4, mpiRank);
+		// doType(DmrgType::TYPE_0, data4, mpiRank);
 
 		doType(DmrgType::TYPE_1, data4, mpiRank);
 
@@ -88,7 +88,7 @@ private:
 		const SizeType           nBath      = int(bathParams.size() / 2);
 		const PsimagLite::String connectors = findBathParams(0, nBath, bathParams);
 		const PsimagLite::String label      = "dir0:Connectors=[" + connectors + "];\n";
-		const PsimagLite::String potentialV = findBathParams2(nBath, 2 * nBath, bathParams);
+		const PsimagLite::String potentialV = findBathParams2(nBath, bathParams);
 		const PsimagLite::String label2
 		    = "potentialV=[" + potentialV + "," + potentialV + "];\n";
 
@@ -105,19 +105,26 @@ private:
 		return buffer;
 	}
 
-	PsimagLite::String
-	findBathParams2(SizeType start, SizeType end, const VectorRealType& bathParams)
+	PsimagLite::String findBathParams2(SizeType start, const VectorRealType& bathParams)
 	{
-		PsimagLite::String buffer = ttos(bathParams[start]);
-		SizeType           j      = start + 1;
-		for (SizeType i = start + 1; i < end + 1; ++i) {
-			assert(j < bathParams.size());
-			PsimagLite::String tmp = ttos(bathParams[j]);
-			if (i - start == params_.center_site)
-				tmp = "0";
-			else
-				++j;
-			buffer += "," + tmp;
+		PsimagLite::String buffer;
+		SizeType           offset = 0;
+		SizeType           sites  = bathParams.size() / 2 + 1;
+		for (SizeType i = 0; i < sites; ++i) {
+			PsimagLite::String tmp;
+			if (i == params_.center_site) {
+				tmp    = "0";
+				offset = 1;
+			} else {
+				assert(i >= offset);
+				RealType value = bathParams[start + i - offset];
+				tmp            = ttos(value);
+			}
+
+			buffer += tmp;
+			if (i + 1 < sites) {
+				buffer += ",";
+			}
 		}
 
 		return buffer;
@@ -171,7 +178,7 @@ private:
 		if (!fin || !fin.good() || fin.bad())
 			err("readGimp: Could not open " + filename + "\n");
 
-		if (t == DmrgType::TYPE_0)
+		if (gimp_.size() == 0)
 			gimp_.resize(matsubaras.total());
 
 		SizeType ind = 0;

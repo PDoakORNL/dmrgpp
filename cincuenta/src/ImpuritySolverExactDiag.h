@@ -89,14 +89,25 @@ public:
 		RealType          energy = 0;
 		VectorComplexType gs(n);
 		lanczos.computeOneState(energy, gs, initialVector, 1);
-
+		std::cout << "Energy=" << energy << "\n";
 		// compute gimp
 		computeGreenFunction(energy, gs, basis, mp);
+		std::cout << "SumOfGimp=" << density() << "\n";
 	}
 
 	const VectorComplexType& gimp() const { return gimp_; }
 
 private:
+
+	ComplexType density() const
+	{
+		const SizeType n   = gimp_.size();
+		ComplexType    sum = 0;
+		for (SizeType i = 0; i < n; ++i)
+			sum += gimp_[i];
+
+		return sum;
+	}
 
 	void setupHamiltonian(SparseMatrixType&      matrix,
 	                      const BasisType&       basis,
@@ -239,7 +250,7 @@ private:
 	                          const BasisType&         basis,
 	                          const ModelParamsType&   mp)
 	{
-		doType(0, energy, gs, basis, mp);
+		// doType(0, energy, gs, basis, mp);
 
 		doType(1, energy, gs, basis, mp);
 	}
