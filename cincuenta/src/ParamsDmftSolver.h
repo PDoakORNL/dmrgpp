@@ -1,5 +1,6 @@
 #ifndef PARAMSDMFTSOLVER_H
 #define PARAMSDMFTSOLVER_H
+#include "Geometry/Star.h"
 #include "InputNg.h"
 #include "MinParams.h"
 #include "Vector.h"
@@ -41,6 +42,7 @@ template <typename ComplexOrRealType_, typename InputNgType> struct ParamsDmftSo
 	SizeType           nBath;
 	SizeType           dmftIter;
 	SizeType           precision;
+	SizeType           center_site = PsimagLite::Star<ComplexOrRealType, int>::CENTER;
 	PsimagLite::String gsTemplate;
 	PsimagLite::String omegaTemplate;
 	PsimagLite::String impuritySolver;

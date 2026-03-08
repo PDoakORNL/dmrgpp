@@ -39,8 +39,6 @@ public:
 	using ManyOmegasType    = Dmrg::ManyOmegas<RealType, MatsubarasType>;
 	using ProcOmegasType    = Dmrg::ProcOmegas<RealType, MatsubarasType>;
 
-	static const SizeType CENTER = PsimagLite::Star<ComplexOrRealType, int>::CENTER;
-
 	ImpuritySolverDmrg(const ParamsDmftSolverType& params, const ApplicationType& app)
 	    : params_(params)
 	    , runner_(params_.precision, app)
@@ -85,8 +83,7 @@ public:
 
 private:
 
-	static PsimagLite::String addBathParams(PsimagLite::String    data,
-	                                        const VectorRealType& bathParams)
+	PsimagLite::String addBathParams(PsimagLite::String data, const VectorRealType& bathParams)
 	{
 		const SizeType           nBath      = int(bathParams.size() / 2);
 		const PsimagLite::String connectors = findBathParams(0, nBath, bathParams);
@@ -108,7 +105,7 @@ private:
 		return buffer;
 	}
 
-	static PsimagLite::String
+	PsimagLite::String
 	findBathParams2(SizeType start, SizeType end, const VectorRealType& bathParams)
 	{
 		PsimagLite::String buffer = ttos(bathParams[start]);
@@ -116,7 +113,7 @@ private:
 		for (SizeType i = start + 1; i < end + 1; ++i) {
 			assert(j < bathParams.size());
 			PsimagLite::String tmp = ttos(bathParams[j]);
-			if (i - start == CENTER)
+			if (i - start == params_.center_site)
 				tmp = "0";
 			else
 				++j;
@@ -188,28 +185,28 @@ private:
 			RealType val1       = 0;
 			RealType val2       = 0;
 
-			for (SizeType i = 0; i <= CENTER; ++i) {
+			for (SizeType i = 0; i <= params_.center_site; ++i) {
 				SizeType site = 0;
 				fin >> site;
 
-				fin >> val1;
-
 				fin >> val2;
 
-				if (site == CENTER) {
+				fin >> val1;
+
+				if (site == params_.center_site) {
 					centerSeen = true;
 					break;
 				}
 			}
 
 			if (!centerSeen)
-				err("Internal error: center " + ttos(CENTER)
+				err("Internal error: center " + ttos(params_.center_site)
 				    + " not seen, freq id = " + ttos(ind) + "\n");
 
 			if (t == DmrgType::TYPE_0)
-				gimp_[ind] = ComplexType(val2, val1);
+				gimp_[ind] = ComplexType(val1, -val2);
 			else
-				gimp_[ind] += ComplexType(val2, val1);
+				gimp_[ind] += ComplexType(val1, -val2);
 
 			++ind;
 
@@ -219,7 +216,7 @@ private:
 			if (n == 1)
 				continue;
 
-			const SizeType tmp = CENTER + 1;
+			const SizeType tmp = params_.center_site + 1;
 			n -= tmp;
 
 			for (SizeType i = 0; i < 3 * n; ++i)
@@ -233,7 +230,7 @@ private:
 	void scaleGimp()
 	{
 		const SizeType n      = gimp_.size();
-		const RealType factor = -2.0; /// M_PI;
+		const RealType factor = -0.5 / M_PI;
 		for (SizeType i = 0; i < n; ++i)
 			gimp_[i] *= factor;
 	}

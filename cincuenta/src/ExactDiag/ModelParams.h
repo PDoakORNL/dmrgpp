@@ -9,7 +9,8 @@ template <typename RealType> struct ModelParams {
 
 	using VectorRealType = typename PsimagLite::Vector<RealType>::Type;
 
-	ModelParams(const VectorRealType& bathParams)
+	ModelParams(const VectorRealType& bathParams, SizeType center)
+	    : center_site(center)
 	{
 		SizeType bath = bathParams.size() / 2;
 		assert((bathParams.size() & 1) == 0);
@@ -22,6 +23,7 @@ template <typename RealType> struct ModelParams {
 		}
 	}
 
+	SizeType                     center_site;
 	SizeType                     sites;
 	VectorRealType               potentialV;
 	PsimagLite::Matrix<RealType> hoppings;

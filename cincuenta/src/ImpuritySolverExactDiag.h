@@ -67,7 +67,7 @@ public:
 	// bathParams[nBath-...] ==> energies on each bath site
 	void solve(const VectorRealType& bathParams)
 	{
-		ModelParamsType mp(bathParams);
+		ModelParamsType mp(bathParams, params_.center_site);
 
 		BasisType basis(mp.sites, nup_, ndown_);
 
@@ -126,6 +126,7 @@ private:
 		}
 
 		matrix.setRow(hilbert, nCounter);
+		matrix.checkValidity();
 	}
 
 	void calcDiagonalElements(VectorRealType&        diag,
@@ -250,7 +251,7 @@ private:
 	            const BasisType&         basis,
 	            const ModelParamsType&   mp)
 	{
-		SizeType center = mp.sites / 2;
+		SizeType center = mp.center_site;
 		SizeType spin   = 0;
 
 		MatrixType cAtCenter;
