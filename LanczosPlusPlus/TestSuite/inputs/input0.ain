@@ -1,0 +1,25 @@
+##Ainur1.0
+TotalNumberOfSites=8;
+NumberOfTerms=1;
+DegreesOfFreedom=1;
+GeometryKind=chain;
+GeometryOptions="ConstantValues";
+
+dir0:Connectors=[1.0];
+
+hubbardU=[0,0,0,0];
+potentialV=[0,0,0,0,0,0,0,0];
+
+Model="HubbardOneBand";
+SolverOptions="none";
+Version="53725d9b8f22615ccccc782082f4cd6f51a4e374";
+OutputFile="data0.txt";
+InfiniteLoopKeptStates=100;
+FiniteLoops=[
+	[1, 100, 0],
+       	[-2, 100, 0],
+        [-2, 100, 0],
+       	[1, 100, 0]];
+TargetElectronsUp=4;
+TargetElectronsDown=4;
+int IsPeriodicX=1;
