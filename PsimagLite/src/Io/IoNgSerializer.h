@@ -35,7 +35,7 @@ public:
 	};
 
 	IoNgSerializer(String filename, unsigned int mode)
-	    : hdf5file_(0)
+	    : hdf5file_(nullptr)
 	    , filename_(filename)
 	    , mode_(mode)
 	{
@@ -47,7 +47,7 @@ public:
 			hdf5file_ = new H5::H5File(filename, mode);
 		} catch (H5::Exception& e) {
 			delete hdf5file_;
-			hdf5file_ = 0;
+			hdf5file_ = nullptr;
 			throw e;
 		}
 
@@ -123,14 +123,26 @@ public:
 	bool doesGroupExist(String groupName)
 	{
 		groupName = "Def/" + groupName;
-
+		H5::Exception::dontPrint();
 		try {
-			H5::Group group = hdf5file_->openGroup(groupName.c_str());
+			H5::Group group = hdf5file_->openGroup(groupName);
 			group.close();
 		} catch (...) {
 			return false;
 		}
 
+		return true;
+	}
+
+	bool doesDatasetExist(const String& datasetName)
+	{
+		H5::Exception::dontPrint();
+		try {
+			H5::DataSet dataset = hdf5file_->openDataSet(datasetName);
+			dataset.close();
+		} catch (...) {
+			return false;
+		}
 		return true;
 	}
 
@@ -431,10 +443,9 @@ public:
 	                      int*>::Type
 	    = 0)
 	{
-		void*        ptr     = static_cast<void*>(&value);
-		H5::DataSet* dataset = new H5::DataSet(hdf5file_->openDataSet("Def/" + name));
-		dataset->read(ptr, typeToH5<SomeType>());
-		delete dataset;
+		void*       ptr     = static_cast<void*>(&value);
+		H5::DataSet dataset = hdf5file_->openDataSet("Def/" + name);
+		dataset.read(ptr, typeToH5<SomeType>());
 	}
 
 	void read(String& what, String name) { readInternal(what, name); }
@@ -444,9 +455,8 @@ public:
 		unsigned char tmp[1];
 		tmp[0]               = 0;
 		void*        ptr     = static_cast<void*>(tmp);
-		H5::DataSet* dataset = new H5::DataSet(hdf5file_->openDataSet("Def/" + name));
-		dataset->read(ptr, typeToH5<unsigned char>());
-		delete dataset;
+		H5::DataSet  dataset = hdf5file_->openDataSet("Def/" + name);
+		dataset.read(ptr, typeToH5<unsigned char>());
 		value = (tmp[0] & 1);
 	}
 
@@ -632,15 +642,15 @@ private:
 	{
 		using UnderlyingType = typename Real<typename SomeVectorType::value_type>::Type;
 
-		H5::DataSet* dataset = new H5::DataSet(hdf5file_->openDataSet("Def/" + name));
-		const H5::DataSpace& dspace = dataset->getSpace();
+		H5::DataSet          dataset = hdf5file_->openDataSet("Def/" + name);
+		const H5::DataSpace  dspace  = dataset.getSpace();
 		const int            ndims  = dspace.getSimpleExtentNdims();
 		if (ndims != 1)
 			throw RuntimeError("IoNgSerializer: problem reading "
 			                   "vector ndims != 1\n");
 
-		hsize_t* dims = new hsize_t[ndims];
-		dspace.getSimpleExtentDims(dims);
+		std::vector<hsize_t> dims(ndims);
+		dspace.getSimpleExtentDims(dims.data());
 
 		const hsize_t n = dims[0];
 		if (n == 0)
@@ -656,9 +666,7 @@ private:
 			    = (readEnumDest == ReadEnum::COMPLEX) ? getHalfSize(n) : n;
 			what.resize(complexSize, 0);
 			void* ptr = static_cast<void*>(&(what[0]));
-			dataset->read(ptr, typeToH5<UnderlyingType>());
-			delete[] dims;
-			delete dataset;
+			dataset.read(ptr, typeToH5<UnderlyingType>());
 			return;
 		}
 
@@ -667,12 +675,10 @@ private:
 			// this type is complex; but what's on disk is real
 			typename Vector<UnderlyingType>::Type temporary(dims[0]);
 			void* ptr2 = static_cast<void*>(&(temporary[0]));
-			dataset->read(ptr2, typeToH5<UnderlyingType>());
+			dataset.read(ptr2, typeToH5<UnderlyingType>());
 			what.resize(dims[0]);
 			for (SizeType i = 0; i < dims[0]; ++i)
 				what[i] = temporary[i]; // real to complex
-			delete[] dims;
-			delete dataset;
 			return;
 		}
 
@@ -701,12 +707,12 @@ private:
 	template <typename SomeType>
 	bool internalWrite(String name, const void* ptr, hsize_t dims[], SizeType ndims)
 	{
-		H5::DataSpace* dataspace = new H5::DataSpace(ndims, dims); // create new dspace
+		H5::DataSpace         dataspace(ndims, dims); // create new dspace
 		H5::DSetCreatPropList dsCreatPlist; // What properties here? FIXME
-		H5::DataSet*          dataset = nullptr;
+		H5::DataSet           dataset;
 		try {
-			dataset = new H5::DataSet(hdf5file_->createDataSet(
-			    name, typeToH5<SomeType>(), *dataspace, dsCreatPlist));
+			dataset = hdf5file_->createDataSet(
+			    name, typeToH5<SomeType>(), dataspace, dsCreatPlist);
 		} catch (H5::Exception& e) {
 			std::cerr << "H5 Exception createDataSet starts "
 			             "<-------------\n";
@@ -716,9 +722,7 @@ private:
 			return false;
 		}
 
-		dataset->write(ptr, typeToH5<SomeType>());
-		delete dataset;
-		delete dataspace;
+		dataset.write(ptr, typeToH5<SomeType>());
 		return true;
 	}
 
@@ -727,36 +731,34 @@ private:
 		hsize_t dims[1];
 		dims[0]                         = 1;
 		static const String   name      = "/Def/Canary";
-		H5::DataSpace*        dataspace = new H5::DataSpace(1, dims); // create new dspace
+		H5::DataSpace         dataspace(1, dims); // create new dspace
 		H5::DSetCreatPropList dsCreatPlist; // What properties here? FIXME
-		H5::DataSet*          dataset = 0;
+		H5::DataSet           dataset;
 
 		try {
-			dataset = new H5::DataSet(hdf5file_->openDataSet(name));
+			dataset = hdf5file_->openDataSet(name);
 		} catch (H5::Exception&) {
-			dataset = new H5::DataSet(hdf5file_->createDataSet(
-			    name, typeToH5<unsigned char>(), *dataspace, dsCreatPlist));
+			dataset = hdf5file_->createDataSet(
+			    name, typeToH5<unsigned char>(), dataspace, dsCreatPlist);
 		}
 
 		unsigned char c = CANARY_VALUE;
-		dataset->write(&c, typeToH5<unsigned char>());
-		delete dataset;
-		delete dataspace;
+		dataset.write(&c, typeToH5<unsigned char>());
 	}
 
 	void readCanary()
 	{
 		static const String name = "/Def/Canary";
 
-		H5::DataSet*         dataset = new H5::DataSet(hdf5file_->openDataSet(name));
-		const H5::DataSpace& dspace  = dataset->getSpace();
-		const int            ndims   = dspace.getSimpleExtentNdims();
+		H5::DataSet         dataset = hdf5file_->openDataSet(name);
+		const H5::DataSpace dspace  = dataset.getSpace();
+		const int           ndims   = dspace.getSimpleExtentNdims();
 		if (ndims != 1)
 			throw RuntimeError("IoNgSerializer: problem reading "
 			                   "vector<arith> (ndims)\n");
 
-		hsize_t* dims = new hsize_t[ndims];
-		dspace.getSimpleExtentDims(dims);
+		std::vector<hsize_t> dims(ndims);
+		dspace.getSimpleExtentDims(dims.data());
 
 		if (dims[0] == 0)
 			throw RuntimeError("IoNgSerializer: problem reading "
@@ -764,9 +766,7 @@ private:
 
 		unsigned char c   = 0;
 		void*         ptr = static_cast<void*>(&c);
-		dataset->read(ptr, typeToH5<unsigned char>());
-		delete[] dims;
-		delete dataset;
+		dataset.read(ptr, typeToH5<unsigned char>());
 
 		if (c != CANARY_VALUE)
 			throw RuntimeError("File " + filename_ + " is not valid (dead canary)\n");
