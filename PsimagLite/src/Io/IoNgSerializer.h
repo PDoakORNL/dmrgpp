@@ -3,10 +3,12 @@
 #include "../Complex.h"
 #include "../TypeToString.h"
 #include "../Vector.h"
+#include "HDF5DisableExceptionPrinting.h"
 #include "TypeToH5.h"
 #include <H5Cpp.h>
 #include <cassert>
 #include <stack>
+#include <vector>
 
 namespace PsimagLite {
 
@@ -123,23 +125,10 @@ public:
 	bool doesGroupExist(String groupName)
 	{
 		groupName = "Def/" + groupName;
-		H5::Exception::dontPrint();
 		try {
+			HDF5DisableExceptionPrinting disable;
 			H5::Group group = hdf5file_->openGroup(groupName);
 			group.close();
-		} catch (...) {
-			return false;
-		}
-
-		return true;
-	}
-
-	bool doesDatasetExist(const String& datasetName)
-	{
-		H5::Exception::dontPrint();
-		try {
-			H5::DataSet dataset = hdf5file_->openDataSet(datasetName);
-			dataset.close();
 		} catch (...) {
 			return false;
 		}
@@ -886,6 +875,7 @@ private:
 		const String nameComplexOrReal = name2 + "ComplexOrReal";
 		char         tmp;
 		try {
+			HDF5DisableExceptionPrinting disable;
 			read(tmp, nameComplexOrReal);
 		} catch (...) {
 			return ReadEnum::OTHER;
