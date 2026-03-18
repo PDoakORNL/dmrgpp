@@ -1,3 +1,122 @@
+2025-03-31 Version 7.00
+
+Infrastructure and tests
+
+* Cmake build now (Psitag system obsolete) (MR 45)
+
+* full pipeline cmake tests, and few with catch2 (MR 66, MR 105, MR 72)
+
+* Kron tests run automatically (MR 88)
+
+* Only one main branch: master (features deleted) (MR 53)
+
+* .cmake-format, .clang-format enforce indentation rules (MR 52)
+
+* Github automatic ci on push
+
+* Merge rules (must have approval, must pass ci)
+
+* Old ci system (with ci.pl) now obsolete
+
+* GSL, HDF5, BLAS, LAPACK now required (MR 84, MR 91)
+
+* pthreads enabled by default
+
+* minimum C++17 required (MR 98)
+
+bug fixes
+
+* QN: memory fix for empty
+
+* TargetExpression: various bug fixes
+
+* @auto works for odd number of sites
+
+* Fail if previous run and this run have different symmetries (MR 82)
+
+* Checkpoint fixes for odd number of sites
+
+* MPI correct initialization for all PsimagLite tests
+
+* nofiniteloops_bug_fix (MR 100)
+
+* Ainur macro expansion fixed
+
+* IsingMultiOrb bug fix (MR 127)
+
+New features
+
+* Arnoldi and Arnoldi-SAI (MR 65)
+
+Refactoring
+
+* typedef --> using (MR 101)
+
+* Rename Mpi.h -> NotMpi.h
+
+* Geometry and SuperGeometry classes interface changes
+
+* Some relative path removal (MR 134)
+
+Improvements
+
+* checks against computing multipoints in-situ
+
+* Signals support removed (MR 113)
+
+* PTHREAD_ASSIGN_AFFINITIES deleted (MR 135)
+
+* More Ainur labels now predefined
+
+* No longer needs bogus operators in non-ground-state (MR 122)
+
+* Remove outdated testQn.cpp test (MR 144)
+
+observe driver
+
+* observe can now measure partial sweeps
+
+* four-points accepted now in any order
+
+* added cmake tests
+
+Models
+
+* TjMultiOrb has correct weights in spin H
+
+* Liouvillian Heisenberg with jump operators implemented
+(MR 94, MR 104, MR 138)
+
+
+
+Documentation
+
+* SVD in DMRG++ added doc/SvdInDmrgpp.tex
+
+* Improve build instructions (MR 60)
+
+Scripts
+
+* fourierTimeSpace.pl modified + doc (MR 103)
+
+* pgfplot.pl can ignore TeX errors (Pontus L.)
+
+* coutAnalysis.pl fixed unobserved (Pontus L.)
+
+PsimagLite
+
+* PsimagLite and all its git history merged into DMRG++
+
+* drivers directory renamed to examples
+
+* added cmake tests and some catch2 tests
+
+Cincuenta
+
+* Cincuenta and all its git history merged into DMRG++
+
+* added cmake tests
+
 2023-08-08 Version 6.06
 
 Bug Fixes
