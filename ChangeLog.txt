@@ -87,8 +87,6 @@ Models
 * Liouvillian Heisenberg with jump operators implemented
 [MR 94, MR 104, MR 138]
 
-
-
 Documentation
 
 * SVD in DMRG++ added doc/SvdInDmrgpp.tex
