@@ -285,6 +285,8 @@ public:
 		return *terms_[ind];
 	}
 
+	size_t length(size_t i, size_t termId) const { return terms_[termId]->length(i); }
+
 	// extended functions in GeometryEx
 
 	// friends
