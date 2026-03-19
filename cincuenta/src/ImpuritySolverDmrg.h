@@ -65,7 +65,7 @@ public:
 		InputNgType::Writeable::readFile(data3, params_.omegaTemplate);
 		PsimagLite::String data4 = addBathParams(data3, bathParams);
 
-		// doType(DmrgType::TYPE_0, data4, mpiRank);
+		doType(DmrgType::TYPE_0, data4, mpiRank);
 
 		doType(DmrgType::TYPE_1, data4, mpiRank);
 
@@ -92,8 +92,6 @@ private:
 		const PsimagLite::String label2
 		    = "potentialV=[" + potentialV + "," + potentialV + "];\n";
 
-		std::cout << label << "\n";
-		std::cout << label2 << "\n";
 		return data + label + label2;
 	}
 

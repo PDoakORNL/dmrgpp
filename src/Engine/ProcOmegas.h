@@ -124,31 +124,31 @@ public:
 		fout = nullptr;
 	}
 
-	// void printPgfplots(PsimagLite::String foutname)
-	// {
-	// 	std::ofstream fout(foutname);
-	// 	if (!fout || fout.bad() || !fout.good())
-	// 		err("writeSpaceValues: Cannot write to " + foutname + "\n");
+	void printPgfplots(PsimagLite::String foutname)
+	{
+		std::ofstream fout(foutname);
+		if (!fout || fout.bad() || !fout.good())
+			err("writeSpaceValues: Cannot write to " + foutname + "\n");
 
-	// 	SizeType numberOfQs = 0;
-	// 	for (SizeType i = omegaParams_.offset(); i < omegaParams_.total(); ++i) {
-	// 		const RealType           omega = omegaParams_.omega(i);
-	// 		const VectorComplexType& v     = qData_.get(i - omegaParams_.offset());
+		SizeType numberOfQs = 0;
+		for (SizeType i = omegaParams_.offset(); i < omegaParams_.total(); ++i) {
+			const RealType           omega = omegaParams_.omega(i);
+			const VectorComplexType& v     = qData_.get(i - omegaParams_.offset());
 
-	// 		if (i == omegaParams_.offset()) {
-	// 			assert(numberOfQs == 0);
-	// 			numberOfQs = v.size();
-	// 		} else if (numberOfQs != v.size()) {
-	// 			err("INTERNAL ERROR: Omega set with non equal number of q "
-	// 			    "points\n");
-	// 		}
+			if (i == omegaParams_.offset()) {
+				assert(numberOfQs == 0);
+				numberOfQs = v.size();
+			} else if (numberOfQs != v.size()) {
+				err("INTERNAL ERROR: Omega set with non equal number of q "
+				    "points\n");
+			}
 
-	// 		for (SizeType m = 0; m < numberOfQs; ++m) {
-	// 			RealType q = omegasFourier_.q(m);
-	// 			fout << q << " " << omega << " " << PsimagLite::imag(v[m]) << "\n";
-	// 		}
-	// 	}
-	// }
+			for (SizeType m = 0; m < numberOfQs; ++m) {
+				RealType q = omegasFourier_.q(m);
+				fout << q << " " << omega << " " << PsimagLite::imag(v[m]) << "\n";
+			}
+		}
+	}
 
 private:
 
