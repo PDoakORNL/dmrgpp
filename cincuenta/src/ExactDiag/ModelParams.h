@@ -16,7 +16,9 @@ template <typename RealType> struct ModelParams {
 		assert((bathParams.size() & 1) == 0);
 		sites = bath + 1;
 		potentialV.resize(sites);
-		hoppings.resize(sites, sites);
+
+		// hoppings from the center to any other site
+		hoppings.resize(sites - 1);
 		for (SizeType i = 0; i < sites; ++i) {
 			if (i == center) {
 				continue;
@@ -26,15 +28,15 @@ template <typename RealType> struct ModelParams {
 			SizeType offset = (i < center) ? 0 : 1;
 			assert(i >= offset);
 
-			hoppings(center, i) = hoppings(i, center) = bathParams[i - offset];
-			potentialV[i]                             = bathParams[i + bath - offset];
+			hoppings[i]   = bathParams[i - offset];
+			potentialV[i] = bathParams[i + bath - offset];
 		}
 	}
 
-	SizeType                     center_site;
-	SizeType                     sites;
-	VectorRealType               potentialV;
-	PsimagLite::Matrix<RealType> hoppings;
+	SizeType       center_site;
+	SizeType       sites;
+	VectorRealType potentialV;
+	VectorRealType hoppings;
 };
 
 }

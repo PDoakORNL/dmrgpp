@@ -6,40 +6,43 @@
 #include "CrsMatrix.h"
 #include "ExactDiag/BasisExactDiag.h"
 #include "ExactDiag/ModelParams.h"
+#include "Geometry/Star.h"
 #include "ImpuritySolverBase.h"
 #include "InputCheck.h"
 #include "InputNg.h"
 #include "LanczosSolver.h"
 #include "Matsubaras.h"
 #include "MersenneTwister.h"
+#include "ParamsDmftSolver.h"
 #include "PsimagLite.h"
 #include "SparseRow.h"
 #include "Vector.h"
 
 namespace Dmft {
 
-template <typename ParamsDmftSolverType>
-class ImpuritySolverExactDiag : public ImpuritySolverBase<ParamsDmftSolverType> {
+template <typename ComplexOrRealType>
+class ImpuritySolverExactDiag : public ImpuritySolverBase<ComplexOrRealType> {
 
 public:
 
-	using ComplexOrRealType = typename ParamsDmftSolverType::ComplexOrRealType;
-	using RealType          = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using ComplexType       = std::complex<RealType>;
-	using VectorRealType    = typename PsimagLite::Vector<RealType>::Type;
-	using VectorComplexType = typename PsimagLite::Vector<ComplexType>::Type;
+	using InputNgType          = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using ParamsDmftSolverType = ParamsDmftSolver<ComplexOrRealType>;
+	using RealType             = typename PsimagLite::Real<ComplexOrRealType>::Type;
+	using ComplexType          = std::complex<RealType>;
+	using VectorRealType       = typename PsimagLite::Vector<RealType>::Type;
+	using VectorComplexType    = typename PsimagLite::Vector<ComplexType>::Type;
 	using ApplicationType  = typename ImpuritySolverBase<ParamsDmftSolverType>::ApplicationType;
 	using SparseMatrixType = PsimagLite::CrsMatrix<ComplexOrRealType>;
 	using SparseRowType    = PsimagLite::SparseRow<SparseMatrixType>;
 	using WordType         = long unsigned int;
 	using BasisType        = BasisExactDiag;
 	using ModelParamsType  = ModelParams<RealType>;
-	using InputNgType      = PsimagLite::InputNg<Dmrg::InputCheck>;
 	using SolverParametersType = PsimagLite::ParametersForSolver<RealType>;
 	using LanczosSolverType    = PsimagLite::LanczosSolver<SparseMatrixType>;
 	using LabeledOperatorType  = BasisType::LabeledOperatorType;
 	using MatrixType           = PsimagLite::Matrix<ComplexOrRealType>;
 	using MatsubarasType       = Matsubaras<RealType>;
+	using StarType             = PsimagLite::Star<ComplexOrRealType, InputNgType::Readable>;
 
 	ImpuritySolverExactDiag(const ParamsDmftSolverType& params, const ApplicationType& app)
 	    : params_(params)
@@ -55,6 +58,10 @@ public:
 		io.readline(nup_, "TargetElectronsUp=");
 		io.readline(ndown_, "TargetElectronsDown=");
 		solverParams_ = new SolverParametersType(io, "Lanczos");
+
+		SizeType nsites = 0;
+		io.readline(nsites, "TotalNumberOfSites=");
+		star_ = StarType(nsites, io);
 	}
 
 	~ImpuritySolverExactDiag()
@@ -194,7 +201,9 @@ private:
 
 		// Hopping term
 		for (SizeType j = 0; j < nsite; ++j) {
-			const ComplexOrRealType& h = mp.hoppings(i, j);
+			SizeType handle = star_.handle(i, j);
+			assert(handle < mp.hoppings.size());
+			const ComplexOrRealType& h = mp.hoppings[handle];
 			const bool hasHop = (PsimagLite::real(h) != 0 || PsimagLite::imag(h) != 0);
 			WordType   s1j    = (ket1 & BasisType::bitmask(j));
 			if (s1j > 0)
@@ -395,6 +404,7 @@ private:
 	SizeType                    nup_;
 	SizeType                    ndown_;
 	VectorComplexType           gimp_;
+	StarType                    star_;
 };
 }
 #endif // IMPURITYSOLVER_EXACTD_H

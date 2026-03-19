@@ -2,8 +2,10 @@
 #define IMPURITYSOLVER_DMRG_H
 
 #include "DmrgRunner.h"
+#include "ExactDiag/ModelParams.h"
 #include "Geometry/Star.h"
 #include "ImpuritySolverBase.h"
+#include "InputCheck.h"
 #include "InputNg.h"
 #include "LanczosSolver.h"
 #include "ManyOmegas.h"
@@ -16,8 +18,8 @@
 
 namespace Dmft {
 
-template <typename ParamsDmftSolverType>
-class ImpuritySolverDmrg : public ImpuritySolverBase<ParamsDmftSolverType> {
+template <typename ComplexOrRealType>
+class ImpuritySolverDmrg : public ImpuritySolverBase<ComplexOrRealType> {
 
 	enum class DmrgType
 	{
@@ -27,17 +29,18 @@ class ImpuritySolverDmrg : public ImpuritySolverBase<ParamsDmftSolverType> {
 
 public:
 
-	using ComplexOrRealType = typename ParamsDmftSolverType::ComplexOrRealType;
-	using RealType          = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using ComplexType       = std::complex<RealType>;
-	using VectorRealType    = typename PsimagLite::Vector<RealType>::Type;
-	using VectorComplexType = typename PsimagLite::Vector<ComplexType>::Type;
-	using DmrgRunnerType    = Dmrg::DmrgRunner<RealType>;
-	using InputNgType       = typename DmrgRunnerType::InputNgType;
-	using ApplicationType   = PsimagLite::PsiApp;
-	using MatsubarasType    = Matsubaras<RealType>;
-	using ManyOmegasType    = Dmrg::ManyOmegas<RealType, MatsubarasType>;
-	using ProcOmegasType    = Dmrg::ProcOmegas<RealType, MatsubarasType>;
+	using InputNgType          = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using ParamsDmftSolverType = ParamsDmftSolver<ComplexOrRealType>;
+	using RealType             = typename PsimagLite::Real<ComplexOrRealType>::Type;
+	using ComplexType          = std::complex<RealType>;
+	using VectorRealType       = typename PsimagLite::Vector<RealType>::Type;
+	using VectorComplexType    = typename PsimagLite::Vector<ComplexType>::Type;
+	using DmrgRunnerType       = Dmrg::DmrgRunner<RealType>;
+	using ApplicationType      = PsimagLite::PsiApp;
+	using MatsubarasType       = Matsubaras<RealType>;
+	using ManyOmegasType       = Dmrg::ManyOmegas<RealType, MatsubarasType>;
+	using ProcOmegasType       = Dmrg::ProcOmegas<RealType, MatsubarasType>;
+	using ModelParamsType      = ModelParams<RealType>;
 
 	ImpuritySolverDmrg(const ParamsDmftSolverType& params, const ApplicationType& app)
 	    : params_(params)
@@ -48,12 +51,13 @@ public:
 	// bathParams[nBath-...] ==> energies on each bath site
 	void solve(const VectorRealType& bathParams)
 	{
-		SizeType mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
+		ModelParamsType model_params(bathParams, params_.center_site);
+		SizeType        mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
 
 		if (mpiRank == 0) {
 			PsimagLite::String data;
 			InputNgType::Writeable::readFile(data, params_.gsTemplate);
-			PsimagLite::String data2  = addBathParams(data, bathParams);
+			PsimagLite::String data2  = addBathParams(data, model_params);
 			PsimagLite::String insitu = "<gs|nup|gs>";
 
 			runner_.doOneRun(data2, insitu, "-");
@@ -63,7 +67,7 @@ public:
 
 		PsimagLite::String data3;
 		InputNgType::Writeable::readFile(data3, params_.omegaTemplate);
-		PsimagLite::String data4 = addBathParams(data3, bathParams);
+		PsimagLite::String data4 = addBathParams(data3, model_params);
 
 		doType(DmrgType::TYPE_0, data4, mpiRank);
 
@@ -83,46 +87,26 @@ public:
 
 private:
 
-	PsimagLite::String addBathParams(PsimagLite::String data, const VectorRealType& bathParams)
+	PsimagLite::String addBathParams(PsimagLite::String     data,
+	                                 const ModelParamsType& model_params)
 	{
-		const SizeType           nBath      = int(bathParams.size() / 2);
-		const PsimagLite::String connectors = findBathParams(0, nBath, bathParams);
+		const PsimagLite::String connectors = vectorToString(model_params.hoppings, ",");
 		const PsimagLite::String label      = "dir0:Connectors=[" + connectors + "];\n";
-		const PsimagLite::String potentialV = findBathParams2(nBath, bathParams);
+		const PsimagLite::String potentialV = vectorToString(model_params.potentialV, ",");
 		const PsimagLite::String label2
 		    = "potentialV=[" + potentialV + "," + potentialV + "];\n";
 
 		return data + label + label2;
 	}
 
-	static PsimagLite::String
-	findBathParams(SizeType start, SizeType end, const VectorRealType& bathParams)
-	{
-		PsimagLite::String buffer = ttos(bathParams[start]);
-		for (SizeType i = start + 1; i < end; ++i)
-			buffer += "," + ttos(bathParams[i]);
-
-		return buffer;
-	}
-
-	PsimagLite::String findBathParams2(SizeType start, const VectorRealType& bathParams)
+	static PsimagLite::String vectorToString(const VectorRealType& v,
+	                                         const std::string&    separator)
 	{
 		PsimagLite::String buffer;
-		SizeType           offset = 0;
-		SizeType           sites  = bathParams.size() / 2 + 1;
-		for (SizeType i = 0; i < sites; ++i) {
-			PsimagLite::String tmp;
-			if (i == params_.center_site) {
-				tmp    = "0";
-				offset = 1;
-			} else {
-				assert(i >= offset);
-				RealType value = bathParams[start + i - offset];
-				tmp            = ttos(value);
-			}
-
-			buffer += tmp;
-			if (i + 1 < sites) {
+		SizeType           n = v.size();
+		for (SizeType i = 0; i < n; ++i) {
+			buffer += ttos(v[i]);
+			if (i + 1 < n) {
 				buffer += ",";
 			}
 		}

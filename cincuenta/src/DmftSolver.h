@@ -10,7 +10,7 @@
 
 namespace Dmft {
 
-template <typename ComplexOrRealType, typename InputNgType> class DmftSolver {
+template <typename ComplexOrRealType> class DmftSolver {
 
 public:
 
@@ -20,10 +20,10 @@ public:
 	using VectorRealType              = typename MatsubarasType::VectorRealType;
 	using FitType                     = Fit<ComplexOrRealType>;
 	using MinParamsType               = typename FitType::MinParamsType;
-	using ParamsDmftSolverType        = ParamsDmftSolver<ComplexOrRealType, InputNgType>;
-	using ImpuritySolverType          = ImpuritySolverBase<ParamsDmftSolverType>;
-	using ImpuritySolverExactDiagType = ImpuritySolverExactDiag<ParamsDmftSolverType>;
-	using ImpuritySolverDmrgType      = ImpuritySolverDmrg<ParamsDmftSolverType>;
+	using ParamsDmftSolverType        = ParamsDmftSolver<ComplexOrRealType>;
+	using ImpuritySolverType          = ImpuritySolverBase<ComplexOrRealType>;
+	using ImpuritySolverExactDiagType = ImpuritySolverExactDiag<ComplexOrRealType>;
+	using ImpuritySolverDmrgType      = ImpuritySolverDmrg<ComplexOrRealType>;
 	using LatticeGfType               = LatticeGf<ComplexOrRealType>;
 	using ApplicationType             = typename ImpuritySolverType::ApplicationType;
 	using AndersonFunctionType        = typename FitType::AndersonFunctionType;

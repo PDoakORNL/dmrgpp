@@ -54,14 +54,14 @@ int main(int argc, char* argv[])
 #endif
 	        RealType;
 	using ComplexType             = std::complex<RealType>;
-	using InputNgType             = PsimagLite::InputNg<Dmft::InputCheck>;
-	using ParamsDmftSolverType    = Dmft::ParamsDmftSolver<RealType, InputNgType>;
+	using InputNgType             = PsimagLite::InputNg<Dmft::CincuentaInputCheck>;
+	using ParamsDmftSolverType    = Dmft::ParamsDmftSolver<RealType>;
 	using FunctionOfFrequencyType = Dmft::FunctionOfFrequency<ComplexType>;
 
-	PsimagLite::String     inputfile = argv[1];
-	Dmft::InputCheck       inputCheck;
-	InputNgType::Writeable ioWriteable(inputfile, inputCheck);
-	InputNgType::Readable  io(ioWriteable);
+	PsimagLite::String        inputfile = argv[1];
+	Dmft::CincuentaInputCheck inputCheck;
+	InputNgType::Writeable    ioWriteable(inputfile, inputCheck);
+	InputNgType::Readable     io(ioWriteable);
 
 	ParamsDmftSolverType       params(io);
 	Dmft::Matsubaras<RealType> matsubaras(params.ficticiousBeta, params.nMatsubaras);

@@ -1,6 +1,6 @@
+#include "CincuentaInputCheck.h"
 #include "Dispersion.h"
 #include "DmftSolver.h"
-#include "InputCheck.h"
 #include "ProgramGlobals.h"
 #include "Provenance.h"
 #include "PsimagLite.h"
@@ -28,7 +28,7 @@ void usage(const std::string& name)
 int main(int argc, char** argv)
 {
 	PsimagLite::PsiApp application("dmft", &argc, &argv, 1);
-	using InputNgType = PsimagLite::InputNg<Dmft::InputCheck>;
+	using InputNgType = PsimagLite::InputNg<Dmft::CincuentaInputCheck>;
 	typedef
 #ifndef USE_FLOAT
 	    double
@@ -36,7 +36,7 @@ int main(int argc, char** argv)
 	    float
 #endif
 	        RealType;
-	using DmftSolverType       = Dmft::DmftSolver<std::complex<RealType>, InputNgType>;
+	using DmftSolverType       = Dmft::DmftSolver<std::complex<RealType>>;
 	using ParamsDmftSolverType = DmftSolverType::ParamsDmftSolverType;
 	int         opt            = 0;
 	bool        versionOnly    = false;
@@ -150,9 +150,9 @@ to the main dmrg driver are the following.
 	if (echoInput)
 		application.echoBase64(std::cout, inputfile);
 
-	Dmft::InputCheck       inputCheck;
-	InputNgType::Writeable ioWriteable(inputfile, inputCheck);
-	InputNgType::Readable  io(ioWriteable);
+	Dmft::CincuentaInputCheck inputCheck;
+	InputNgType::Writeable    ioWriteable(inputfile, inputCheck);
+	InputNgType::Readable     io(ioWriteable);
 
 	ParamsDmftSolverType params(io);
 	if (precision > 0)

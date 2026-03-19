@@ -1,5 +1,6 @@
 #ifndef PARAMSDMFTSOLVER_H
 #define PARAMSDMFTSOLVER_H
+#include "CincuentaInputCheck.h"
 #include "Geometry/Star.h"
 #include "InputNg.h"
 #include "MinParams.h"
@@ -7,11 +8,12 @@
 
 namespace Dmft {
 
-template <typename ComplexOrRealType_, typename InputNgType> struct ParamsDmftSolver {
+template <typename ComplexOrRealType_> struct ParamsDmftSolver {
 
 	using ComplexOrRealType = ComplexOrRealType_;
 	using RealType          = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using MinParamsType     = MinParams<RealType>;
+	using InputNgType       = PsimagLite::InputNg<CincuentaInputCheck>;
 
 	ParamsDmftSolver(typename InputNgType::Readable& io)
 	    : echoInput(false)

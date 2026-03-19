@@ -1,9 +1,9 @@
-/*! \file InputCheck.h
+/*! \file CincuentaInputCheck.h
  *
- *  InputChecking functions
+ *  CincuentaInputChecking functions
  */
-#ifndef DMFT_INPUT_CHECK_H
-#define DMFT_INPUT_CHECK_H
+#ifndef CINCUENTA_INPUT_CHECK_H
+#define CINCUENTA_INPUT_CHECK_H
 #include "../../PsimagLite/src/Options.h"
 #include "Geometry/Geometry.h"
 #include <stdexcept>
@@ -12,20 +12,20 @@
 
 namespace Dmft {
 
-class InputCheck {
+class CincuentaInputCheck {
 
 	using OptionsReadableType = PsimagLite::Options::Readable;
 	using VectorStringType    = PsimagLite::Vector<PsimagLite::String>::Type;
 
 public:
 
-	InputCheck()
+	CincuentaInputCheck()
 	    : optsReadable_(0)
 	{
 		// knownLabels_.push_back("TotalNumberOfSites");
 	}
 
-	~InputCheck()
+	~CincuentaInputCheck()
 	{
 		if (optsReadable_ != 0)
 			delete optsReadable_;
@@ -117,7 +117,7 @@ private:
 	OptionsReadableType* optsReadable_;
 	VectorStringType     allowedFileOptions_;
 	VectorStringType     knownLabels_;
-}; // class InputCheck
+}; // class CincuentaInputCheck
 } // namespace Dmft
 
 /*@}*/
