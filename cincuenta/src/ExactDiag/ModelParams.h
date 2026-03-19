@@ -28,8 +28,8 @@ template <typename RealType> struct ModelParams {
 			SizeType offset = (i < center) ? 0 : 1;
 			assert(i >= offset);
 
-			hoppings[i]   = bathParams[i - offset];
-			potentialV[i] = bathParams[i + bath - offset];
+			hoppings[i - offset] = bathParams[i - offset];
+			potentialV[i]        = bathParams[i + bath - offset];
 		}
 	}
 
