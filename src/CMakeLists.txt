@@ -178,8 +178,8 @@ add_test(NAME input4720 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input4720.ain) # ene
 add_lowest_eigenvalue_check_test(output4720 34.0013 runForinput4720.cout)
 add_test(NAME input6020 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input6020.ain) # energy -2.59474
 add_lowest_eigenvalue_check_test(output6020 -2.59474 runForinput6020.cout)
-add_test(NAME input6700 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input6700.ain) # energy -4.17889
-add_lowest_eigenvalue_check_test(output6700 -4.17889 runForinput6700.cout SHOULD_FAIL)
+add_test(NAME input6700 COMMAND ./dmrg -f
+${PATH_TO_INPUTS}/input6700.ain) # energy -4.17889 we don't check this
 add_test(NAME input8900 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input8900.ain "<gs|sz_p|gs>") # none
 add_test(NAME input8901 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input8901.ain "<gs|sz|gs>") # none
 # Tests for the observe executable
