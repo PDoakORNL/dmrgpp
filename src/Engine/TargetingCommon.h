@@ -274,15 +274,16 @@ public:
 	{
 		read(io, prefix);
 
-		TimeSerializerType* ts = 0;
-
-		try {
-			ts = new TimeSerializerType(io, prefix);
-		} catch (...) {
+		if (auto& s = io.serializer(); !s.doesGroupExist(prefix + "/TimeSerializer/")) {
+			std::cerr << "WARNING: Group Def/" << prefix
+			          << "/TimeSerializer/ was not found in file " << s.filename()
+			          << ".\n Data was not read.\n";
 			return;
 		}
 
-		const typename TimeSerializerType::VectorStageEnumType& stages = ts->stages();
+		TimeSerializerType ts(io, prefix);
+
+		const typename TimeSerializerType::VectorStageEnumType& stages = ts.stages();
 		const SizeType rstages = stages.size(); // read stages
 		const SizeType dstages = aoe_.stages().size(); // destination stages
 
@@ -297,7 +298,7 @@ public:
 		for (SizeType i = 0; i < dstagesOrZero; ++i)
 			aoe_.setStage(i, stages[i]);
 
-		SizeType rtvs = ts->numberOfVectors(); // read tvs
+		SizeType rtvs = ts.numberOfVectors(); // read tvs
 		SizeType dtvs = aoe_.tvs(); // destination tvs
 
 		int tvForPsi = checkpoint.sourceTvForPsi();
@@ -310,7 +311,7 @@ public:
 			std::cout << "FIXME TODO WARNING: Need better spec for TvForPsi\n";
 			std::cerr << "FIXME TODO WARNING: Need better spec for TvForPsi\n";
 
-			aoe_.setOnlyOnePsi(ts->vector(tvForPsiUnsigned));
+			aoe_.setOnlyOnePsi(ts.vector(tvForPsiUnsigned));
 		}
 
 		ApplyOperatorExpressionType& aoeNonConst
@@ -325,18 +326,15 @@ public:
 				    + " >= " + ttos(rtvs) + "\n");
 			}
 
-			aoeNonConst.targetVectorsNonConst(i) = ts->vector(j);
+			aoeNonConst.targetVectorsNonConst(i) = ts.vector(j);
 		}
 
-		bool     sameNgst  = isThisNgstSameAsPrevious(name, ts->name(), dtvs, rtvs);
-		SizeType cTimeStep = (sameNgst) ? ts->currentTimeStep() : 0;
+		bool     sameNgst  = isThisNgstSameAsPrevious(name, ts.name(), dtvs, rtvs);
+		SizeType cTimeStep = (sameNgst) ? ts.currentTimeStep() : 0;
 		setCurrentTimeStep(cTimeStep);
 
-		RealType timeReal = (sameNgst) ? ts->time() : 0;
+		RealType timeReal = (sameNgst) ? ts.time() : 0;
 		setCurrentTime(timeReal);
-
-		delete ts;
-		ts = 0;
 	}
 
 	// END read/write
