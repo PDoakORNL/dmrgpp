@@ -425,11 +425,7 @@ public:
 	    = 0)
 	{
 		void*       ptr     = static_cast<void*>(&value);
-		H5::DataSet dataset = [this, &name]()
-		{
-			HDF5DisableExceptionPrinting disable;
-			return hdf5file_->openDataSet("Def/" + name);
-		}();
+		H5::DataSet dataset = hdf5file_->openDataSet("Def/" + name);
 		dataset.read(ptr, typeToH5<SomeType>());
 	}
 
