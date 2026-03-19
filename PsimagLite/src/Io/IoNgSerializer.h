@@ -7,6 +7,7 @@
 #include "TypeToH5.h"
 #include <H5Cpp.h>
 #include <cassert>
+#include <memory>
 #include <stack>
 #include <vector>
 
@@ -37,8 +38,7 @@ public:
 	};
 
 	IoNgSerializer(String filename, unsigned int mode)
-	    : hdf5file_(nullptr)
-	    , filename_(filename)
+	    : filename_(filename)
 	    , mode_(mode)
 	{
 #ifdef NDEBUG
@@ -46,10 +46,8 @@ public:
 #endif
 
 		try {
-			hdf5file_ = new H5::H5File(filename, mode);
+			hdf5file_ = std::make_unique<H5::H5File>(filename, mode);
 		} catch (H5::Exception& e) {
-			delete hdf5file_;
-			hdf5file_ = nullptr;
 			throw e;
 		}
 
@@ -57,9 +55,7 @@ public:
 			try {
 				createGroup("");
 			} catch (H5::Exception& e) {
-				filename_ = "";
-				delete hdf5file_;
-				hdf5file_ = 0;
+				filename_.clear();
 				throw e;
 			}
 		}
@@ -68,9 +64,7 @@ public:
 			try {
 				readCanary();
 			} catch (H5::Exception& e) {
-				filename_ = "";
-				delete hdf5file_;
-				hdf5file_ = 0;
+				filename_.clear();
 				throw e;
 			}
 		}
@@ -80,10 +74,6 @@ public:
 	{
 		if (hdf5file_ && mode_ != H5F_ACC_RDONLY)
 			writeCanary();
-
-		filename_ = "";
-		delete hdf5file_;
-		hdf5file_ = 0;
 	}
 
 	static void dontPrintDebug() { H5::Exception::dontPrint(); }
@@ -94,7 +84,7 @@ public:
 			throw RuntimeError("IoNgSerializer::open(): object already open\n");
 
 		filename_ = filename;
-		hdf5file_ = new H5::H5File(filename, mode);
+		hdf5file_ = std::make_unique<H5::H5File>(filename, mode);
 		if (hdf5file_ && mode_ != H5F_ACC_RDONLY)
 			writeCanary();
 	}
@@ -105,9 +95,8 @@ public:
 			writeCanary();
 
 		hdf5file_->close();
-		delete hdf5file_;
-		hdf5file_ = 0;
-		filename_ = "";
+		hdf5file_.reset();
+		filename_.clear();
 	}
 
 	void flush()
@@ -898,9 +887,9 @@ private:
 		return (Loki::TypeTraits<T>::isFloat) ? ReadEnum::FLOATING : ReadEnum::OTHER;
 	}
 
-	H5::H5File*           hdf5file_;
-	String                filename_;
-	unsigned int          mode_;
+	std::unique_ptr<H5::H5File> hdf5file_;
+	String                      filename_;
+	unsigned int                mode_;
 	static const SizeType booleanEncodedSize_  = 4;
 	static const SizeType booleanEncodedStart_ = 4;
 };
