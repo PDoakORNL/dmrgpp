@@ -3,6 +3,7 @@
 #include "LanczosDriver.h"
 #include "Io/IoSimple.h"
 #include "LabeledOperator.h"
+#include "LanczosGlobals.h"
 
 template<typename ModelType>
 SizeType maxOrbitals(const ModelType& model)

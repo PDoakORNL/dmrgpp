@@ -93,7 +93,7 @@ public:
 				WordType x = basis(ispace, dof);
 				for (SizeType site = 0; site < numberOfSites; site++) {
 					SizeType reflectedSite
-					    = geometry.findReflection(site, termId);
+					    = geometry.term(termId).findReflection(site);
 					SizeType thisSiteContent = x & 1;
 					x >>= 1; // go to next site
 					addTo(y[dof], thisSiteContent, reflectedSite);

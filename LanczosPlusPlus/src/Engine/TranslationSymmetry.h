@@ -143,7 +143,7 @@ private:
 		WordType y             = 0;
 		SizeType diry          = 1;
 		for (SizeType site = 0; site < numberOfSites; site++) {
-			SizeType tSite           = geometry_.translate(site, diry, k, termId);
+			SizeType tSite           = geometry_.term(termId).translate(site, diry, k);
 			SizeType thisSiteContent = x & 1;
 			x >>= 1; // go to next site
 			addTo(y, thisSiteContent, tSite);
