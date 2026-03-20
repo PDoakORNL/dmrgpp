@@ -84,44 +84,42 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 namespace LanczosPlusPlus {
 //! Tj1Orb Model Parameters
-template<typename Field,typename InputType>
-struct ParametersTjMultiOrb {
+template <typename Field, typename InputType> struct ParametersTjMultiOrb {
 
 	ParametersTjMultiOrb(InputType& io)
 	    : reinterpretAndTruncate(0)
 	{
 		try {
-			io.read(potentialV,"potentialV");
-		} catch(std::exception&) {}
+			io.read(potentialV, "potentialV");
+		} catch (std::exception&) { }
 
 		try {
-			io.readline(reinterpretAndTruncate,"JHundInfinity=");
-		} catch (std::exception&) {}
+			io.readline(reinterpretAndTruncate, "JHundInfinity=");
+		} catch (std::exception&) { }
 
-		io.read(orbitals,"Orbitals=");
+		io.read(orbitals, "Orbitals=");
 		if (orbitals != 2 && reinterpretAndTruncate) {
-			throw PsimagLite::RuntimeError("JHundInfinity=1 only possible for orbitals==2\n");
+			throw PsimagLite::RuntimeError(
+			    "JHundInfinity=1 only possible for orbitals==2\n");
 		}
 	}
 
 	// Do not include here connection parameters
 	// those are handled by the Geometry
-	SizeType orbitals;
+	SizeType                                 orbitals;
 	typename PsimagLite::Vector<Field>::Type potentialV;
-	SizeType reinterpretAndTruncate;
+	SizeType                                 reinterpretAndTruncate;
 };
 
 //! Function that prints model parameters to stream os
-template<typename FieldType,typename InputType>
-std::ostream& operator<<(std::ostream &os,
-                         const ParametersTjMultiOrb<FieldType,InputType>& p)
+template <typename FieldType, typename InputType>
+std::ostream& operator<<(std::ostream& os, const ParametersTjMultiOrb<FieldType, InputType>& p)
 {
-	os<<"Orbitals="<<p.orbitals<<"\n";
-	os<<"JHundInfinity="<<p.reinterpretAndTruncate<<"\n";
+	os << "Orbitals=" << p.orbitals << "\n";
+	os << "JHundInfinity=" << p.reinterpretAndTruncate << "\n";
 	return os;
 }
 } // namespace LanczosPlusPlus
 
 /*@}*/
 #endif
-

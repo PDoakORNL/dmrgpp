@@ -84,24 +84,23 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 namespace LanczosPlusPlus {
 //! Hubbard Model Parameters
-template<typename Field,typename InputType>
-struct ParametersModelHubbard {
+template <typename Field, typename InputType> struct ParametersModelHubbard {
 
 	ParametersModelHubbard(InputType& io)
 	{
-		io.readline(model,"Model=");
-		io.read(hubbardU,"hubbardU");
-		io.read(potentialV,"potentialV");
+		io.readline(model, "Model=");
+		io.read(hubbardU, "hubbardU");
+		io.read(potentialV, "potentialV");
 		timeFactor = 0;
 		try {
-			io.read(potentialT,"PotentialT");
-			io.readline(timeFactor,"timeFactor=");
-		} catch (std::exception& e) {}
+			io.read(potentialT, "PotentialT");
+			io.readline(timeFactor, "timeFactor=");
+		} catch (std::exception& e) { }
 	}
 
 	ParametersModelHubbard(const ParametersModelHubbard&) = delete;
 
-	ParametersModelHubbard& operator=(const ParametersModelHubbard &) = delete;
+	ParametersModelHubbard& operator=(const ParametersModelHubbard&) = delete;
 
 	PsimagLite::String model;
 	// Do not include here connection parameters
@@ -111,20 +110,19 @@ struct ParametersModelHubbard {
 	// Onsite potential values, one for each site
 	typename PsimagLite::Vector<Field>::Type potentialV;
 	typename PsimagLite::Vector<Field>::Type potentialT;
-	Field timeFactor;
+	Field                                    timeFactor;
 };
 
 //! Function that prints model parameters to stream os
-template<typename FieldType,typename InputType>
-std::ostream& operator<<(std::ostream &os,
-                         const ParametersModelHubbard<FieldType,InputType>& params)
+template <typename FieldType, typename InputType>
+std::ostream& operator<<(std::ostream&                                       os,
+                         const ParametersModelHubbard<FieldType, InputType>& params)
 {
-	PsimagLite::vectorPrint(params.hubbardU,"hubbardU",os);
-	PsimagLite::vectorPrint(params.potentialV,"potentialV",os);
+	PsimagLite::vectorPrint(params.hubbardU, "hubbardU", os);
+	PsimagLite::vectorPrint(params.potentialV, "potentialV", os);
 	return os;
 }
 } // namespace LanczosPlusPlus
 
 /*@}*/
 #endif
-

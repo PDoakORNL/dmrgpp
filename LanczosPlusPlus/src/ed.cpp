@@ -1,5 +1,5 @@
-#include "LanczosDriver.h"
 #include "ExactDiag.h"
+#include "LanczosDriver.h"
 
 PsimagLite::String license = "Copyright (c) 2009-2020, UT-Battelle, LLC\n"
                              "All rights reserved\n"
@@ -19,55 +19,52 @@ PsimagLite::String license = "Copyright (c) 2009-2020, UT-Battelle, LLC\n"
 
 using namespace LanczosPlusPlus;
 
-template<typename ModelType>
-void mainLoop(InputNgType::Readable& io, const ModelType& model)
+template <typename ModelType> void mainLoop(InputNgType::Readable& io, const ModelType& model)
 {
-	typedef typename ModelType::GeometryType GeometryType;
-	typedef typename ModelType::BasisBaseType BasisBaseType;
-	typedef LanczosPlusPlus::DefaultSymmetry<GeometryType,BasisBaseType> DefaultSymmetryType;
-	typedef InternalProductStored<ModelType, DefaultSymmetryType> InternalProductType;
-	typedef ExactDiag<InternalProductType> ExactDiagType;
+	typedef typename ModelType::GeometryType                              GeometryType;
+	typedef typename ModelType::BasisBaseType                             BasisBaseType;
+	typedef LanczosPlusPlus::DefaultSymmetry<GeometryType, BasisBaseType> DefaultSymmetryType;
+	typedef InternalProductStored<ModelType, DefaultSymmetryType>         InternalProductType;
+	typedef ExactDiag<InternalProductType>                                ExactDiagType;
 
 	DefaultSymmetryType rs(model.basis(), model.geometry(), "");
 	InternalProductType hamiltonian(model, rs);
-	ExactDiagType exactDiag(io, model, hamiltonian);
+	ExactDiagType       exactDiag(io, model, hamiltonian);
 
 	exactDiag.printEnergiesVsTemperature(std::cout);
 }
 
-template<typename ComplexOrRealType>
-void mainLoop0(InputNgType::Readable& io)
+template <typename ComplexOrRealType> void mainLoop0(InputNgType::Readable& io)
 {
-	typedef PsimagLite::Geometry<ComplexOrRealType,
-	        InputNgType::Readable,
-	        LanczosPlusPlus::ProgramGlobals> GeometryType;
-	typedef LanczosPlusPlus::ModelSelector<ComplexOrRealType,
-	        GeometryType,
-	        InputNgType::Readable> ModelSelectorType;
+	typedef PsimagLite::
+	    Geometry<ComplexOrRealType, InputNgType::Readable, LanczosPlusPlus::ProgramGlobals>
+	        GeometryType;
+	typedef LanczosPlusPlus::
+	    ModelSelector<ComplexOrRealType, GeometryType, InputNgType::Readable>
+	                                                  ModelSelectorType;
 	typedef typename ModelSelectorType::ModelBaseType ModelBaseType;
-
 
 	GeometryType geometry(io);
 
-	std::cout<<geometry;
+	std::cout << geometry;
 
-	ModelSelectorType modelSelector(io,geometry);
+	ModelSelectorType    modelSelector(io, geometry);
 	const ModelBaseType& modelPtr = modelSelector();
 
-	std::cout<<modelPtr;
+	std::cout << modelPtr;
 	mainLoop(io, modelPtr);
 }
 
-int main(int argc,char **argv)
+int main(int argc, char** argv)
 {
-	PsimagLite::PsiApp application("lanczos++ED", &argc, &argv, 1);
-	int opt = 0;
-	PsimagLite::String file = "";
+	PsimagLite::PsiApp                           application("lanczos++ED", &argc, &argv, 1);
+	int                                          opt  = 0;
+	PsimagLite::String                           file = "";
 	PsimagLite::Vector<PsimagLite::String>::Type str;
-	InputCheck inputCheck;
-	int precision = 10;
-	bool versionOnly = false;
-	SizeType threadsInCmdLine = 0;
+	InputCheck                                   inputCheck;
+	int                                          precision        = 10;
+	bool                                         versionOnly      = false;
+	SizeType                                     threadsInCmdLine = 0;
 
 	/* PSIDOC EdDriver
 	\begin{itemize}
@@ -104,22 +101,23 @@ int main(int argc,char **argv)
 
 	// print license
 	if (ConcurrencyType::root()) {
-		std::cerr<<license;
-		std::cerr<<"Lanczos++ ED Version "<<LANCZOSPP_VERSION<<"\n";
-		std::cerr<<"PsimagLite version "<<PSIMAGLITE_VERSION<<"\n";
+		std::cerr << license;
+		std::cerr << "Lanczos++ ED Version " << LANCZOSPP_VERSION << "\n";
+		std::cerr << "PsimagLite version " << PSIMAGLITE_VERSION << "\n";
 	}
 
-	if (versionOnly) return 0;
+	if (versionOnly)
+		return 0;
 
-	//Setup the Geometry
-	InputNgType::Writeable ioWriteable(file,inputCheck);
-	InputNgType::Readable io(ioWriteable);
+	// Setup the Geometry
+	InputNgType::Writeable ioWriteable(file, inputCheck);
+	InputNgType::Readable  io(ioWriteable);
 
-	bool isComplex = false;
+	bool isComplex     = false;
 	bool setAffinities = false;
 
 	PsimagLite::String solverOptions;
-	io.readline(solverOptions,"SolverOptions=");
+	io.readline(solverOptions, "SolverOptions=");
 	PsimagLite::Vector<PsimagLite::String>::Type tokens;
 	PsimagLite::split(tokens, solverOptions, ",");
 	for (SizeType i = 0; i < tokens.size(); ++i) {
@@ -133,8 +131,8 @@ int main(int argc,char **argv)
 	//! setup distributed parallelization
 	SizeType npthreads = 1;
 	try {
-		io.readline(npthreads,"Threads=");
-	} catch (std::exception&) {}
+		io.readline(npthreads, "Threads=");
+	} catch (std::exception&) { }
 
 	if (threadsInCmdLine > 0)
 		npthreads = threadsInCmdLine;

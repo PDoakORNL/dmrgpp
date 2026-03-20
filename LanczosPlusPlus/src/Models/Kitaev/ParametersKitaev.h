@@ -84,16 +84,15 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 namespace LanczosPlusPlus {
 //! Kitaev Model Parameters
-template<typename RealType,typename InputType>
-struct ParametersKitaev {
+template <typename RealType, typename InputType> struct ParametersKitaev {
 
 	typedef typename PsimagLite::Vector<RealType>::Type VectorRealType;
 
 	ParametersKitaev(InputType& io)
 	{
 		try {
-			io.read(magneticField,"MagneticField");
-		} catch (std::exception&) {}
+			io.read(magneticField, "MagneticField");
+		} catch (std::exception&) { }
 	}
 
 	// Do not include here connection parameters
@@ -102,15 +101,13 @@ struct ParametersKitaev {
 };
 
 //! Function that prints model parameters to stream os
-template<typename RealType,typename InputType>
-std::ostream& operator<<(std::ostream &os,
-                         const ParametersKitaev<RealType,InputType>& parameters)
+template <typename RealType, typename InputType>
+std::ostream& operator<<(std::ostream& os, const ParametersKitaev<RealType, InputType>& parameters)
 {
-	os<<"MagneticField="<<parameters.magneticField<<"\n";
+	os << "MagneticField=" << parameters.magneticField << "\n";
 	return os;
 }
 } // namespace LanczosPlusPlus
 
 /*@}*/
 #endif
-

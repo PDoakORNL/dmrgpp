@@ -84,43 +84,41 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 namespace LanczosPlusPlus {
 //! Heisenberg Model Parameters
-template<typename RealType,typename InputType>
-struct ParametersHeisenberg {
+template <typename RealType, typename InputType> struct ParametersHeisenberg {
 
 	typedef typename PsimagLite::Vector<RealType>::Type VectorRealType;
 
 	ParametersHeisenberg(InputType& io)
 	{
-		io.readline(twiceTheSpin,"HeisenbergTwiceS=");
+		io.readline(twiceTheSpin, "HeisenbergTwiceS=");
 
 		try {
-			io.read(magneticField,"MagneticField");
-		} catch (std::exception&) {}
+			io.read(magneticField, "MagneticField");
+		} catch (std::exception&) { }
 
 		try {
-			io.read(anisotropy,"AnisotropyD");
-		} catch (std::exception&) {}
+			io.read(anisotropy, "AnisotropyD");
+		} catch (std::exception&) { }
 	}
 
 	// Do not include here connection parameters
 	// those are handled by the Geometry
-	SizeType twiceTheSpin;
+	SizeType       twiceTheSpin;
 	VectorRealType magneticField;
 	VectorRealType anisotropy;
 };
 
 //! Function that prints model parameters to stream os
-template<typename RealType,typename InputType>
-std::ostream& operator<<(std::ostream &os,
-                         const ParametersHeisenberg<RealType,InputType>& parameters)
+template <typename RealType, typename InputType>
+std::ostream& operator<<(std::ostream&                                    os,
+                         const ParametersHeisenberg<RealType, InputType>& parameters)
 {
-	os<<"MagneticField="<<parameters.magneticField<<"\n";
-	os<<"AnisotropyD="<<parameters.anisotropy<<"\n";
-	os<<"HeisenbergTwiceS="<<parameters.twiceTheSpin<<"\n";
+	os << "MagneticField=" << parameters.magneticField << "\n";
+	os << "AnisotropyD=" << parameters.anisotropy << "\n";
+	os << "HeisenbergTwiceS=" << parameters.twiceTheSpin << "\n";
 	return os;
 }
 } // namespace LanczosPlusPlus
 
 /*@}*/
 #endif
-

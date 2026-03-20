@@ -81,37 +81,35 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef InternalProductStored_HEADER_H
 #define InternalProductStored_HEADER_H
 
-#include <vector>
 #include "Vector.h"
+#include <vector>
 
 namespace LanczosPlusPlus {
-template<typename ModelType_, typename SpecialSymmetryType_>
-class InternalProductStored {
+template <typename ModelType_, typename SpecialSymmetryType_> class InternalProductStored {
 
 public:
 
-	typedef ModelType_ ModelType;
-	typedef SpecialSymmetryType_ SpecialSymmetryType;
-	typedef typename ModelType::BasisBaseType BasisType;
-	typedef typename SpecialSymmetryType::SparseMatrixType SparseMatrixType;
-	typedef typename ModelType::RealType RealType;
-	typedef typename ModelType::GeometryType GeometryType;
-	typedef typename GeometryType::ComplexOrRealType ComplexOrRealType;
-    typedef ComplexOrRealType value_type;
-	typedef PsimagLite::Matrix<ComplexOrRealType> MatrixType;
-	typedef typename PsimagLite::Vector<RealType>::Type VectorRealType;
+	typedef ModelType_                                           ModelType;
+	typedef SpecialSymmetryType_                                 SpecialSymmetryType;
+	typedef typename ModelType::BasisBaseType                    BasisType;
+	typedef typename SpecialSymmetryType::SparseMatrixType       SparseMatrixType;
+	typedef typename ModelType::RealType                         RealType;
+	typedef typename ModelType::GeometryType                     GeometryType;
+	typedef typename GeometryType::ComplexOrRealType             ComplexOrRealType;
+	typedef ComplexOrRealType                                    value_type;
+	typedef PsimagLite::Matrix<ComplexOrRealType>                MatrixType;
+	typedef typename PsimagLite::Vector<RealType>::Type          VectorRealType;
 	typedef typename PsimagLite::Vector<ComplexOrRealType>::Type VectorType;
 
-	InternalProductStored(const ModelType& model,
-	                      const BasisType& basis,
+	InternalProductStored(const ModelType&     model,
+	                      const BasisType&     basis,
 	                      SpecialSymmetryType& rs)
 	    : rs_(rs)
 	{
-		rs_.init(model,basis);
+		rs_.init(model, basis);
 	}
 
-	InternalProductStored(const ModelType& model,
-	                      SpecialSymmetryType& rs)
+	InternalProductStored(const ModelType& model, SpecialSymmetryType& rs)
 	    : rs_(rs)
 	{
 		rs_.init(model, model.basis());
@@ -119,18 +117,14 @@ public:
 
 	SizeType rows() const { return rs_.rows(); }
 
-	void matrixVectorProduct(VectorType &x, const VectorType& y) const
+	void matrixVectorProduct(VectorType& x, const VectorType& y) const
 	{
-		rs_.matrixVectorProduct(x,y);
+		rs_.matrixVectorProduct(x, y);
 	}
 
 	void specialSymmetrySector(SizeType p) { rs_.setPointer(p); }
 
-	void fullDiag(VectorRealType& eigs,
-	              MatrixType& z)
-	{
-		rs_.fullDiag(eigs,z);
-	}
+	void fullDiag(VectorRealType& eigs, MatrixType& z) { rs_.fullDiag(eigs, z); }
 
 private:
 
@@ -140,4 +134,3 @@ private:
 
 /*@}*/
 #endif
-

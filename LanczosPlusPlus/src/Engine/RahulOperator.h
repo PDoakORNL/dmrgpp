@@ -4,15 +4,21 @@
 
 namespace LanczosPlusPlus {
 
-template<typename ComplexOrRealType>
-class RahulOperator {
+template <typename ComplexOrRealType> class RahulOperator {
 
-	enum class Label {IDENTITY, N, SZ, C};
+	enum class Label
+	{
+		IDENTITY,
+		N,
+		SZ,
+		C
+	};
 
 public:
 
 	RahulOperator(PsimagLite::String label, SizeType dof, bool transpose = false)
-	    :  dof_(dof), transpose_(transpose)
+	    : dof_(dof)
+	    , transpose_(transpose)
 	{
 		label_ = fromString(label);
 	}
@@ -26,8 +32,8 @@ public:
 	bool actOn(bool& bit, ComplexOrRealType& result) const
 	{
 		static const ComplexOrRealType zeroPointFive = 0.5;
-		result = 1;
-		const bool bitSaved = bit;
+		result                                       = 1;
+		const bool bitSaved                          = bit;
 		switch (label_) {
 		case Label::IDENTITY:
 			return true;
@@ -55,16 +61,20 @@ private:
 
 	static Label fromString(PsimagLite::String l)
 	{
-		if (l == "c") return Label::C;
-		if (l == "identity") return Label::IDENTITY;
-		if (l == "sz") return Label::SZ;
-		if (l == "n") return Label::N;
+		if (l == "c")
+			return Label::C;
+		if (l == "identity")
+			return Label::IDENTITY;
+		if (l == "sz")
+			return Label::SZ;
+		if (l == "n")
+			return Label::N;
 		throw PsimagLite::RuntimeError("RahulOperator: Unknow label " + l + "\n");
 	}
 
 	SizeType dof_;
-	bool transpose_;
-	Label label_;
+	bool     transpose_;
+	Label    label_;
 };
 }
 #endif // RAHULOPERATOR_H
