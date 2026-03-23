@@ -83,18 +83,17 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include <stdexcept>
 
 namespace LanczosPlusPlus {
-template<typename Field, typename InputType>
-struct ParametersFermionSpinless {
+template <typename Field, typename InputType> struct ParametersFermionSpinless {
 
 	ParametersFermionSpinless(InputType& io)
 	{
-		io.readline(model,"Model=");
-		io.read(potentialV,"potentialV");
+		io.readline(model, "Model=");
+		io.read(potentialV, "potentialV");
 	}
 
 	ParametersFermionSpinless(const ParametersFermionSpinless&) = delete;
 
-	ParametersFermionSpinless& operator=(const ParametersFermionSpinless &) = delete;
+	ParametersFermionSpinless& operator=(const ParametersFermionSpinless&) = delete;
 
 	PsimagLite::String model;
 	// Do not include here connection parameters
@@ -104,15 +103,14 @@ struct ParametersFermionSpinless {
 };
 
 //! Function that prints model parameters to stream os
-template<typename FieldType,typename InputType>
-std::ostream& operator<<(std::ostream &os,
-                         const ParametersFermionSpinless<FieldType,InputType>& params)
+template <typename FieldType, typename InputType>
+std::ostream& operator<<(std::ostream&                                          os,
+                         const ParametersFermionSpinless<FieldType, InputType>& params)
 {
-	PsimagLite::vectorPrint(params.potentialV,"potentialV",os);
+	PsimagLite::vectorPrint(params.potentialV, "potentialV", os);
 	return os;
 }
 } // namespace LanczosPlusPlus
 
 /*@}*/
 #endif
-
