@@ -35,4 +35,4 @@ add_subdirectory(cincuenta)
 
 # Treat LanczosPlusPlus like a subproject that can build on its own so
 # start with its CMakeLists.txt start in its root directory.
-add_subdirectory(LanczosPlusPlus)
+add_subdirectory(LanczosPlusPlus/src)

@@ -8,6 +8,7 @@
 #include "BasisFermionSpinless.hh"
 #include "BitManip.h"
 #include "LanczosGlobals.h"
+#include "Parallelizer2.h"
 #include "ParametersFermionSpinless.hh"
 #include "SparseRow.h"
 #include "TypeToString.h"

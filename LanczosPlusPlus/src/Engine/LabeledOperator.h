@@ -1,6 +1,8 @@
 #ifndef LABELEDOPERATOR_H
 #define LABELEDOPERATOR_H
 
+#include "PsimagLite.h"
+
 namespace LanczosPlusPlus {
 
 class LabeledOperator {
