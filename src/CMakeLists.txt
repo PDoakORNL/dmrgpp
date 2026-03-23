@@ -139,13 +139,11 @@ add_test(NAME input250 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input250.ain) # energ
 add_lowest_eigenvalue_check_test(output250 -4.39454 runForinput250.cout)
 add_test(NAME input320 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input320.ain) # energy -18.8982
 add_lowest_eigenvalue_check_test(output320 -18.8982 runForinput320.cout)
-add_test(NAME input351 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input320.ain) # energy -0.408019
-add_lowest_eigenvalue_check_test(output351 -0.408019 runForinput320.cout)
-add_test(NAME input353 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input320.ain) # energy -0.407912
-add_lowest_eigenvalue_check_test(output353 -0.407912 runForinput320.cout)
-add_test(NAME input355 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input320.ain) # energy -37.03
-add_lowest_eigenvalue_check_test(output355 -37.03 runForinput320.cout)
-add_test(NAME input356 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input320.ain) # none
+add_test(NAME input351 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input351.ain) # energy -0.408019
+add_lowest_eigenvalue_check_test(output351 -0.408019 runForinput351.cout)
+add_test(NAME input355 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input355.ain) # energy -37.03
+add_lowest_eigenvalue_check_test(output355 -37.03 runForinput355.cout)
+add_test(NAME input356 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input356.ain) # none
 add_test(NAME input501 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input501.ain) # energy -6.77334
 add_lowest_eigenvalue_check_test(output501 -6.77334 runForinput501.cout)
 add_test(NAME input550 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input550.ain) # energy -4.66667
@@ -185,8 +183,7 @@ add_test(NAME input4720 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input4720.ain) # ene
 add_lowest_eigenvalue_check_test(output4720 34.0013 runForinput4720.cout)
 add_test(NAME input6020 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input6020.ain) # energy -2.59474
 add_lowest_eigenvalue_check_test(output6020 -2.59474 runForinput6020.cout)
-add_test(NAME input6700 COMMAND ./dmrg -f
-${PATH_TO_INPUTS}/input6700.ain) # energy -4.17889 we don't check this
+add_test(NAME input6700 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input6700.ain) # energy -4.17889 we don't check this
 add_test(NAME input8900 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input8900.ain "<gs|sz_p|gs>") # none
 add_test(NAME input8901 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input8901.ain "<gs|sz|gs>") # none
 # Tests for the observe executable
