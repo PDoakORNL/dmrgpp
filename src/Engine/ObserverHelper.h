@@ -80,12 +80,15 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define PRECOMPUTED_H
 #include "DmrgSerializer.h"
 #include "GetBraOrKet.h"
+#include "HDF5DisableExceptionPrinting.h"
 #include "ProgramGlobals.h"
 #include "ProgressIndicator.h"
 #include "SparseVector.h"
 #include "TimeSerializer.h"
 #include "VectorWithOffset.h" // to include norm
 #include "VectorWithOffsets.h" // to include norm
+
+#include <memory>
 
 namespace Dmrg {
 
@@ -171,11 +174,6 @@ public:
 		for (SizeType i = 0; i < dSerializerV_.size(); ++i) {
 			delete dSerializerV_[i];
 			dSerializerV_[i] = 0;
-		}
-
-		for (SizeType i = 0; i < timeSerializerV_.size(); ++i) {
-			delete timeSerializerV_[i];
-			timeSerializerV_[i] = 0;
 		}
 
 		delete lrsStorage_.first;
@@ -349,13 +347,12 @@ private:
 				delete dSerializer;
 
 			try {
-				PsimagLite::String  prefix("/TargetingCommon/" + ttos(i));
-				TimeSerializerType* ts = new TimeSerializerType(io_, prefix);
+				HDF5DisableExceptionPrinting disable;
+				PsimagLite::String           prefix("/TargetingCommon/" + ttos(i));
+				auto ts = std::make_unique<TimeSerializerType>(io_, prefix);
 				std::cerr << "Read TimeSerializer\n";
 				if (saveOrNot == SaveEnum::YES)
-					timeSerializerV_.push_back(ts);
-				else
-					delete ts;
+					timeSerializerV_.push_back(std::move(ts));
 			} catch (...) { }
 
 			std::cerr << __FILE__ << " read " << i << " out of " << (end - start)
@@ -364,7 +361,7 @@ private:
 		}
 
 		noMoreData_ = (end == total);
-		return (dSerializerV_.size() > 0);
+		return !dSerializerV_.empty();
 	}
 
 	static SizeType braketStringToNumber(const PsimagLite::String& str)
@@ -388,16 +385,16 @@ private:
 		err("dSerializerV_ at index " + ttos(ind) + " point to 0x0\n");
 	}
 
-	IoInputType&                                           io_;
-	typename PsimagLite::Vector<DmrgSerializerType*>::Type dSerializerV_;
-	typename PsimagLite::Vector<TimeSerializerType*>::Type timeSerializerV_;
-	const bool                                             withLegacyBugs_;
-	const bool                                             readOnDemand_;
-	PsimagLite::ProgressIndicator                          progress_;
-	bool                                                   noMoreData_;
-	VectorShortIntType                                     signsOneSite_;
-	SizeType                                               numberOfSites_;
-	mutable PairLeftRightSuperSizeType                     lrsStorage_;
+	IoInputType&                                                           io_;
+	typename PsimagLite::Vector<DmrgSerializerType*>::Type                 dSerializerV_;
+	typename PsimagLite::Vector<std::unique_ptr<TimeSerializerType>>::Type timeSerializerV_;
+	const bool                                                             withLegacyBugs_;
+	const bool                                                             readOnDemand_;
+	PsimagLite::ProgressIndicator                                          progress_;
+	bool                                                                   noMoreData_;
+	VectorShortIntType                                                     signsOneSite_;
+	SizeType                                                               numberOfSites_;
+	mutable PairLeftRightSuperSizeType                                     lrsStorage_;
 }; // ObserverHelper
 } // namespace Dmrg
 

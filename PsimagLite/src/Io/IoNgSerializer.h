@@ -46,6 +46,7 @@ public:
 #endif
 
 		try {
+			HDF5DisableExceptionPrinting disable;
 			hdf5file_ = std::make_unique<H5::H5File>(filename, mode);
 		} catch (H5::Exception& e) {
 			hdf5file_.reset();
