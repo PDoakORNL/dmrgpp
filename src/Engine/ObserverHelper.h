@@ -119,7 +119,7 @@ public:
 	using VectorSizeType             = PsimagLite::Vector<SizeType>::Type;
 	using VectorShortIntType         = PsimagLite::Vector<short int>::Type;
 	using GetBraOrKetType            = PsimagLite::GetBraOrKet;
-	using PairLeftRightSuperSizeType = std::pair<LeftRightSuperType*, SizeType>;
+	using PairLeftRightSuperSizeType = std::pair<std::unique_ptr<LeftRightSuperType>, SizeType>;
 
 	enum class SaveEnum
 	{
@@ -169,16 +169,7 @@ public:
 				return;
 	}
 
-	~ObserverHelper()
-	{
-		for (SizeType i = 0; i < dSerializerV_.size(); ++i) {
-			delete dSerializerV_[i];
-			dSerializerV_[i] = 0;
-		}
-
-		delete lrsStorage_.first;
-		lrsStorage_.first = nullptr;
-	}
+	~ObserverHelper() = default;
 
 	const SizeType& numberOfSites() const { return numberOfSites_; }
 
@@ -232,15 +223,14 @@ public:
 
 		if (readOnDemand_) {
 			if (ind != lrsStorage_.second) {
-				delete lrsStorage_.first;
-				lrsStorage_.first = nullptr;
+				lrsStorage_.first.reset();
 			}
 
 			if (!lrsStorage_.first) {
 				const PsimagLite::String prefix = "Serializer/" + ttos(ind);
 
-				lrsStorage_.first
-				    = new LeftRightSuperType(io_, prefix, { true, true });
+				lrsStorage_.first = std::make_unique<LeftRightSuperType>(
+				    io_, prefix, BasisTraits { true, true });
 				lrsStorage_.second = ind;
 			}
 
@@ -331,8 +321,12 @@ private:
 
 		for (SizeType i = start; i < end; ++i) {
 
-			DmrgSerializerType* dSerializer = new DmrgSerializerType(
-			    io_, prefix + "/" + ttos(i), false, { true, true }, readOnDemand_);
+			auto dSerializer
+			    = std::make_unique<DmrgSerializerType>(io_,
+			                                           prefix + "/" + ttos(i),
+			                                           false,
+			                                           BasisTraits { true, true },
+			                                           readOnDemand_);
 
 			SizeType tmp = dSerializer->leftRightSuper().sites();
 			if (tmp > 0 && numberOfSites_ == 0)
@@ -342,9 +336,7 @@ private:
 				dSerializer->freeLrs();
 
 			if (saveOrNot == SaveEnum::YES)
-				dSerializerV_.push_back(dSerializer);
-			else
-				delete dSerializer;
+				dSerializerV_.push_back(std::move(dSerializer));
 
 			try {
 				HDF5DisableExceptionPrinting disable;
@@ -386,7 +378,7 @@ private:
 	}
 
 	IoInputType&                                                           io_;
-	typename PsimagLite::Vector<DmrgSerializerType*>::Type                 dSerializerV_;
+	typename PsimagLite::Vector<std::unique_ptr<DmrgSerializerType>>::Type dSerializerV_;
 	typename PsimagLite::Vector<std::unique_ptr<TimeSerializerType>>::Type timeSerializerV_;
 	const bool                                                             withLegacyBugs_;
 	const bool                                                             readOnDemand_;
