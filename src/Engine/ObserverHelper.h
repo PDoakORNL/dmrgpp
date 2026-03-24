@@ -266,7 +266,7 @@ public:
 
 	RealType time(SizeType ind) const
 	{
-		if (timeSerializerV_.size() == 0)
+		if (timeSerializerV_.empty())
 			return 0.0;
 		assert(ind < timeSerializerV_.size());
 		assert(timeSerializerV_[ind]);
@@ -275,7 +275,7 @@ public:
 
 	SizeType site(SizeType ind) const
 	{
-		if (timeSerializerV_.size() == 0) {
+		if (timeSerializerV_.empty()) {
 			checkIndex(ind);
 			return this->siteInternal(this->leftRightSuper(ind), this->direction(ind));
 		}
