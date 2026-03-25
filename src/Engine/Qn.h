@@ -1,6 +1,8 @@
 #ifndef QN_H
 #define QN_H
+
 #include "Array.h"
+#include "HDF5DisableExceptionPrinting.h"
 #include "Io/IoNg.h"
 #include "Profiling.h"
 #include "ProgramGlobals.h"
@@ -120,6 +122,7 @@ public:
 	           = PsimagLite::IoNgSerializer::NO_OVERWRITE) const
 	{
 		try {
+			HDF5DisableExceptionPrinting disable;
 			io.read(modalStruct, "modalStruct");
 		} catch (...) {
 			io.write("modalStruct", modalStruct);
