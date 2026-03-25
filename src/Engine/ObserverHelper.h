@@ -80,12 +80,15 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define PRECOMPUTED_H
 #include "DmrgSerializer.h"
 #include "GetBraOrKet.h"
+#include "HDF5DisableExceptionPrinting.h"
 #include "ProgramGlobals.h"
 #include "ProgressIndicator.h"
 #include "SparseVector.h"
 #include "TimeSerializer.h"
 #include "VectorWithOffset.h" // to include norm
 #include "VectorWithOffsets.h" // to include norm
+
+#include <memory>
 
 namespace Dmrg {
 
@@ -116,7 +119,7 @@ public:
 	using VectorSizeType             = PsimagLite::Vector<SizeType>::Type;
 	using VectorShortIntType         = PsimagLite::Vector<short int>::Type;
 	using GetBraOrKetType            = PsimagLite::GetBraOrKet;
-	using PairLeftRightSuperSizeType = std::pair<LeftRightSuperType*, SizeType>;
+	using PairLeftRightSuperSizeType = std::pair<std::unique_ptr<LeftRightSuperType>, SizeType>;
 
 	enum class SaveEnum
 	{
@@ -166,21 +169,7 @@ public:
 				return;
 	}
 
-	~ObserverHelper()
-	{
-		for (SizeType i = 0; i < dSerializerV_.size(); ++i) {
-			delete dSerializerV_[i];
-			dSerializerV_[i] = 0;
-		}
-
-		for (SizeType i = 0; i < timeSerializerV_.size(); ++i) {
-			delete timeSerializerV_[i];
-			timeSerializerV_[i] = 0;
-		}
-
-		delete lrsStorage_.first;
-		lrsStorage_.first = nullptr;
-	}
+	~ObserverHelper() = default;
 
 	const SizeType& numberOfSites() const { return numberOfSites_; }
 
@@ -234,15 +223,14 @@ public:
 
 		if (readOnDemand_) {
 			if (ind != lrsStorage_.second) {
-				delete lrsStorage_.first;
-				lrsStorage_.first = nullptr;
+				lrsStorage_.first.reset();
 			}
 
 			if (!lrsStorage_.first) {
 				const PsimagLite::String prefix = "Serializer/" + ttos(ind);
 
-				lrsStorage_.first
-				    = new LeftRightSuperType(io_, prefix, { true, true });
+				lrsStorage_.first = std::make_unique<LeftRightSuperType>(
+				    io_, prefix, BasisTraits { true, true });
 				lrsStorage_.second = ind;
 			}
 
@@ -268,7 +256,7 @@ public:
 
 	RealType time(SizeType ind) const
 	{
-		if (timeSerializerV_.size() == 0)
+		if (timeSerializerV_.empty())
 			return 0.0;
 		assert(ind < timeSerializerV_.size());
 		assert(timeSerializerV_[ind]);
@@ -277,7 +265,7 @@ public:
 
 	SizeType site(SizeType ind) const
 	{
-		if (timeSerializerV_.size() == 0) {
+		if (timeSerializerV_.empty()) {
 			checkIndex(ind);
 			return this->siteInternal(this->leftRightSuper(ind), this->direction(ind));
 		}
@@ -333,8 +321,12 @@ private:
 
 		for (SizeType i = start; i < end; ++i) {
 
-			DmrgSerializerType* dSerializer = new DmrgSerializerType(
-			    io_, prefix + "/" + ttos(i), false, { true, true }, readOnDemand_);
+			auto dSerializer
+			    = std::make_unique<DmrgSerializerType>(io_,
+			                                           prefix + "/" + ttos(i),
+			                                           false,
+			                                           BasisTraits { true, true },
+			                                           readOnDemand_);
 
 			SizeType tmp = dSerializer->leftRightSuper().sites();
 			if (tmp > 0 && numberOfSites_ == 0)
@@ -344,18 +336,15 @@ private:
 				dSerializer->freeLrs();
 
 			if (saveOrNot == SaveEnum::YES)
-				dSerializerV_.push_back(dSerializer);
-			else
-				delete dSerializer;
+				dSerializerV_.push_back(std::move(dSerializer));
 
 			try {
-				PsimagLite::String  prefix("/TargetingCommon/" + ttos(i));
-				TimeSerializerType* ts = new TimeSerializerType(io_, prefix);
+				HDF5DisableExceptionPrinting disable;
+				PsimagLite::String           prefix("/TargetingCommon/" + ttos(i));
+				auto ts = std::make_unique<TimeSerializerType>(io_, prefix);
 				std::cerr << "Read TimeSerializer\n";
 				if (saveOrNot == SaveEnum::YES)
-					timeSerializerV_.push_back(ts);
-				else
-					delete ts;
+					timeSerializerV_.push_back(std::move(ts));
 			} catch (...) { }
 
 			std::cerr << __FILE__ << " read " << i << " out of " << (end - start)
@@ -364,7 +353,7 @@ private:
 		}
 
 		noMoreData_ = (end == total);
-		return (dSerializerV_.size() > 0);
+		return !dSerializerV_.empty();
 	}
 
 	static SizeType braketStringToNumber(const PsimagLite::String& str)
@@ -388,16 +377,16 @@ private:
 		err("dSerializerV_ at index " + ttos(ind) + " point to 0x0\n");
 	}
 
-	IoInputType&                                           io_;
-	typename PsimagLite::Vector<DmrgSerializerType*>::Type dSerializerV_;
-	typename PsimagLite::Vector<TimeSerializerType*>::Type timeSerializerV_;
-	const bool                                             withLegacyBugs_;
-	const bool                                             readOnDemand_;
-	PsimagLite::ProgressIndicator                          progress_;
-	bool                                                   noMoreData_;
-	VectorShortIntType                                     signsOneSite_;
-	SizeType                                               numberOfSites_;
-	mutable PairLeftRightSuperSizeType                     lrsStorage_;
+	IoInputType&                                                           io_;
+	typename PsimagLite::Vector<std::unique_ptr<DmrgSerializerType>>::Type dSerializerV_;
+	typename PsimagLite::Vector<std::unique_ptr<TimeSerializerType>>::Type timeSerializerV_;
+	const bool                                                             withLegacyBugs_;
+	const bool                                                             readOnDemand_;
+	PsimagLite::ProgressIndicator                                          progress_;
+	bool                                                                   noMoreData_;
+	VectorShortIntType                                                     signsOneSite_;
+	SizeType                                                               numberOfSites_;
+	mutable PairLeftRightSuperSizeType                                     lrsStorage_;
 }; // ObserverHelper
 } // namespace Dmrg
 
