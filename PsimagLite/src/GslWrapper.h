@@ -98,13 +98,13 @@ public:
 
 	using DummyType                 = int;
 	using gsl_integration_workspace = DummyType;
-	using void*) = double (*GslWrapperFunctionType)(double,;
+	typedef double (*GslWrapperFunctionType)(double, void*);
 	typedef struct {
 		double val;
 		double err;
 	} gsl_sf_result;
 
-	using int) = void (*gsl_error_handler_t)(const char*, const char*, int,;
+	using gsl_error_handler_t = std::function<int(const char*, const char*, int)>;
 
 	struct gsl_function {
 		GslWrapperFunctionType function;
@@ -126,8 +126,7 @@ public:
 		return x;
 	}
 
-	void gsl_integration_workspace_free(gsl_integration_workspace*) const {
-		thereSnoGsl(); }
+	void gsl_integration_workspace_free(gsl_integration_workspace*) const { thereSnoGsl(); }
 
 	int gsl_integration_qag(const gsl_function*,
 	                        double,
@@ -183,8 +182,7 @@ public:
 		return 0;
 	}
 
-	void printError(int) const {
-		thereSnoGsl(); }
+	void printError(int) const { thereSnoGsl(); }
 
 	int gsl_sf_lngamma_complex_e(double, double, gsl_sf_result*, gsl_sf_result*) const
 	{
@@ -200,8 +198,7 @@ public:
 
 private:
 
-	void thereSnoGsl() const {
-		throw RuntimeError("You need to compile with the GSL\n"); }
+	void thereSnoGsl() const { throw RuntimeError("You need to compile with the GSL\n"); }
 
 }; // class GslWrapper
 
