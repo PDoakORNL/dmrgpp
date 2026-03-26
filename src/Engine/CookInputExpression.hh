@@ -1,5 +1,15 @@
+//---------------------------------*-C++-*-----------------------------------//
+/*!
+ * \file   src/Engine/CookInputExpression.hh
+ * \brief  Process input expressions
+ * \note   Copyright (c) 2026 Oak Ridge National Laboratory, UT-Battelle, LLC.
+ */
+//---------------------------------------------------------------------------//
+
 #ifndef COOKINPUTEXPRESSION_HH
 #define COOKINPUTEXPRESSION_HH
+#include "AST/ExpressionForAST.h"
+#include "AST/PlusMinusMultiplyDivide.h"
 #include "InputCheck.h"
 #include "InputNg.h"
 #include "Matrix.h"
@@ -8,6 +18,18 @@
 #include <vector>
 
 namespace Dmrg {
+//===========================================================================//
+/*!
+ * \class CookInputExpression
+ *
+ * \brief Process input expressions including replacements and tables
+ *
+ * In the future, this class will be used in more places to allow for user
+ * more complicated user input.
+ *
+ * \tparam ComplexOrRealType The type of numbers whether real or complex
+ */
+//===========================================================================//
 
 template <typename ComplexOrRealType> class CookInputExpression {
 public:
@@ -16,11 +38,76 @@ public:
 	using InputNgType          = PsimagLite::InputNg<Dmrg::InputCheck>;
 	using InputNgValidatorType = InputNgType::Readable;
 
+	//---------------------------------------------------------------------------//
+	/*!
+	 * \brief Constructor
+	 *
+	 * It keeps a reference to the input parameters.
+	 * If using Ainur the io could be const throughout. However, for the plain old input
+	 * format, the input parameter reads needs also write access due to allowing
+	 * duplicated labels. In the future we may disable support for the plain old input format.
+	 *
+	 * \param[in/out] input_params  The input object; sorry about the non-constness
+	 */
 	CookInputExpression(InputNgValidatorType& io)
 	    : io_(io)
 	{ }
 
-	std::string operator()(const std::string& expr)
+	//---------------------------------------------------------------------------//
+	/*!
+	 * \brief Operator parens
+	 *
+	 * Convert an input string into a complex number, after replacements, and
+	 * expression processing. We are using the AST class for expressions here.
+	 * For example, the string "+:3:4" would return 7.
+	 *
+	 * \param[in] factor           The string coming from the input file entry
+	 * \param[in] value_for_empty  The value to return if factor is empty
+	 * \param[in] time             The time, whose meaning depend on the target being run
+	 *
+	 * \returns The real or complex value resulting from cooking factor
+	 */
+	ComplexOrRealType operator()(const std::string&       factor,
+	                             const ComplexOrRealType& value_for_empty,
+	                             const RealType&          time) const
+	{
+		if (factor.empty())
+			return value_for_empty;
+
+		SizeType number_of_sites = 0;
+		io_.readline(number_of_sites, "TotalNumberOfSites=");
+
+		std::string str = factor;
+		PsimagLite::replaceAll(str, "%t", ttos(time));
+		PsimagLite::replaceAll(str, "%n", ttos(number_of_sites));
+
+		std::vector<std::string> ve;
+		PsimagLite::split(ve, str, ":");
+
+		for (SizeType i = 0; i < ve.size(); ++i) {
+			ve[i] = replaceTables(ve[i]);
+		}
+
+		typedef PsimagLite::PlusMinusMultiplyDivide<ComplexOrRealType> PrimitivesType;
+		PrimitivesType                                                 primitives;
+		PsimagLite::ExpressionForAST<PrimitivesType> expresionForAST(ve, primitives);
+		return expresionForAST.exec();
+	}
+
+private:
+
+	//---------------------------------------------------------------------------//
+	/*!
+	 * \brief If present, evaluates a function with an argument
+	 *
+	 * See input9001.ain in the TestSuite for an example.
+	 * Here other directives could be added in the future.
+	 *
+	 * \param[in] expr The expression to check for a function or table
+	 *
+	 * \returns The value of the function at the argument, or the expression unchanged
+	 */
+	std::string replaceTables(const std::string& expr) const
 	{
 		std::string label = "!readTable";
 		if (expr.substr(0, label.size()) == label) {
@@ -54,8 +141,18 @@ public:
 		}
 	}
 
-private:
-
+	//---------------------------------------------------------------------------//
+	/*!
+	 * \brief Evaluate a function (given as a matrix) at a point
+	 *
+	 * See input9001.ain in the TestSuite for an example.
+	 * Here other directives could be added in the future.
+	 *
+	 * \param[in] matrix The matrix that represents the function
+	 * \param[in] t      The argument to the function (first column of the matrix)
+	 *
+	 * \returns The value of the function at t
+	 */
 	static RealType findValueFor(const PsimagLite::Matrix<RealType>& matrix, const RealType& t)
 	{
 		SizeType rows = matrix.rows();
@@ -72,6 +169,7 @@ private:
 		throw std::runtime_error("Value not found in table\n");
 	}
 
+	// The input params object
 	InputNgValidatorType& io_;
 };
 }

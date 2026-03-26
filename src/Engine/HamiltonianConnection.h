@@ -77,8 +77,6 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef HAMILTONIAN_CONNECTION_H
 #define HAMILTONIAN_CONNECTION_H
 
-#include "AST/ExpressionForAST.h"
-#include "AST/PlusMinusMultiplyDivide.h"
 #include "Concurrency.h"
 #include "CookInputExpression.hh"
 #include "CrsMatrix.h"
@@ -289,6 +287,8 @@ private:
 		assert(type != ProgramGlobals::ConnectionEnum::SYSTEM_SYSTEM
 		       && type != ProgramGlobals::ConnectionEnum::ENVIRON_ENVIRON);
 
+		CookInputExpressionType cook_input_expression(io);
+
 		SizeType       totalOne      = 0;
 		const SizeType geometryTerms = modelLinks_.numberOfTerms();
 		for (SizeType termIndex = 0; termIndex < geometryTerms; ++termIndex) {
@@ -316,8 +316,10 @@ private:
 				                                         .geometry()
 				                                         .term(termIndex)
 				                                         .factor();
+
+				// default_value = 1.0, that is, if factor is not present
 				ComplexOrRealType tmp2
-				    = geometryFactor(geometry_factor, time, hItems, io);
+				    = cook_input_expression(geometry_factor, 1.0, time);
 
 				if (tmp2 == 0.0)
 					continue;
@@ -371,33 +373,6 @@ private:
 
 		lps_.push_back(link2);
 		return 1;
-	}
-
-	ComplexOrRealType geometryFactor(const std::string& factor,
-	                                 const RealType&    time,
-	                                 const std::vector<SizeType>&,
-	                                 typename InputNgType::Readable& io) const
-	{
-		if (factor.empty())
-			return 1.0;
-
-		SizeType    number_of_sites = hamAbstract_.superGeometry().numberOfSites();
-		std::string str             = factor;
-		PsimagLite::replaceAll(str, "%t", ttos(time));
-		PsimagLite::replaceAll(str, "%n", ttos(number_of_sites));
-
-		std::vector<std::string> ve;
-		PsimagLite::split(ve, str, ":");
-
-		CookInputExpression<ComplexOrRealType> cook_input_expression(io);
-		for (SizeType i = 0; i < ve.size(); ++i) {
-			ve[i] = cook_input_expression(ve[i]);
-		}
-
-		typedef PsimagLite::PlusMinusMultiplyDivide<ComplexOrRealType> PrimitivesType;
-		PrimitivesType                                                 primitives;
-		PsimagLite::ExpressionForAST<PrimitivesType> expresionForAST(ve, primitives);
-		return expresionForAST.exec();
 	}
 
 	void checkGeometryTerms() const
