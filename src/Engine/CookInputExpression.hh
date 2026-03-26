@@ -25,7 +25,19 @@ public:
 		std::string label = "!readTable";
 		if (expr.substr(0, label.size()) == label) {
 			std::string str = expr.substr(label.size(), std::string::npos);
-			// delete spaces FIXME TODO
+
+			// delete spaces if any
+			str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
+
+			// delete parens if any
+			SizeType length = str.length();
+			if (length > 0 && str[0] == '(' && str[length - 1] == ')') {
+				str.erase(0, 1);
+				if (length > 1) {
+					str.erase(length - 2, 1);
+				}
+			}
+
 			// split on comma
 			std::vector<std::string> args;
 			PsimagLite::split(args, str, ",");
@@ -33,8 +45,6 @@ public:
 				err("readTable expects two arguments\n");
 			}
 
-			// delete PARENS FIXME TODO
-			// delete double quotes FIXME TODO
 			PsimagLite::Matrix<RealType> matrix;
 			InputNgValidatorType& io_non_const = const_cast<InputNgValidatorType&>(io_);
 			io_non_const.read(matrix, args[0]);
