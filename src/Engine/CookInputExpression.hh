@@ -44,7 +44,7 @@ public:
 	 *
 	 * It keeps a reference to the input parameters.
 	 * If using Ainur the io could be const throughout. However, for the plain old input
-	 * format, the input parameter reads needs also write access due to allowing
+	 * format, the input parameter reads needs also write access due to permitting
 	 * duplicated labels. In the future we may disable support for the plain old input format.
 	 *
 	 * \param[in/out] input_params  The input object; sorry about the non-constness
@@ -63,9 +63,9 @@ public:
 	 *
 	 * \param[in] factor           The string coming from the input file entry
 	 * \param[in] value_for_empty  The value to return if factor is empty
-	 * \param[in] time             The time, whose meaning depend on the target being run
+	 * \param[in] time             The time, whose meaning depends on the target being run
 	 *
-	 * \returns The real or complex value resulting from cooking factor
+	 * \returns The real or complex value resulting from cooking the string factor
 	 */
 	ComplexOrRealType operator()(const std::string&       factor,
 	                             const ComplexOrRealType& value_for_empty,
@@ -101,6 +101,7 @@ private:
 	 * \brief If present, evaluates a function with an argument
 	 *
 	 * See input9001.ain in the TestSuite for an example.
+	 *
 	 * Here other directives could be added in the future.
 	 *
 	 * \param[in] expr The expression to check for a function or table
