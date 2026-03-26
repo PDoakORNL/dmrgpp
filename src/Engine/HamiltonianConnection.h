@@ -129,11 +129,11 @@ public:
 	using CookInputExpressionType = CookInputExpression<ComplexOrRealType>;
 	using InputNgType             = typename CookInputExpressionType::InputNgType;
 
-	HamiltonianConnection(const LeftRightSuperType&             lrs,
-	                      const ModelLinksType&                 lpb,
-	                      RealType                              time,
-	                      const SuperOpHelperBaseType&          superOpHelper,
-	                      const typename InputNgType::Readable& io)
+	HamiltonianConnection(const LeftRightSuperType&       lrs,
+	                      const ModelLinksType&           lpb,
+	                      RealType                        time,
+	                      const SuperOpHelperBaseType&    superOpHelper,
+	                      typename InputNgType::Readable& io)
 	    : modelHelper_(lrs)
 	    , modelLinks_(lpb)
 	    , superOpHelper_(superOpHelper)
@@ -274,7 +274,7 @@ public:
 private:
 
 	SizeType
-	cacheConnections(SizeType x, const RealType& time, const typename InputNgType::Readable& io)
+	cacheConnections(SizeType x, const RealType& time, typename InputNgType::Readable& io)
 	{
 		const VectorSizeType& hItems = hamAbstract_.item(x);
 
@@ -376,7 +376,7 @@ private:
 	ComplexOrRealType geometryFactor(const std::string& factor,
 	                                 const RealType&    time,
 	                                 const std::vector<SizeType>&,
-	                                 const typename InputNgType::Readable& io) const
+	                                 typename InputNgType::Readable& io) const
 	{
 		if (factor.empty())
 			return 1.0;

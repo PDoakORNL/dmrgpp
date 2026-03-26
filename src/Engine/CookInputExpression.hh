@@ -16,7 +16,7 @@ public:
 	using InputNgType          = PsimagLite::InputNg<Dmrg::InputCheck>;
 	using InputNgValidatorType = InputNgType::Readable;
 
-	CookInputExpression(const InputNgValidatorType& io)
+	CookInputExpression(InputNgValidatorType& io)
 	    : io_(io)
 	{ }
 
@@ -46,8 +46,7 @@ public:
 			}
 
 			PsimagLite::Matrix<RealType> matrix;
-			InputNgValidatorType& io_non_const = const_cast<InputNgValidatorType&>(io_);
-			io_non_const.read(matrix, args[0]);
+			io_.read(matrix, args[0]);
 			RealType value = findValueFor(matrix, PsimagLite::atof(args[1]));
 			return ttos(value);
 		} else {
@@ -73,7 +72,7 @@ private:
 		throw std::runtime_error("Value not found in table\n");
 	}
 
-	const InputNgValidatorType& io_;
+	InputNgValidatorType& io_;
 };
 }
 #endif // COOKINPUTEXPRESSION_HH
