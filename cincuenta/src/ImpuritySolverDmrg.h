@@ -2,7 +2,6 @@
 #define IMPURITYSOLVER_DMRG_H
 
 #include "DmrgRunner.h"
-#include "ExactDiag/ModelParams.h"
 #include "Geometry/Star.h"
 #include "ImpuritySolverBase.h"
 #include "InputCheck.h"
@@ -10,6 +9,7 @@
 #include "LanczosSolver.h"
 #include "ManyOmegas.h"
 #include "Matsubaras.h"
+#include "ModelParams.h"
 #include "ParamsDmftSolver.h"
 #include "ProcOmegas.h"
 #include "PsiBase64.h"
