@@ -42,16 +42,19 @@ public:
 	using ProcOmegasType       = Dmrg::ProcOmegas<RealType, MatsubarasType>;
 	using ModelParamsType      = ModelParams<RealType>;
 
-	ImpuritySolverDmrg(const ParamsDmftSolverType& params, const ApplicationType& app)
+	ImpuritySolverDmrg(const ParamsDmftSolverType& params,
+	                   const ApplicationType&      app,
+	                   InputNgType::Readable&      io)
 	    : params_(params)
 	    , runner_(params_.precision, app)
+	    , io_(io)
 	{ }
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
 	// bathParams[nBath-...] ==> energies on each bath site
 	void solve(const VectorRealType& bathParams)
 	{
-		ModelParamsType model_params(bathParams, params_.center_site);
+		ModelParamsType model_params(bathParams, io_);
 		SizeType        mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
 
 		if (mpiRank == 0) {
@@ -90,9 +93,10 @@ private:
 	PsimagLite::String addBathParams(PsimagLite::String     data,
 	                                 const ModelParamsType& model_params)
 	{
-		const PsimagLite::String connectors = vectorToString(model_params.hoppings, ",");
+		const PsimagLite::String connectors = vectorToString(model_params.hoppings(), ",");
 		const PsimagLite::String label      = "dir0:Connectors=[" + connectors + "];\n";
-		const PsimagLite::String potentialV = vectorToString(model_params.potentialV, ",");
+		const PsimagLite::String potentialV
+		    = vectorToString(model_params.potentialV(), ",");
 		const PsimagLite::String label2
 		    = "potentialV=[" + potentialV + "," + potentialV + "];\n";
 
@@ -256,6 +260,7 @@ private:
 	const ParamsDmftSolverType& params_;
 	DmrgRunnerType              runner_;
 	VectorComplexType           gimp_;
+	InputNgType::Readable&      io_;
 };
 }
 #endif // IMPURITYSOLVER_DMRG_H
