@@ -415,7 +415,7 @@ public:
 		return geometryBase_->calcDir(i, j);
 	}
 
-	String options() const { return gOptions_; }
+	const std::string& options() const { return gOptions_; }
 
 	std::string factor() const { return gFactor_; }
 

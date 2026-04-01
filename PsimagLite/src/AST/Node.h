@@ -130,7 +130,7 @@ template <typename VectorValueType> class DividedBy : public Node<VectorValueTyp
 
 public:
 
-	enum Kind
+	enum class Kind
 	{
 		FLOATING_POINT,
 		INTEGER
@@ -142,7 +142,10 @@ public:
 
 	DividedBy* clone() const { return new DividedBy(*this); }
 
-	virtual PsimagLite::String code() const { return (kind_ == FLOATING_POINT) ? "/" : "i/"; }
+	virtual PsimagLite::String code() const
+	{
+		return (kind_ == Kind::FLOATING_POINT) ? "/" : "i/";
+	}
 
 	virtual SizeType arity() const { return 2; }
 
@@ -159,7 +162,7 @@ private:
 
 	ValueType byKind(const ValueType& num, const ValueType& denom) const
 	{
-		return (kind_ == FLOATING_POINT) ? num / denom : toInteger(num, denom);
+		return (kind_ == Kind::FLOATING_POINT) ? num / denom : toInteger(num, denom);
 	}
 
 	static ValueType toInteger(const ValueType& num, const ValueType& denom)

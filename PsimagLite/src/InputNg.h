@@ -1070,6 +1070,10 @@ public:
 
 		Readable& operator=(const Readable&) = delete;
 
+		Readable(Readable&&) = delete;
+
+		Readable& operator=(Readable&&) = delete;
+
 		// serializr start class InputNgReadable
 		// serializr normal file_
 		String file_;
