@@ -1,6 +1,7 @@
 #ifndef IMPURITYSOLVER_DMRG_H
 #define IMPURITYSOLVER_DMRG_H
 
+#include "CmdLineOptions.hh"
 #include "DmrgRunner.h"
 #include "Geometry/Star.h"
 #include "ImpuritySolverBase.h"
@@ -46,8 +47,7 @@ public:
 	                   const ApplicationType&      app,
 	                   InputNgType::Readable&      io)
 	    : params_(params)
-	    , runner_(params_.precision, app)
-	    , io_(io)
+	    , runner_(app)
 	{ }
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
@@ -63,7 +63,10 @@ public:
 			PsimagLite::String data2  = addBathParams(data, model_params);
 			PsimagLite::String insitu = "<gs|nup|gs>";
 
-			runner_.doOneRun(data2, insitu, "-");
+			Dmrg::CmdLineOptions cmdline_options;
+			cmdline_options.in_situ_measurements = "<gs|nup|gs>";
+			cmdline_options.logfile              = "-";
+			runner_.doOneRun(data2, cmdline_options);
 		}
 
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
@@ -128,19 +131,18 @@ private:
 
 	void doType(DmrgType t, PsimagLite::String data, SizeType mpiRank)
 	{
-		PsimagLite::String obs     = (t == DmrgType::TYPE_0) ? "c" : "c'";
-		PsimagLite::String insitu2 = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
-
 		PsimagLite::String data2 = addTypeAndObs(t, data);
 
 		Matsubaras<RealType> matsubaras(params_.ficticiousBeta, params_.nMatsubaras);
 
-		ManyOmegasType manyOmegas(
-		    data2, params_.precision, matsubaras, runner_.application());
+		ManyOmegasType manyOmegas(data2, matsubaras, runner_.application());
 
 		const bool               dryrun   = false;
 		const PsimagLite::String rootname = "dmftDynamics";
-		manyOmegas.run(dryrun, rootname, insitu2);
+		Dmrg::CmdLineOptions     cmdline_options;
+		PsimagLite::String       obs         = (t == DmrgType::TYPE_0) ? "c" : "c'";
+		cmdline_options.in_situ_measurements = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
+		manyOmegas.run(dryrun, rootname, cmdline_options);
 
 		if (mpiRank != 0)
 			return;

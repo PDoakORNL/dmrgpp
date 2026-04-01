@@ -34,30 +34,24 @@ using RealType = float;
 
 struct OperatorOptions {
 
+	enum class IntrospectEnum
+	{
+		EXPRESSION,
+		MODEL_BASIS,
+		MODEL_HAMILTONIAN
+	};
+
 	OperatorOptions()
 	    : site(0)
-	    , dof(0)
-	    , label("")
-	    , opexpr("")
-	    , hasOperatorExpression(false)
-	    , transpose(false)
+	    , introspect(IntrospectEnum::EXPRESSION)
 	    , enabled(false)
 	{ }
 
 	SizeType           site;
-	SizeType           dof;
-	PsimagLite::String label;
 	PsimagLite::String opexpr;
-	bool               hasOperatorExpression;
-	bool               transpose;
+	IntrospectEnum     introspect;
 	bool               enabled;
 };
-
-using InputNgType = PsimagLite::InputNg<Dmrg::InputCheck>;
-using ParametersDmrgSolverType
-    = Dmrg::ParametersDmrgSolver<RealType, InputNgType::Readable, Dmrg::Qn>;
-
-void usageOperator();
 
 template <typename ModelBaseType>
 void operatorDriver(const ModelBaseType& model, const OperatorOptions& obsOptions)
@@ -67,58 +61,23 @@ void operatorDriver(const ModelBaseType& model, const OperatorOptions& obsOption
 	using OperatorType     = typename OperatorsType::OperatorType;
 	using OperatorSpecType = Dmrg::OperatorSpec<ModelBaseType, OperatorType>;
 
-	if (obsOptions.hasOperatorExpression && obsOptions.label != "") {
-		std::cerr << "You must provide exactly one option: -l or -e;";
-		std::cerr << " both were given\n";
-		usageOperator();
-		return;
-	}
-
-	if (!obsOptions.hasOperatorExpression && obsOptions.label == "") {
-		if (model.introspect())
-			return;
-
-		std::cerr << "You must provide exactly one option: -l or -e;";
-		std::cerr << " none were given\n";
-		usageOperator();
-		return;
-	}
-
 	OperatorType       opC;
 	const OperatorType opEmpty;
+	OperatorSpecType   opSpec(model);
+	int                site = -1;
 
-	if (obsOptions.hasOperatorExpression) {
-		OperatorSpecType                                  opSpec(model);
-		int                                               site = -1;
+	switch (obsOptions.introspect) {
+	case OperatorOptions::IntrospectEnum::EXPRESSION:
 		PsimagLite::CanonicalExpression<OperatorSpecType> canonicalExpression(opSpec);
-
 		canonicalExpression(opC, obsOptions.opexpr, opEmpty, site);
-	} else {
-		if (obsOptions.label == "B") {
-			model.printBasis(obsOptions.site);
-			return;
-		}
-
-		if (obsOptions.label == "H") {
-			model.printTerms();
-			return;
-		}
-
-		opC = model.naturalOperator(obsOptions.label, obsOptions.site, obsOptions.dof);
-		std::cerr << "label=" << obsOptions.label << " site=" << obsOptions.site;
-		std::cerr << " dof=" << obsOptions.dof << "\n";
+		opC.write(std::cout);
+		break;
+	case OperatorOptions::IntrospectEnum::MODEL_BASIS:
+		model.printBasis(obsOptions.site);
+		break;
+	case OperatorOptions::IntrospectEnum::MODEL_HAMILTONIAN:
+		model.printTerms();
+		break;
 	}
-
-	if (obsOptions.transpose)
-		opC.dagger();
-
-	opC.write(std::cout);
 }
-
-template <typename SolverType, typename VectorWithOffsetType>
-void mainLoop4(typename SolverType::MatrixType::ModelType::SuperGeometryType&,
-               const ParametersDmrgSolverType&,
-               InputNgType::Readable&,
-               const OperatorOptions&);
-
 #endif // DMRGDRIVER_H
