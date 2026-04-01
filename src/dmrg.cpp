@@ -1,7 +1,6 @@
 #include "BlockDiagonalMatrix.h"
 #include "CmdLineOptions.hh"
 #include "Concurrency.h"
-#include "DmrgDriver.h"
 #include "DmrgRunner.h"
 #include "Io/IoNg.h"
 #include "Provenance.h"
@@ -126,7 +125,7 @@ to the main dmrg driver are the following.
 
 	printLicense(application);
 
-	DmrgRunner<RealType> dmrg_runner(application);
+	DmrgRunner<double> dmrg_runner(application);
 
 	PsimagLite::String data;
 	PsimagLite::InputNg<InputCheck>::Writeable::readFile(data, filename);

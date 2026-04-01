@@ -1,11 +1,11 @@
 #ifndef DMRGRUNNER_H
 #define DMRGRUNNER_H
-#include "../DmrgDriver.h"
 #include "BasisWithOperators.h"
 #include "CmdLineOptions.hh"
 #include "CrsMatrix.h"
 #include "DmrgSolver.h"
 #include "InputCheck.h"
+#include "Introspect.hh"
 #include "LeftRightSuper.h"
 #include "MatrixVectorKron/MatrixVectorKron.h"
 #include "MatrixVectorOnTheFly.h"
@@ -37,13 +37,13 @@ public:
 
 	void doOneRun(const PsimagLite::String& data, const CmdLineOptions& cmd_line) const
 	{
-		OperatorOptions op_options;
+		OptionsForIntrospect op_options;
 		this->doOneRun(data, cmd_line, op_options);
 	}
 
-	void doOneRun(const PsimagLite::String& data,
-	              const CmdLineOptions&     cmd_line,
-	              const OperatorOptions&    op_options) const
+	void doOneRun(const PsimagLite::String&   data,
+	              const CmdLineOptions&       cmd_line,
+	              const OptionsForIntrospect& op_options) const
 	{
 		InputCheck             inputCheck;
 		InputNgType::Writeable ioWriteable(inputCheck, data);
@@ -94,7 +94,7 @@ private:
 
 	template <typename ComplexOrRealType>
 	void doOneRun2(const ParametersDmrgSolverType& dmrgSolverParams,
-	               const OperatorOptions&          op_options,
+	               const OptionsForIntrospect&     op_options,
 	               InputNgType::Readable&          io) const
 	{
 		using SuperGeometryType
@@ -124,7 +124,7 @@ private:
 
 	template <typename MatrixVectorType>
 	void doOneRun3(const ParametersDmrgSolverType& dmrgSolverParams,
-	               const OperatorOptions&          op_options,
+	               const OptionsForIntrospect&     op_options,
 	               InputNgType::Readable&          io) const
 	{
 		using ComplexOrRealType = typename MatrixVectorType::ComplexOrRealType;
@@ -140,7 +140,7 @@ private:
 	}
 	template <typename MatrixVectorType, typename VectorWithOffsetType>
 	void doOneRun4(const ParametersDmrgSolverType& dmrgSolverParams,
-	               const OperatorOptions&          op_options,
+	               const OptionsForIntrospect&     op_options,
 	               InputNgType::Readable&          io) const
 	{
 		using ComplexOrRealType = typename MatrixVectorType::ComplexOrRealType;
@@ -158,9 +158,10 @@ private:
 		ModelSelector<ModelBaseType> modelSelector(dmrgSolverParams.model);
 		ModelBaseType&               model = modelSelector(dmrgSolverParams, io, geometry);
 
-		if (dmrgSolverParams.options.isSet("instrospect")) {
-			operatorDriver(model, op_options);
-			return; // <<<---- EARLY EXIT HERE
+		Introspect introspect(dmrgSolverParams.options.isSet("instrospect"));
+
+		if (introspect(model, op_options)) {
+			return; // <--- EARLY EXIT HERE
 		}
 
 		//! Setup the dmrg solver
