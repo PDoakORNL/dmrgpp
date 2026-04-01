@@ -12,9 +12,9 @@ using namespace Dmrg;
 
 typedef PsimagLite::Concurrency ConcurrencyType;
 
-void printLicense(const PsimagLite::PsiApp& app, const OperatorOptions& options)
+void printLicense(const PsimagLite::PsiApp& app)
 {
-	if (!ConcurrencyType::root() || options.enabled)
+	if (!ConcurrencyType::root())
 		return;
 
 	std::cout << ProgramGlobals::license;
@@ -24,24 +24,17 @@ void printLicense(const PsimagLite::PsiApp& app, const OperatorOptions& options)
 	app.checkMicroArch(std::cout, Provenance::compiledMicroArch());
 }
 
-void usageOperator()
-{
-	std::cerr << "USAGE is operator -f filename -e canonical_operator_expression\n";
-	std::cerr << "Deprecated options are: -l label [-d dof] [-s site] [-t]\n";
-}
-
 int main(int argc, char** argv)
 {
-	PsimagLite::PsiApp application("DMRG++::instrospect", &argc, &argv, 1);
-	PsimagLite::String filename = "";
-	int                opt      = 0;
-	OperatorOptions    operator_options;
-	CmdLineOptions     cmdline_options;
+	PsimagLite::PsiApp   application("DMRG++::instrospect", &argc, &argv, 1);
+	PsimagLite::String   filename = "";
+	int                  opt      = 0;
+	OptionsForIntrospect operator_options;
+	CmdLineOptions       cmdline_options;
 	cmdline_options.solver_options = ",introspect";
 	PsimagLite::String strUsage(application.name());
 	strUsage += " -f filename [-p precision] [-s site] [-V] -e expression [-H | -B]";
-	PsimagLite::String sOptions;
-	bool               versionOnly = false;
+	bool versionOnly = false;
 	/* PSIDOC OperatorDriver
 	 The arguments to the \verb!operator! executable are as follows.
 	\begin{itemize}
@@ -61,7 +54,7 @@ int main(int argc, char** argv)
 	\item[-H] [Optional] Prints the Hamiltonian terms for the model
 	\end{itemize}
 	 */
-	while ((opt = getopt(argc, argv, "f:s:p:e:s:HB")) != -1) {
+	while ((opt = getopt(argc, argv, "f:s:p:e:o:HB")) != -1) {
 		switch (opt) {
 		case 'f':
 			filename = optarg;
@@ -75,24 +68,20 @@ int main(int argc, char** argv)
 			std::cerr.precision(cmdline_options.precision);
 			break;
 		case 'e':
-			operator_options.introspect = OperatorOptions::IntrospectEnum::EXPRESSION;
-			operator_options.opexpr     = optarg;
+			operator_options.introspect
+			    = OptionsForIntrospect::IntrospectEnum::EXPRESSION;
+			operator_options.opexpr = optarg;
 			break;
 		case 'o':
-			sOptions += optarg;
-			break;
-		case 'S':
-			cmdline_options.number_of_threads = atoi(optarg);
+			cmdline_options.solver_options += optarg;
 			break;
 		case 'B':
-			operator_options.introspect = OperatorOptions::IntrospectEnum::MODEL_BASIS;
+			operator_options.introspect
+			    = OptionsForIntrospect::IntrospectEnum::MODEL_BASIS;
 			break;
 		case 'H':
 			operator_options.introspect
-			    = OperatorOptions::IntrospectEnum::MODEL_HAMILTONIAN;
-			break;
-		case 'U':
-			cmdline_options.unbuffered_output = true;
+			    = OptionsForIntrospect::IntrospectEnum::MODEL_HAMILTONIAN;
 			break;
 		case 'V':
 			versionOnly             = true;
@@ -119,15 +108,7 @@ int main(int argc, char** argv)
 		std::cerr << "WARNING: Garbage at end of command line will be ignored\n";
 	}
 
-	// print license
-	if (versionOnly) {
-		printLicense(application, operator_options);
-		return 0;
-	}
-
-	printLicense(application, operator_options);
-
-	DmrgRunner<RealType> dmrg_runner(application);
+	DmrgRunner<double> dmrg_runner(application);
 
 	PsimagLite::String data;
 	PsimagLite::InputNg<InputCheck>::Writeable::readFile(data, filename);

@@ -30,6 +30,10 @@ target_link_libraries(toolboxdmrg dmrgpp)
 add_executable(omegas manyOmegas.cpp)
 target_link_libraries(omegas dmrgpp kronutil)
 
+# Introspect executable
+add_executable(introspect introspect.cpp)
+target_link_libraries(introspect dmrgpp kronutil)
+
 if(BUILD_SHARED_LIBS)
   install(TARGETS dmrgpp LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
