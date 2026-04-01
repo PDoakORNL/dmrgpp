@@ -417,7 +417,7 @@ public:
 
 	const std::string& options() const { return gOptions_; }
 
-	const std::string & factor() const { return gFactor_; }
+	const std::string& factor() const { return gFactor_; }
 
 	friend std::ostream& operator<<(std::ostream& os, const GeometryTerm& gt)
 	{
