@@ -66,7 +66,6 @@ void DmrgRunner<RealType>::doOneRun2(const ParametersDmrgSolverType& dmrgSolverP
 {
 	using SuperGeometryType
 	    = SuperGeometry<ComplexOrRealType, InputNgType::Readable, ProgramGlobals>;
-	using VectorWithOffsetType   = VectorWithOffset<ComplexOrRealType, Qn>;
 	using MySparseMatrixComplex  = PsimagLite::CrsMatrix<ComplexOrRealType>;
 	using BasisType              = Basis<MySparseMatrixComplex>;
 	using BasisWithOperatorsType = BasisWithOperators<BasisType>;
@@ -116,8 +115,6 @@ void DmrgRunner<RealType>::doOneRun4(const ParametersDmrgSolverType& dmrgSolverP
 	if (dmrgSolverParams.options.isSet("printgeometry"))
 		std::cout << geometry;
 
-	using ParametersForSolverType
-	    = PsimagLite::ParametersForSolver<typename MatrixVectorType::RealType>;
 	using SolverType    = PsimagLite::LanczosSolver<MatrixVectorType>;
 	using ModelBaseType = typename SolverType::MatrixType::ModelType;
 
