@@ -91,7 +91,7 @@ public:
 		DIRECTION_S
 	};
 
-	static const SizeType CENTER = 1;
+	static const SizeType CENTER = 0;
 
 	Star() { }
 
@@ -103,7 +103,14 @@ public:
 
 	virtual SizeType dirs() const { return 1; }
 
-	SizeType handle(SizeType i, SizeType j) const { return (i < j) ? j - 1 : i - 1; }
+	SizeType handle(SizeType i, SizeType j) const
+	{
+		assert(i == CENTER || j == CENTER);
+		SizeType k      = (i == CENTER) ? j : i;
+		SizeType offset = (k < CENTER) ? 0 : 1;
+		assert(k >= offset);
+		return k - offset;
+	}
 
 	SizeType getVectorSize(SizeType dirId) const
 	{

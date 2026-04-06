@@ -6,11 +6,10 @@
 
 namespace Dmft {
 
-template <typename ParamsDmftSolverType> class ImpuritySolverBase {
+template <typename ComplexOrRealType> class ImpuritySolverBase {
 
 public:
 
-	using ComplexOrRealType = typename ParamsDmftSolverType::ComplexOrRealType;
 	using RealType          = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using ComplexType       = std::complex<RealType>;
 	using VectorRealType    = typename PsimagLite::Vector<RealType>::Type;

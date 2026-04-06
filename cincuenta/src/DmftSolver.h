@@ -5,12 +5,14 @@
 #include "ImpuritySolverBase.h"
 #include "ImpuritySolverDmrg.h"
 #include "ImpuritySolverExactDiag.h"
+#include "InputCheck.h"
+#include "InputNg.h"
 #include "LatticeGf.h"
 #include "ParamsDmftSolver.h"
 
 namespace Dmft {
 
-template <typename ComplexOrRealType, typename InputNgType> class DmftSolver {
+template <typename ComplexOrRealType> class DmftSolver {
 
 public:
 
@@ -20,14 +22,15 @@ public:
 	using VectorRealType              = typename MatsubarasType::VectorRealType;
 	using FitType                     = Fit<ComplexOrRealType>;
 	using MinParamsType               = typename FitType::MinParamsType;
-	using ParamsDmftSolverType        = ParamsDmftSolver<ComplexOrRealType, InputNgType>;
-	using ImpuritySolverType          = ImpuritySolverBase<ParamsDmftSolverType>;
-	using ImpuritySolverExactDiagType = ImpuritySolverExactDiag<ParamsDmftSolverType>;
-	using ImpuritySolverDmrgType      = ImpuritySolverDmrg<ParamsDmftSolverType>;
+	using ParamsDmftSolverType        = ParamsDmftSolver<ComplexOrRealType>;
+	using ImpuritySolverType          = ImpuritySolverBase<ComplexOrRealType>;
+	using ImpuritySolverExactDiagType = ImpuritySolverExactDiag<ComplexOrRealType>;
+	using ImpuritySolverDmrgType      = ImpuritySolverDmrg<ComplexOrRealType>;
 	using LatticeGfType               = LatticeGf<ComplexOrRealType>;
 	using ApplicationType             = typename ImpuritySolverType::ApplicationType;
 	using AndersonFunctionType        = typename FitType::AndersonFunctionType;
 	using VectorComplexType           = typename ImpuritySolverType::VectorComplexType;
+	using InputNgType                 = PsimagLite::InputNg<Dmrg::InputCheck>;
 
 	DmftSolver(const ParamsDmftSolverType&          params,
 	           const typename FitType::InitResults& initResults,
@@ -37,11 +40,12 @@ public:
 	    , latticeG_(sigma_, params.mu, params.latticeGf)
 	    , fit_(params.nBath, params.minParams, initResults)
 	    , impuritySolver_(nullptr)
+	    , io_(InputNgType::Writeable(params.gsTemplate, Dmrg::InputCheck()))
 	{
 		if (params.impuritySolver == "dmrg")
-			impuritySolver_ = new ImpuritySolverDmrgType(params, app);
+			impuritySolver_ = new ImpuritySolverDmrgType(params, app, io_);
 		else if (params.impuritySolver == "exactdiag")
-			impuritySolver_ = new ImpuritySolverExactDiagType(params, app);
+			impuritySolver_ = new ImpuritySolverExactDiagType(params, app, io_);
 		else
 			err("Unknown impurity solver " + params.impuritySolver + "\n");
 	}
@@ -195,6 +199,7 @@ private:
 	LatticeGfType               latticeG_;
 	FitType                     fit_;
 	ImpuritySolverType*         impuritySolver_;
+	InputNgType::Readable       io_;
 };
 }
 #endif // DMFTSOLVER_H

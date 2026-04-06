@@ -1,7 +1,7 @@
 ##Ainur1.0
 FicticiousBeta=50;
 ChemicalPotential=0;
-Matsubaras=20;
+Matsubaras=6;
 # LatticeGf: 50 is the number of K points
 #LatticeGf="momentum,1D,50";
 # Here 4 is the bandwidth W
@@ -16,5 +16,5 @@ MinParamsMaxIter=10000;
 MinParamsDelta2=0.01;
 MinParamsTolerance=0.01;
 MinParamsVerbose=1;
-DmrgGsTemplate="../cincuenta/TestSuite/inputs/gsTemplate.ain";
-DmrgOmegaTemplate="../cincuenta/TestSuite/inputs/omegaTemplate.ain";
+DmrgGsTemplate="../../../cincuenta/TestSuite/inputs/gsTemplate.ain";
+DmrgOmegaTemplate="../../../cincuenta/TestSuite/inputs/omegaTemplate.ain";

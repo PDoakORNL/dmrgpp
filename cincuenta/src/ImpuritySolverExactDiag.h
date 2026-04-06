@@ -5,56 +5,57 @@
 #include "BitManip.h"
 #include "CrsMatrix.h"
 #include "ExactDiag/BasisExactDiag.h"
-#include "ExactDiag/ModelParams.h"
 #include "ImpuritySolverBase.h"
 #include "InputCheck.h"
 #include "InputNg.h"
 #include "LanczosSolver.h"
 #include "Matsubaras.h"
 #include "MersenneTwister.h"
+#include "ModelParams.h"
+#include "ParamsDmftSolver.h"
 #include "PsimagLite.h"
 #include "SparseRow.h"
 #include "Vector.h"
 
 namespace Dmft {
 
-template <typename ParamsDmftSolverType>
-class ImpuritySolverExactDiag : public ImpuritySolverBase<ParamsDmftSolverType> {
+template <typename ComplexOrRealType>
+class ImpuritySolverExactDiag : public ImpuritySolverBase<ComplexOrRealType> {
 
 public:
 
-	using ComplexOrRealType = typename ParamsDmftSolverType::ComplexOrRealType;
-	using RealType          = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using ComplexType       = std::complex<RealType>;
-	using VectorRealType    = typename PsimagLite::Vector<RealType>::Type;
-	using VectorComplexType = typename PsimagLite::Vector<ComplexType>::Type;
+	using InputNgType          = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using ParamsDmftSolverType = ParamsDmftSolver<ComplexOrRealType>;
+	using RealType             = typename PsimagLite::Real<ComplexOrRealType>::Type;
+	using ComplexType          = std::complex<RealType>;
+	using VectorRealType       = typename PsimagLite::Vector<RealType>::Type;
+	using VectorComplexType    = typename PsimagLite::Vector<ComplexType>::Type;
 	using ApplicationType  = typename ImpuritySolverBase<ParamsDmftSolverType>::ApplicationType;
 	using SparseMatrixType = PsimagLite::CrsMatrix<ComplexOrRealType>;
 	using SparseRowType    = PsimagLite::SparseRow<SparseMatrixType>;
 	using WordType         = long unsigned int;
 	using BasisType        = BasisExactDiag;
-	using ModelParamsType  = ModelParams<RealType>;
-	using InputNgType      = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using ModelParamsType  = ModelParams<ComplexOrRealType>;
 	using SolverParametersType = PsimagLite::ParametersForSolver<RealType>;
 	using LanczosSolverType    = PsimagLite::LanczosSolver<SparseMatrixType>;
 	using LabeledOperatorType  = BasisType::LabeledOperatorType;
 	using MatrixType           = PsimagLite::Matrix<ComplexOrRealType>;
 	using MatsubarasType       = Matsubaras<RealType>;
 
-	ImpuritySolverExactDiag(const ParamsDmftSolverType& params, const ApplicationType& app)
+	ImpuritySolverExactDiag(const ParamsDmftSolverType& params,
+	                        const ApplicationType&,
+	                        InputNgType::Readable& io)
 	    : params_(params)
 	    , solverParams_(nullptr)
 	    , rng_(1234)
 	    , matsubaras_(params.ficticiousBeta, params.nMatsubaras)
 	    , gimp_(matsubaras_.total())
+	    , io_(io)
 	{
-		Dmrg::InputCheck       inputCheck;
-		InputNgType::Writeable ioW(params.gsTemplate, inputCheck);
-		InputNgType::Readable  io(ioW);
-		io.read(hubbardU_, "hubbardU");
-		io.readline(nup_, "TargetElectronsUp=");
-		io.readline(ndown_, "TargetElectronsDown=");
-		solverParams_ = new SolverParametersType(io, "Lanczos");
+		io_.read(hubbardU_, "hubbardU");
+		io_.readline(nup_, "TargetElectronsUp=");
+		io_.readline(ndown_, "TargetElectronsDown=");
+		solverParams_ = new SolverParametersType(io_, "Lanczos");
 	}
 
 	~ImpuritySolverExactDiag()
@@ -67,9 +68,9 @@ public:
 	// bathParams[nBath-...] ==> energies on each bath site
 	void solve(const VectorRealType& bathParams)
 	{
-		ModelParamsType mp(bathParams);
+		ModelParamsType mp(bathParams, io_);
 
-		BasisType basis(mp.sites, nup_, ndown_);
+		BasisType basis(mp.numberOfSites(), nup_, ndown_);
 
 		// setup model params ==> mp_
 
@@ -89,14 +90,25 @@ public:
 		RealType          energy = 0;
 		VectorComplexType gs(n);
 		lanczos.computeOneState(energy, gs, initialVector, 1);
-
+		std::cout << "Energy=" << energy << "\n";
 		// compute gimp
 		computeGreenFunction(energy, gs, basis, mp);
+		std::cout << "SumOfGimp=" << density() << "\n";
 	}
 
 	const VectorComplexType& gimp() const { return gimp_; }
 
 private:
+
+	ComplexType density() const
+	{
+		const SizeType n   = gimp_.size();
+		ComplexType    sum = 0;
+		for (SizeType i = 0; i < n; ++i)
+			sum += gimp_[i];
+
+		return sum;
+	}
 
 	void setupHamiltonian(SparseMatrixType&      matrix,
 	                      const BasisType&       basis,
@@ -106,7 +118,7 @@ private:
 		typename PsimagLite::Vector<RealType>::Type diag(hilbert);
 		calcDiagonalElements(diag, basis, mp);
 
-		SizeType nsite = mp.sites;
+		SizeType nsite = mp.numberOfSites();
 
 		matrix.resize(hilbert, hilbert);
 		// Calculate off-diagonal elements AND store matrix
@@ -126,6 +138,7 @@ private:
 		}
 
 		matrix.setRow(hilbert, nCounter);
+		matrix.checkValidity();
 	}
 
 	void calcDiagonalElements(VectorRealType&        diag,
@@ -133,7 +146,7 @@ private:
 	                          const ModelParamsType& mp) const
 	{
 		SizeType hilbert = basis.size();
-		SizeType nsite   = mp.sites;
+		SizeType nsite   = mp.numberOfSites();
 		SizeType orb     = 0;
 
 		// Calculate diagonal elements
@@ -153,8 +166,8 @@ private:
 				RealType ne = (basis.getN(ket1, ket2, i, 0, orb) + // SPIN_UP
 				               basis.getN(ket1, ket2, i, 1, orb)); // SPIN_DOWN
 
-				assert(mp.potentialV.size() > i);
-				RealType tmp = mp.potentialV[i];
+				assert(mp.potentialV().size() > i);
+				RealType tmp = mp.potentialV()[i];
 				if (tmp != 0)
 					s += tmp * ne;
 			}
@@ -178,11 +191,17 @@ private:
 		if (s2i > 0)
 			s2i = 1;
 
-		const SizeType nsite = mp.sites;
+		const SizeType nsite = mp.numberOfSites();
 
 		// Hopping term
 		for (SizeType j = 0; j < nsite; ++j) {
-			const ComplexOrRealType& h = mp.hoppings(i, j);
+			if (!mp.geometry().connected(i, j)) {
+				continue;
+			}
+
+			SizeType handle = mp.geometry().handle(i, j);
+			assert(handle < mp.hoppings().size());
+			const ComplexOrRealType& h = mp.hoppings()[handle];
 			const bool hasHop = (PsimagLite::real(h) != 0 || PsimagLite::imag(h) != 0);
 			WordType   s1j    = (ket1 & BasisType::bitmask(j));
 			if (s1j > 0)
@@ -250,14 +269,14 @@ private:
 	            const BasisType&         basis,
 	            const ModelParamsType&   mp)
 	{
-		SizeType center = mp.sites / 2;
+		SizeType center = mp.impuritySite();
 		SizeType spin   = 0;
 
 		MatrixType cAtCenter;
 		SizeType   nup   = getElectrons(what, spin, nup_, 0);
 		SizeType   ndown = getElectrons(what, spin, ndown_, 1);
 
-		BasisType                  basisDest(mp.sites, nup, ndown);
+		BasisType                  basisDest(mp.numberOfSites(), nup, ndown);
 		LabeledOperatorType::Label label = (what == 0)
 		    ? LabeledOperatorType::Label::OPERATOR_C
 		    : LabeledOperatorType::Label::OPERATOR_CDAGGER;
@@ -280,7 +299,7 @@ private:
 
 			RealType          sign = (sign2 < 0) ? 1 : -1;
 			ComplexOrRealType sum  = 0;
-			for (SizeType site = 0; site < mp.sites; ++site) {
+			for (SizeType site = 0; site < mp.numberOfSites(); ++site) {
 				MatrixType cAtSite;
 				setOperatorC(cAtSite, basis, basisDest, label, site, spin);
 
@@ -383,6 +402,7 @@ private:
 	SizeType                    nup_;
 	SizeType                    ndown_;
 	VectorComplexType           gimp_;
+	InputNgType::Readable&      io_;
 };
 }
 #endif // IMPURITYSOLVER_EXACTD_H
