@@ -6,7 +6,7 @@ target_link_libraries(provenance PUBLIC dmrgpp psimaglite)
 
 set(cincuenta_src cincuenta.cpp)
 add_executable(cincuenta ${cincuenta_src} $<TARGET_OBJECTS:provenance>)
-target_link_libraries(cincuenta PUBLIC dmrgpp kronutil)
+target_link_libraries(cincuenta PUBLIC dmrgpp dmrgRunner kronutil)
 
 add_executable(freeGimp freeGimp.cpp $<TARGET_OBJECTS:provenance>)
 target_link_libraries(freeGimp PUBLIC dmrgpp kronutil)

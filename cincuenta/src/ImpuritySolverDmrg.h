@@ -48,6 +48,7 @@ public:
 	                   InputNgType::Readable&      io)
 	    : params_(params)
 	    , runner_(app)
+	    , io_(io)
 	{ }
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
