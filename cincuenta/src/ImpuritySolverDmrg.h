@@ -47,7 +47,7 @@ public:
 	                   const ApplicationType&      app,
 	                   InputNgType::Readable&      io)
 	    : params_(params)
-	    , runner_(app)
+	    , app_(app)
 	    , io_(io)
 	{ }
 
@@ -67,7 +67,9 @@ public:
 			Dmrg::CmdLineOptions cmdline_options;
 			cmdline_options.in_situ_measurements = "<gs|nup|gs>";
 			cmdline_options.logfile              = "-";
-			runner_.doOneRun(data2, cmdline_options);
+
+			DmrgRunnerType runner(app_, data2, cmdline_options);
+			runner.doOneRun();
 		}
 
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
@@ -136,7 +138,7 @@ private:
 
 		Matsubaras<RealType> matsubaras(params_.ficticiousBeta, params_.nMatsubaras);
 
-		ManyOmegasType manyOmegas(data2, matsubaras, runner_.application());
+		ManyOmegasType manyOmegas(data2, matsubaras, app_);
 
 		const bool               dryrun   = false;
 		const PsimagLite::String rootname = "dmftDynamics";
@@ -261,7 +263,7 @@ private:
 	}
 
 	const ParamsDmftSolverType& params_;
-	DmrgRunnerType              runner_;
+	const ApplicationType&      app_;
 	VectorComplexType           gimp_;
 	InputNgType::Readable&      io_;
 };

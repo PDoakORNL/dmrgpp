@@ -108,10 +108,9 @@ int main(int argc, char** argv)
 		std::cerr << "WARNING: Garbage at end of command line will be ignored\n";
 	}
 
-	DmrgRunner<double> dmrg_runner(application);
-
 	PsimagLite::String data;
 	PsimagLite::InputNg<InputCheck>::Writeable::readFile(data, filename);
+	DmrgRunner<double> dmrg_runner(application, data, cmdline_options);
 
-	dmrg_runner.doOneRun(data, cmdline_options, operator_options);
+	dmrg_runner.doOneRun(operator_options);
 }

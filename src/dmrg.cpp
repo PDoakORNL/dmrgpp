@@ -120,10 +120,10 @@ to the main dmrg driver are the following.
 
 	printLicense(application);
 
-	DmrgRunner<double> dmrg_runner(application);
-
 	PsimagLite::String data;
 	PsimagLite::InputNg<InputCheck>::Writeable::readFile(data, filename);
 
-	dmrg_runner.doOneRun(data, cmdline_options);
+	DmrgRunner<double> dmrg_runner(application, data, cmdline_options);
+
+	dmrg_runner.doOneRun();
 }

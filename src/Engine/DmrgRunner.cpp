@@ -3,25 +3,24 @@
 namespace Dmrg {
 
 template <typename RealType>
-void DmrgRunner<RealType>::doOneRun(const PsimagLite::String& data,
-                                    const CmdLineOptions&     cmd_line) const
+DmrgRunner<RealType>::DmrgRunner(const ApplicationType&    app,
+                                 const PsimagLite::String& data,
+                                 const CmdLineOptions&     cmd_line)
+    : application_(app)
+    , io_(nullptr)
+    , dmrg_solver_params_(nullptr)
 {
-	OptionsForIntrospect op_options;
-	this->doOneRun(data, cmd_line, op_options);
-}
+	// io_ doesn't need ioWritable past its construction, else
+	// we would have to store it as member data
+	{
+		InputNgType::Writeable ioWriteable(inputCheck_, data);
+		io_ = new InputNgType::Readable(ioWriteable);
+	}
 
-template <typename RealType>
-void DmrgRunner<RealType>::doOneRun(const PsimagLite::String&   data,
-                                    const CmdLineOptions&       cmd_line,
-                                    const OptionsForIntrospect& op_options) const
-{
-	InputCheck             inputCheck;
-	InputNgType::Writeable ioWriteable(inputCheck, data);
-	InputNgType::Readable  io(ioWriteable);
+	assert(io_);
+	dmrg_solver_params_ = new ParametersDmrgSolverType(*io_, cmd_line.solver_options);
 
-	ParametersDmrgSolverType dmrgSolverParams(io, cmd_line.solver_options);
-
-	bool introspect_only = (dmrgSolverParams.options.isSet("introspect"));
+	bool introspect_only = (dmrg_solver_params_->options.isSet("introspect"));
 
 	std::string insitu   = cmd_line.in_situ_measurements;
 	SizeType    nthreads = cmd_line.number_of_threads;
@@ -30,39 +29,56 @@ void DmrgRunner<RealType>::doOneRun(const PsimagLite::String&   data,
 		nthreads = 1;
 	}
 
-	adjustDmrgSolverParams(dmrgSolverParams, insitu, cmd_line.precision, nthreads);
+	adjustDmrgSolverParams(insitu, cmd_line.precision, nthreads);
 
 	if (!introspect_only) {
-		if (endDueToClobber(dmrgSolverParams.options.isSet("noClobber"),
+		if (endDueToClobber(dmrg_solver_params_->options.isSet("noClobber"),
 		                    cmd_line.logfile)) {
 			return;
 		}
 
-		dealWithConsoleOutput(
-		    dmrgSolverParams, cmd_line.logfile, cmd_line.unbuffered_output);
+		dealWithConsoleOutput(cmd_line.logfile, cmd_line.unbuffered_output);
 
 		constexpr bool PRINT_HEADER = true;
 		application_.base64encode(std::cout, data, PRINT_HEADER);
 
 		application_.printCmdLine(std::cout);
 
-		setCorrectThreading(dmrgSolverParams, io);
+		setCorrectThreading();
 	}
+}
 
-	bool isComplex = (dmrgSolverParams.options.isSet("useComplex")
-	                  || dmrgSolverParams.options.isSet("TimeStepTargeting"));
+template <typename RealType> DmrgRunner<RealType>::~DmrgRunner()
+{
+	delete dmrg_solver_params_;
+	dmrg_solver_params_ = nullptr;
+
+	delete io_;
+	io_ = nullptr;
+}
+
+template <typename RealType> void DmrgRunner<RealType>::doOneRun() const
+{
+	OptionsForIntrospect op_options;
+	this->doOneRun((op_options));
+}
+
+template <typename RealType>
+void DmrgRunner<RealType>::doOneRun(OptionsForIntrospect& op_options) const
+{
+	assert(dmrg_solver_params_);
+	bool isComplex = (dmrg_solver_params_->options.isSet("useComplex")
+	                  || dmrg_solver_params_->options.isSet("TimeStepTargeting"));
 
 	if (isComplex)
-		doOneRun2<std::complex<RealType>>(dmrgSolverParams, op_options, io);
+		doOneRun2<std::complex<RealType>>(op_options);
 	else
-		doOneRun2<RealType>(dmrgSolverParams, op_options, io);
+		doOneRun2<RealType>(op_options);
 }
 
 template <typename RealType>
 template <typename ComplexOrRealType>
-void DmrgRunner<RealType>::doOneRun2(const ParametersDmrgSolverType& dmrgSolverParams,
-                                     const OptionsForIntrospect&     op_options,
-                                     InputNgType::Readable&          io) const
+void DmrgRunner<RealType>::doOneRun2(const OptionsForIntrospect& op_options) const
 {
 	using SuperGeometryType
 	    = SuperGeometry<ComplexOrRealType, InputNgType::Readable, ProgramGlobals>;
@@ -76,53 +92,54 @@ void DmrgRunner<RealType>::doOneRun2(const ParametersDmrgSolverType& dmrgSolverP
 	                                         InputNgType::Readable,
 	                                         SuperGeometryType>;
 
-	if (dmrgSolverParams.options.isSet("MatrixVectorStored")) {
-		doOneRun3<MatrixVectorStored<ModelBaseType>>(dmrgSolverParams, op_options, io);
-	} else if (dmrgSolverParams.options.isSet("MatrixVectorOnTheFly")) {
-		doOneRun3<MatrixVectorOnTheFly<ModelBaseType>>(dmrgSolverParams, op_options, io);
+	assert(dmrg_solver_params_);
+	if (dmrg_solver_params_->options.isSet("MatrixVectorStored")) {
+		doOneRun3<MatrixVectorStored<ModelBaseType>>(op_options);
+	} else if (dmrg_solver_params_->options.isSet("MatrixVectorOnTheFly")) {
+		doOneRun3<MatrixVectorOnTheFly<ModelBaseType>>(op_options);
 	} else {
-		doOneRun3<MatrixVectorKron<ModelBaseType>>(dmrgSolverParams, op_options, io);
+		doOneRun3<MatrixVectorKron<ModelBaseType>>(op_options);
 	}
 }
 
 template <typename RealType>
 template <typename MatrixVectorType>
-void DmrgRunner<RealType>::doOneRun3(const ParametersDmrgSolverType& dmrgSolverParams,
-                                     const OptionsForIntrospect&     op_options,
-                                     InputNgType::Readable&          io) const
+void DmrgRunner<RealType>::doOneRun3(const OptionsForIntrospect& op_options) const
 {
+	assert(dmrg_solver_params_);
 	using ComplexOrRealType = typename MatrixVectorType::ComplexOrRealType;
-	if (dmrgSolverParams.options.isSet("vectorwithoffsets")) {
+	if (dmrg_solver_params_->options.isSet("vectorwithoffsets")) {
 		typedef VectorWithOffsets<ComplexOrRealType, Qn> VectorWithOffsetType;
-		doOneRun4<MatrixVectorType, VectorWithOffsetType>(dmrgSolverParams, op_options, io);
+		doOneRun4<MatrixVectorType, VectorWithOffsetType>(op_options);
 	} else {
 		typedef VectorWithOffset<ComplexOrRealType, Qn> VectorWithOffsetType;
-		doOneRun4<MatrixVectorType, VectorWithOffsetType>(dmrgSolverParams, op_options, io);
+		doOneRun4<MatrixVectorType, VectorWithOffsetType>(op_options);
 	}
 }
 
 template <typename RealType>
 template <typename MatrixVectorType, typename VectorWithOffsetType>
-void DmrgRunner<RealType>::doOneRun4(const ParametersDmrgSolverType& dmrgSolverParams,
-                                     const OptionsForIntrospect&     op_options,
-                                     InputNgType::Readable&          io) const
+void DmrgRunner<RealType>::doOneRun4(const OptionsForIntrospect& op_options) const
 {
 	using ComplexOrRealType = typename MatrixVectorType::ComplexOrRealType;
 	using SuperGeometryType
 	    = SuperGeometry<ComplexOrRealType, InputNgType::Readable, ProgramGlobals>;
 
-	SuperGeometryType geometry(io);
-	if (dmrgSolverParams.options.isSet("printgeometry"))
+	assert(io_);
+	assert(dmrg_solver_params_);
+
+	SuperGeometryType geometry(*io_);
+	if (dmrg_solver_params_->options.isSet("printgeometry"))
 		std::cout << geometry;
 
 	using SolverType    = PsimagLite::LanczosSolver<MatrixVectorType>;
 	using ModelBaseType = typename SolverType::MatrixType::ModelType;
 
 	//! Setup the Model
-	ModelSelector<ModelBaseType> modelSelector(dmrgSolverParams.model);
-	ModelBaseType&               model = modelSelector(dmrgSolverParams, io, geometry);
+	ModelSelector<ModelBaseType> modelSelector(dmrg_solver_params_->model);
+	ModelBaseType&               model = modelSelector(*dmrg_solver_params_, *io_, geometry);
 
-	Introspect introspect(dmrgSolverParams.options.isSet("instrospect"));
+	Introspect introspect(dmrg_solver_params_->options.isSet("instrospect"));
 
 	if (introspect(model, op_options)) {
 		return; // <--- EARLY EXIT HERE
@@ -130,7 +147,7 @@ void DmrgRunner<RealType>::doOneRun4(const ParametersDmrgSolverType& dmrgSolverP
 
 	//! Setup the dmrg solver
 	using DmrgSolverType = DmrgSolver<SolverType, VectorWithOffsetType>;
-	DmrgSolverType dmrgSolver(model, io);
+	DmrgSolverType dmrgSolver(model, *io_);
 
 	//! Calculate observables:
 	dmrgSolver.main(geometry);
@@ -139,65 +156,62 @@ void DmrgRunner<RealType>::doOneRun4(const ParametersDmrgSolverType& dmrgSolverP
 }
 
 template <typename RealType>
-void DmrgRunner<RealType>::dealWithConsoleOutput(const ParametersDmrgSolverType& dmrgSolverParams,
-                                                 const std::string&              logfile,
-                                                 bool                            unbuffered) const
+void DmrgRunner<RealType>::dealWithConsoleOutput(const std::string& logfile, bool unbuffered)
 {
 	if (logfile == "-") {
 		return;
 	}
 
-	PsimagLite::RedirectOutput::setAppName(application_.name(),
-	                                       Provenance::logo(application_.name()));
-
 	std::ios_base::openmode open_mode
-	    = (dmrgSolverParams.autoRestart) ? std::ofstream::app : std::ofstream::out;
+	    = (dmrg_solver_params_->autoRestart) ? std::ofstream::app : std::ofstream::out;
 
-	PsimagLite::RedirectOutput::doIt(logfile, open_mode, unbuffered);
+	redirect_output_.doIt(logfile, open_mode, unbuffered);
 }
 
 template <typename RealType>
-void DmrgRunner<RealType>::adjustDmrgSolverParams(ParametersDmrgSolverType& dmrgSolverParams,
-                                                  const std::string&        insitu,
-                                                  SizeType                  precision,
-                                                  SizeType                  threadsInCmd) const
+void DmrgRunner<RealType>::adjustDmrgSolverParams(const std::string& insitu,
+                                                  SizeType           precision,
+                                                  SizeType           threadsInCmd)
 {
+	assert(dmrg_solver_params_);
 	if (threadsInCmd > 0)
-		dmrgSolverParams.nthreads = threadsInCmd;
+		dmrg_solver_params_->nthreads = threadsInCmd;
 
 	if (precision > 0)
-		dmrgSolverParams.precision = precision;
+		dmrg_solver_params_->precision = precision;
 
-	dmrgSolverParams.insitu = insitu;
+	dmrg_solver_params_->insitu = insitu;
 
-	if (dmrgSolverParams.options.isSet("minimizeDisk")) {
-		dmrgSolverParams.options += ",noSaveWft,noSaveStacks,noSaveData";
+	if (dmrg_solver_params_->options.isSet("minimizeDisk")) {
+		dmrg_solver_params_->options += ",noSaveWft,noSaveStacks,noSaveData";
 	}
 
 	// The below doesn't change dmrgSolverParams
-	if (dmrgSolverParams.options.isSet("hd5DontPrint"))
+	if (dmrg_solver_params_->options.isSet("hd5DontPrint"))
 		PsimagLite::IoNg::dontPrintDebug();
 
-	if (dmrgSolverParams.autoRestart) {
+	if (dmrg_solver_params_->autoRestart) {
 		std::cout << "\nAutoRestart possible\n";
 	}
 }
 
-template <typename RealType>
-void DmrgRunner<RealType>::setCorrectThreading(const ParametersDmrgSolverType& dmrgSolverParams,
-                                               InputNgType::Readable&          io)
+template <typename RealType> void DmrgRunner<RealType>::setCorrectThreading() const
 {
 	typedef PsimagLite::Concurrency ConcurrencyType;
 
+	assert(io_);
 	SizeType threadsStackSize = 0;
 	try {
-		io.readline(threadsStackSize, "ThreadsStackSize=");
+		io_->readline(threadsStackSize, "ThreadsStackSize=");
 	} catch (std::exception&) { }
 
 	constexpr bool setAffinities = false; // no longer supported, I mean, deleted
 
-	PsimagLite::CodeSectionParams codeSection(
-	    dmrgSolverParams.nthreads, dmrgSolverParams.nthreads2, setAffinities, threadsStackSize);
+	assert(dmrg_solver_params_);
+	PsimagLite::CodeSectionParams codeSection(dmrg_solver_params_->nthreads,
+	                                          dmrg_solver_params_->nthreads2,
+	                                          setAffinities,
+	                                          threadsStackSize);
 	ConcurrencyType::setOptions(codeSection);
 }
 

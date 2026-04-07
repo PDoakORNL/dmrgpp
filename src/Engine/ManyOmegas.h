@@ -24,8 +24,8 @@ public:
 	           const OmegaParamsType& omegaParams,
 	           const ApplicationType& app)
 	    : data_(data)
-	    , runner_(app)
 	    , omegaParams_(omegaParams)
+	    , app_(app)
 	{ }
 
 	void run(bool dryRun, PsimagLite::String root, const CmdLineOptions& cmdline_options)
@@ -60,7 +60,8 @@ public:
 				    return;
 			    }
 
-			    runner_.doOneRun(data2, cmdline_options2);
+			    DmrgRunnerType runner(app_, data2, cmdline_options2);
+			    runner.doOneRun();
 		    });
 	}
 
@@ -71,8 +72,8 @@ public:
 	}
 
 	PsimagLite::String     data_;
-	DmrgRunnerType         runner_;
 	const OmegaParamsType& omegaParams_;
+	const ApplicationType& app_;
 };
 }
 #endif // MANYOMEGAS_H

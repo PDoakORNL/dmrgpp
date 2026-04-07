@@ -31,50 +31,44 @@ public:
 	using ParametersDmrgSolverType = ParametersDmrgSolver<RealType, InputNgType::Readable, Qn>;
 	using ApplicationType          = PsimagLite::PsiApp;
 
-	DmrgRunner(const ApplicationType& application)
-	    : application_(application)
-	{ }
+	DmrgRunner(const ApplicationType&    app,
+	           const PsimagLite::String& data,
+	           const CmdLineOptions&     cmd_line);
 
-	void doOneRun(const PsimagLite::String& data, const CmdLineOptions& cmd_line) const;
+	~DmrgRunner();
 
-	void doOneRun(const PsimagLite::String&   data,
-	              const CmdLineOptions&       cmd_line,
-	              const OptionsForIntrospect& op_options) const;
+	void doOneRun(OptionsForIntrospect& op_options) const;
+
+	void doOneRun() const;
 
 	const ApplicationType& application() const { return application_; }
 
 private:
 
 	template <typename ComplexOrRealType>
-	void doOneRun2(const ParametersDmrgSolverType& dmrgSolverParams,
-	               const OptionsForIntrospect&     op_options,
-	               InputNgType::Readable&          io) const;
+	void doOneRun2(const OptionsForIntrospect& op_options) const;
 
 	template <typename MatrixVectorType>
-	void doOneRun3(const ParametersDmrgSolverType& dmrgSolverParams,
-	               const OptionsForIntrospect&     op_options,
-	               InputNgType::Readable&          io) const;
+	void doOneRun3(const OptionsForIntrospect& op_options) const;
 
 	template <typename MatrixVectorType, typename VectorWithOffsetType>
-	void doOneRun4(const ParametersDmrgSolverType& dmrgSolverParams,
-	               const OptionsForIntrospect&     op_options,
-	               InputNgType::Readable&          io) const;
+	void doOneRun4(const OptionsForIntrospect& op_options) const;
 
-	void dealWithConsoleOutput(const ParametersDmrgSolverType& dmrgSolverParams,
-	                           const std::string&              logfile,
-	                           bool                            unbuffered) const;
+	void dealWithConsoleOutput(const std::string& logfile, bool unbuffered);
 
-	void adjustDmrgSolverParams(ParametersDmrgSolverType& dmrgSolverParams,
-	                            const std::string&        insitu,
-	                            SizeType                  precision,
-	                            SizeType                  threadsInCmd) const;
+	void adjustDmrgSolverParams(const std::string& insitu,
+	                            SizeType           precision,
+	                            SizeType           threadsInCmd);
 
-	static void setCorrectThreading(const ParametersDmrgSolverType& dmrgSolverParams,
-	                                InputNgType::Readable&          io);
+	void setCorrectThreading() const;
 
 	static bool endDueToClobber(bool is_no_clobber_set, const std::string& logfile);
 
-	const ApplicationType& application_;
+	const ApplicationType&     application_;
+	InputCheck                 inputCheck_;
+	InputNgType::Readable*     io_;
+	ParametersDmrgSolverType*  dmrg_solver_params_;
+	PsimagLite::RedirectOutput redirect_output_;
 };
 }
 #endif // DMRGRUNNER_H
