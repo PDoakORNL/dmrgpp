@@ -5,7 +5,6 @@
 #include "CrsMatrix.h"
 #include "ImpuritySolverBase.h"
 #include "InputCheck.h"
-#include "InputNg.h"
 #include "LanczosPlusPlus/src/Engine/DefaultSymmetry.h"
 #include "LanczosPlusPlus/src/Engine/Engine.h"
 #include "LanczosPlusPlus/src/Engine/InternalProductOnTheFly.h"
@@ -13,7 +12,6 @@
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
 #include "LanczosPlusPlus/src/Engine/ModelSelector.h"
 #include "Matsubaras.h"
-#include "ModelParams.h"
 #include "ParamsDmftSolver.h"
 #include "PsimagLite.h"
 #include "Vector.h"
@@ -25,7 +23,8 @@ class ImpuritySolverExactDiag : public ImpuritySolverBase<ComplexOrRealType> {
 
 public:
 
-	using InputNgType          = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using BaseType             = ImpuritySolverBase<ComplexOrRealType>;
+	using InputNgType          = typename BaseType::InputNgType;
 	using ParamsDmftSolverType = ParamsDmftSolver<ComplexOrRealType>;
 	using RealType             = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using ComplexType          = std::complex<RealType>;
@@ -33,15 +32,15 @@ public:
 	using VectorComplexType    = typename PsimagLite::Vector<ComplexType>::Type;
 	using ApplicationType  = typename ImpuritySolverBase<ParamsDmftSolverType>::ApplicationType;
 	using SparseMatrixType = PsimagLite::CrsMatrix<ComplexOrRealType>;
-	using ModelParamsType  = ModelParams<ComplexOrRealType>;
 	using SolverParametersType = PsimagLite::ParametersForSolver<RealType>;
 	using MatsubarasType       = Matsubaras<RealType>;
-	using GeometryType         = PsimagLite::
-	    Geometry<ComplexOrRealType, InputNgType::Readable, LanczosPlusPlus::LanczosGlobals>;
-	using ModelSelectorType = LanczosPlusPlus::
-	    ModelSelector<ComplexOrRealType, GeometryType, InputNgType::Readable>;
-	using ModelBaseType
-	    = LanczosPlusPlus::ModelBase<ComplexOrRealType, GeometryType, InputNgType::Readable>;
+	using GeometryType         = PsimagLite::Geometry<ComplexOrRealType,
+	                                                  typename InputNgType::Readable,
+	                                                  LanczosPlusPlus::LanczosGlobals>;
+	using ModelSelectorType    = LanczosPlusPlus::
+	    ModelSelector<ComplexOrRealType, GeometryType, typename InputNgType::Readable>;
+	using ModelBaseType = LanczosPlusPlus::
+	    ModelBase<ComplexOrRealType, GeometryType, typename InputNgType::Readable>;
 	using LanzcosSymmetryType
 	    = LanczosPlusPlus::DefaultSymmetry<GeometryType, typename ModelBaseType::BasisBaseType>;
 	using InternalProductType
@@ -52,10 +51,11 @@ public:
 	using ContFractionType  = PsimagLite::ContinuedFraction<TridiagMatrixType>;
 	using CollectionContFractionType
 	    = PsimagLite::ContinuedFractionCollection<ContFractionType>;
+	using ModelParamsType = typename BaseType::ModelParamsType;
 
 	ImpuritySolverExactDiag(const ParamsDmftSolverType& params,
 	                        const ApplicationType&,
-	                        InputNgType::Readable& io)
+	                        typename InputNgType::Readable& io)
 	    : params_(params)
 	    , solverParams_(nullptr)
 	    , matsubaras_(params.ficticiousBeta, params.nMatsubaras)
@@ -73,7 +73,10 @@ public:
 	// bathParams[nBath-...] ==> energies on each bath site
 	void solve(const VectorRealType& bathParams)
 	{
-		ModelParamsType mp(bathParams, io_);
+		ModelParamsType model_params(bathParams, io_);
+
+		PsimagLite::String data2
+		    = BaseType::readAndModifyInput(params_.gsTemplate, model_params);
 
 		// This will replaced by a LanzosRunner at some point
 		// so that we don't repeat what's in lanczos.cpp main driver
@@ -81,13 +84,14 @@ public:
 
 		// std::cout << geometry;
 
-		GeometryType geometry(io_);
+		Dmrg::InputCheck                inputCheck;
+		typename InputNgType::Writeable ioWriteable(inputCheck, data2);
+		typename InputNgType::Readable  io(ioWriteable);
 
-		// IMPORTANT FIXME: pass bathParams to model here maybe by changing geometry
-
-		ModelSelectorType    modelSelector(io_, geometry);
+		GeometryType         geometry(io);
+		ModelSelectorType    modelSelector(io, geometry);
 		const ModelBaseType& modelPtr = modelSelector();
-		EngineType           engine(modelPtr, io_);
+		EngineType           engine(modelPtr, io);
 
 		RealType energy = engine.energies(0);
 		std::cout << "Energy=" << energy << "\n";
@@ -97,7 +101,7 @@ public:
 		CollectionContFractionType       cfCollection(PsimagLite::FreqEnum::FREQ_MATSUBARA);
 		LanczosPlusPlus::LabeledOperator OPERATOR_C
 		    = LanczosPlusPlus::LabeledOperator::Label::OPERATOR_C;
-		SizeType                      impurity_site = mp.impuritySite();
+		SizeType                      impurity_site = model_params.impuritySite();
 		std::pair<SizeType, SizeType> spin_pair(0, 0); // spin symmetric, we choose up == 0
 		std::pair<SizeType, SizeType> orb_pair(0, 0); // no orbitals
 		std::vector<std::string>      vstr; // output
@@ -128,11 +132,11 @@ private:
 		return sum;
 	}
 
-	const ParamsDmftSolverType& params_;
-	SolverParametersType*       solverParams_;
-	MatsubarasType              matsubaras_;
-	VectorComplexType           gimp_;
-	InputNgType::Readable&      io_;
+	const ParamsDmftSolverType&     params_;
+	SolverParametersType*           solverParams_;
+	MatsubarasType                  matsubaras_;
+	VectorComplexType               gimp_;
+	typename InputNgType::Readable& io_;
 };
 }
 #endif // IMPURITYSOLVER_EXACTD_H

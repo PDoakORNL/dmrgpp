@@ -6,7 +6,6 @@
 #include "Geometry/Star.h"
 #include "ImpuritySolverBase.h"
 #include "InputCheck.h"
-#include "InputNg.h"
 #include "LanczosSolver.h"
 #include "ManyOmegas.h"
 #include "Matsubaras.h"
@@ -30,7 +29,7 @@ class ImpuritySolverDmrg : public ImpuritySolverBase<ComplexOrRealType> {
 
 public:
 
-	using InputNgType          = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using BaseType             = ImpuritySolverBase<ComplexOrRealType>;
 	using ParamsDmftSolverType = ParamsDmftSolver<ComplexOrRealType>;
 	using RealType             = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using ComplexType          = std::complex<RealType>;
@@ -41,11 +40,12 @@ public:
 	using MatsubarasType       = Matsubaras<RealType>;
 	using ManyOmegasType       = Dmrg::ManyOmegas<RealType, MatsubarasType>;
 	using ProcOmegasType       = Dmrg::ProcOmegas<RealType, MatsubarasType>;
-	using ModelParamsType      = ModelParams<RealType>;
+	using ModelParamsType      = typename BaseType::ModelParamsType;
+	using InputNgType          = typename BaseType::InputNgType;
 
-	ImpuritySolverDmrg(const ParamsDmftSolverType& params,
-	                   const ApplicationType&      app,
-	                   InputNgType::Readable&      io)
+	ImpuritySolverDmrg(const ParamsDmftSolverType&     params,
+	                   const ApplicationType&          app,
+	                   typename InputNgType::Readable& io)
 	    : params_(params)
 	    , app_(app)
 	    , io_(io)
@@ -59,9 +59,8 @@ public:
 		SizeType        mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
 
 		if (mpiRank == 0) {
-			PsimagLite::String data;
-			InputNgType::Writeable::readFile(data, params_.gsTemplate);
-			PsimagLite::String data2  = addBathParams(data, model_params);
+			PsimagLite::String data2
+			    = BaseType::readAndModifyInput(params_.gsTemplate, model_params);
 			PsimagLite::String insitu = "<gs|nup|gs>";
 
 			Dmrg::CmdLineOptions cmdline_options;
@@ -76,7 +75,7 @@ public:
 
 		PsimagLite::String data3;
 		InputNgType::Writeable::readFile(data3, params_.omegaTemplate);
-		PsimagLite::String data4 = addBathParams(data3, model_params);
+		PsimagLite::String data4 = BaseType::addBathParams(data3, model_params);
 
 		doType(DmrgType::TYPE_0, data4, mpiRank);
 
@@ -95,34 +94,6 @@ public:
 	const VectorComplexType& gimp() const { return gimp_; }
 
 private:
-
-	PsimagLite::String addBathParams(PsimagLite::String     data,
-	                                 const ModelParamsType& model_params)
-	{
-		const PsimagLite::String connectors = vectorToString(model_params.hoppings(), ",");
-		const PsimagLite::String label      = "dir0:Connectors=[" + connectors + "];\n";
-		const PsimagLite::String potentialV
-		    = vectorToString(model_params.potentialV(), ",");
-		const PsimagLite::String label2
-		    = "potentialV=[" + potentialV + "," + potentialV + "];\n";
-
-		return data + label + label2;
-	}
-
-	static PsimagLite::String vectorToString(const VectorRealType& v,
-	                                         const std::string&    separator)
-	{
-		PsimagLite::String buffer;
-		SizeType           n = v.size();
-		for (SizeType i = 0; i < n; ++i) {
-			buffer += ttos(v[i]);
-			if (i + 1 < n) {
-				buffer += ",";
-			}
-		}
-
-		return buffer;
-	}
 
 	static PsimagLite::String addTypeAndObs(DmrgType t, PsimagLite::String data)
 	{
