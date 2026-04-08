@@ -74,8 +74,9 @@ public:
 	typedef PsimagLite::OneOperatorSpec                             OneOperatorSpecType;
 	typedef typename ModelType::RahulOperatorType                   RahulOperatorType;
 	typedef typename ModelType::VectorRahulOperatorType             VectorRahulOperatorType;
-	using ContFractionType           = PsimagLite::ContinuedFraction<RealType>;
-	using CollectionContFractionType = PsimagLite::ContinuedFractionCollection<RealType>;
+	using ContFractionType = PsimagLite::ContinuedFraction<TridiagonalMatrixType>;
+	using CollectionContFractionType
+	    = PsimagLite::ContinuedFractionCollection<ContFractionType>;
 
 	// ContF needs to support concurrency FIXME
 	static const SizeType parallelRank_   = 0;
