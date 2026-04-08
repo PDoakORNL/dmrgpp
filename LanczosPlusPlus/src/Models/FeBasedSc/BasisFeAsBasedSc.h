@@ -49,6 +49,7 @@ public:
 	    , ndown_(ndown)
 	    , basis1_(geometry.numberOfSites(), nup, orbitals)
 	    , basis2_(geometry.numberOfSites(), ndown, orbitals)
+	    , orbitals_(orbitals)
 	{ }
 
 	PairIntType parts() const { return PairIntType(nup_, ndown_); }
