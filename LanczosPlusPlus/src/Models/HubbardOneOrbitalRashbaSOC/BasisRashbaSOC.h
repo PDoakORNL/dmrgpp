@@ -31,8 +31,8 @@ public:
 	    : ne_(ne)
 	{
 		const SizeType nsite = geometry.numberOfSites();
-		BasisOneSpin   bogus(nsite, 1); // does the comb
-		const SizeType hilbert = BasisOneSpin::comb(2 * nsite, ne);
+		LanczosGlobals::doCombinatorial(2 * nsite + 2);
+		const SizeType hilbert = LanczosGlobals::combinatorial(2 * nsite, ne);
 		data_.resize(hilbert);
 		SizeType k = 0;
 		for (SizeType ndown = 0; ndown <= ne; ++ndown) {

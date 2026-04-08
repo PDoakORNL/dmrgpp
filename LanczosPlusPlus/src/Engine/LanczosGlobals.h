@@ -80,6 +80,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef LANCZOS_PROGRAM_LIMITS_H
 #define LANCZOS_PROGRAM_LIMITS_H
 #include "BitManip.h"
+#include "Combinatorial.hh"
 #include "CrsMatrix.h"
 #include "TypeToString.h"
 #include "Vector.h"
@@ -241,9 +242,21 @@ struct LanczosGlobals {
 		return bitmask_[i];
 	}
 
+	static void doCombinatorial(SizeType total)
+	{
+		if (total == comb_.size()) {
+			return;
+		}
+
+		comb_.resize(total);
+	}
+
+	static const SizeType& combinatorial(SizeType i, SizeType j) { return comb_(i, j); }
+
 private:
 
 	static PsimagLite::Vector<WordType>::Type bitmask_;
+	static Combinatorial                      comb_;
 }; // LanczosGlobals
 
 } // namespace LanczosPlusPlus

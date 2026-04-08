@@ -28,8 +28,6 @@ template <typename GeometryType_> class BasisFeAsSpinOrbit : public BasisBase<Ge
 
 	typedef LanczosGlobals::PairIntType PairIntType;
 
-	static SizeType orbitals_;
-
 	static const SizeType SPIN_UP = LanczosGlobals::SPIN_UP;
 
 public:
@@ -48,11 +46,11 @@ public:
 	                   SizeType            ndown1,
 	                   SizeType            orbitals)
 	    : geometry_(geometry)
+	    , orbitals_(orbitals)
 	    , nup_(nup1)
 	    , ndown_(ndown1)
 	    , basis1_(geometry.numberOfSites(), 1, orbitals) // bogus, just to use some functions
 	{
-		orbitals_        = orbitals;
 		SizeType ne      = nup1 + ndown1;
 		SizeType counter = 0;
 		for (SizeType nup = 0; nup <= ne; ++nup) {
@@ -320,14 +318,12 @@ private:
 	}
 
 	const GeometryType&                      geometry_;
+	SizeType                                 orbitals_;
 	SizeType                                 nup_;
 	SizeType                                 ndown_;
 	VectorPairWordType                       basis_;
 	BasisOneSpinType                         basis1_;
 	mutable std::map<PairWordType, SizeType> reverse_;
 }; // class BasisFeAsSpinOrbit
-
-template <typename GeometryType> SizeType BasisFeAsSpinOrbit<GeometryType>::orbitals_ = 2;
-
 } // namespace LanczosPlusPlus
 #endif
