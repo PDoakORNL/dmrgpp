@@ -21,6 +21,7 @@ Please see full open source license included in file LICENSE.
 #ifndef ENGINE_H_
 #define ENGINE_H_
 #include "BLAS.h"
+#include "ContinuedFractionCollection.h"
 #include "DefaultSymmetry.h"
 #include "GetBraOrKet.h"
 #include "LabeledOperator.h"
@@ -74,6 +75,9 @@ public:
 	typedef PsimagLite::OneOperatorSpec                             OneOperatorSpecType;
 	typedef typename ModelType::RahulOperatorType                   RahulOperatorType;
 	typedef typename ModelType::VectorRahulOperatorType             VectorRahulOperatorType;
+	using ContFractionType = PsimagLite::ContinuedFraction<TridiagonalMatrixType>;
+	using CollectionContFractionType
+	    = PsimagLite::ContinuedFractionCollection<ContFractionType>;
 
 	// ContF needs to support concurrency FIXME
 	static const SizeType parallelRank_   = 0;
@@ -114,8 +118,7 @@ public:
 	}
 
 	//! Calc Green function G(isite,jsite)  (still diagonal in spin)
-	template <typename ContinuedFractionCollectionType>
-	void spectralFunction(ContinuedFractionCollectionType&          cfCollection,
+	void spectralFunction(CollectionContFractionType&               cfCollection,
 	                      VectorStringType&                         vstr,
 	                      const LabeledOperatorType&                lOperator,
 	                      int                                       isite,
@@ -135,14 +138,13 @@ public:
 	Here we document the spectral functions and Green function G(isite,jsite)
 	(still diagonal in spin)
 	*/
-	template <typename ContinuedFractionCollectionType>
-	void spectralFunction(ContinuedFractionCollectionType& cfCollection,
-	                      VectorStringType&                vstr,
-	                      const LabeledOperatorType&       lOperator1,
-	                      int                              isite,
-	                      int                              jsite,
-	                      const PairType&                  spins,
-	                      const PairType&                  orbs) const
+	void spectralFunction(CollectionContFractionType& cfCollection,
+	                      VectorStringType&           vstr,
+	                      const LabeledOperatorType&  lOperator1,
+	                      int                         isite,
+	                      int                         jsite,
+	                      const PairType&             spins,
+	                      const PairType&             orbs) const
 	{
 		if (spins.first != spins.second) {
 			PsimagLite::String str(__FILE__);
@@ -152,11 +154,7 @@ public:
 		}
 
 		assert(0 < vectors_.size());
-		const VectorType& gsVector = vectors_[0];
-
-		typedef typename ContinuedFractionCollectionType::ContinuedFractionType
-		    ContinuedFractionType;
-
+		const VectorType&         gsVector   = vectors_[0];
 		const LabeledOperatorType lOperator2 = lOperator1.transposeConjugate();
 
 		const BasisType* basisNew   = 0;
@@ -190,9 +188,9 @@ public:
 			                 spins.first,
 			                 orbs);
 
-			SpecialSymmetryType   symm(*basisNew, model_.geometry(), "");
-			InternalProductType   matrix(model_, *basisNew, symm);
-			ContinuedFractionType cf(cfCollection.freqType());
+			SpecialSymmetryType symm(*basisNew, model_.geometry(), "");
+			InternalProductType matrix(model_, *basisNew, symm);
+			ContFractionType    cf(cfCollection.freqType());
 
 			if (PsimagLite::norm(modifVector) < 1e-10) {
 				std::cerr << "spectralFunction: modifVector==0, type=" << type
@@ -467,8 +465,7 @@ public:
 		}
 	}
 
-	template <typename ContinuedFractionType>
-	void calcSpectral(ContinuedFractionType&     cf,
+	void calcSpectral(ContFractionType&          cf,
 	                  const bool                 isFermionic,
 	                  const VectorType&          modifVector,
 	                  const InternalProductType& matrix,
@@ -476,8 +473,6 @@ public:
 	                  SizeType,
 	                  bool isDiagonal) const
 	{
-		typedef typename ContinuedFractionType::TridiagonalMatrixType TridiagonalMatrixType;
-
 		ParametersForSolverType params(io_, "Spectral");
 
 		LanczosSolverType lanczosSolver(matrix, params);

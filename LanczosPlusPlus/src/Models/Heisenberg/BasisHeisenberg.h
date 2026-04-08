@@ -6,7 +6,7 @@
 
 #include "../../Engine/BasisBase.h"
 #include "BitManip.h"
-#include "LanczosGlobals.h"
+#include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
 
 namespace LanczosPlusPlus {
 

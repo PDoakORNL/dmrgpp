@@ -4,11 +4,11 @@
 #ifndef HUBBARDLANCZOS_H
 #define HUBBARDLANCZOS_H
 
-#include "../../Engine/ModelBase.h"
 #include "BasisHubbardLanczos.h"
 #include "BitManip.h"
 #include "HubbardHelper.h"
-#include "LanczosGlobals.h"
+#include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
+#include "LanczosPlusPlus/src/Engine/ModelBase.h"
 #include "ParametersModelHubbard.h"
 #include "TypeToString.h"
 
