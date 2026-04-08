@@ -1,13 +1,11 @@
 #ifndef MATSUBARAS_H
 #define MATSUBARAS_H
-#include "FrequencyRange.hh"
 #include "Vector.h"
 #include <cassert>
 
 namespace PsimagLite {
 
-template <typename RealType_> class Matsubaras : public FrequencyRange<RealType_> {
-
+template <typename RealType_> class Matsubaras {
 public:
 
 	using RealType       = RealType_;
@@ -28,7 +26,7 @@ public:
 		}
 	}
 
-	RealType omega(SizeType i) const final
+	const RealType& omega(SizeType i) const
 	{
 		assert(i < matsubaras_.size());
 		return matsubaras_[i];
@@ -36,9 +34,11 @@ public:
 
 	const RealType& fictitiousBeta() const { return fictBeta_; }
 
-	SizeType total() const final { return matsubaras_.size(); }
+	SizeType total() const { return matsubaras_.size(); }
 
-	RealType delta() const final { return delta_; }
+	const RealType& delta() const { return delta_; }
+
+	RealType offset() const { return 0; }
 
 private:
 

@@ -132,20 +132,20 @@ public:
 		diagonalize();
 	}
 
-	template <typename SomeFrequencyType>
+	/*template <typename SomeFrequencyType>
 	void plot(PlotDataType& result, const SomeFrequencyType& params) const
 	{
-		if (freqEnum_ == FREQ_MATSUBARA || params.total() > 0) {
-			plotMatsubara(result, params);
-			return;
-		}
+	        if (freqEnum_ == FREQ_MATSUBARA || params.total() > 0) {
+	                plotMatsubara(result, params);
+	                return;
+	        }
 
-		if (freqEnum_ == FREQ_REAL || params.total() == 0) {
-			plotReal(result, params);
-		}
-	}
+	        if (freqEnum_ == FREQ_REAL || params.total() == 0) {
+	                plotReal(result, params);
+	        }
+	}*/
 
-	void plotReal(PlotDataType& result, const FrequencyRange<RealType>& params) const
+	void plot(PlotDataType& result, const RealFrequencyRange<RealType>& params) const
 	{
 		SizeType total = params.total();
 		if (total == 0) {
@@ -162,7 +162,7 @@ public:
 		}
 	}
 
-	void plotMatsubara(PlotDataType& result, const FrequencyRange<RealType>& matsubaras) const
+	void plot(PlotDataType& result, const Matsubaras<RealType>& matsubaras) const
 	{
 		SizeType n = matsubaras.total();
 		if (n == 0) {

@@ -1,12 +1,11 @@
 #ifndef REAL_FREQ_RANGE_H
 #define REAL_FREQ_RANGE_H
-#include "FrequencyRange.hh"
 #include "Vector.h"
 #include <cassert>
 
 namespace PsimagLite {
 
-template <typename RealType_> class RealFrequencyRange : public FrequencyRange<RealType_> {
+template <typename RealType_> class RealFrequencyRange {
 
 public:
 

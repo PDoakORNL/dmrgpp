@@ -67,18 +67,28 @@ void plotOneByOne(const ContinuedFractionCollectionType& cfCollection, const Plo
 	}
 }
 
+template <typename SomeParamsType>
+void plot(const SomeParamsType&                  params,
+          const ContinuedFractionCollectionType& cfCollection,
+          bool                                   oneByOne)
+{
+	if (!oneByOne)
+		plotAll(cfCollection, params);
+	else
+		plotOneByOne(cfCollection, params);
+}
+
 int main(int argc, char* argv[])
 {
-	int      opt        = 0;
-	String   file       = "";
-	RealType wbegin     = 0;
-	SizeType total      = 0;
-	RealType wstep      = 0;
-	RealType delta      = 0;
-	RealType beta       = 0.0;
-	SizeType matsubaras = 0;
-	bool     oneByOne   = false;
-	while ((opt = getopt(argc, argv, "f:b:t:s:d:m:B:1")) != -1) {
+	int      opt      = 0;
+	String   file     = "";
+	RealType wbegin   = 0;
+	SizeType total    = 0;
+	RealType wstep    = 0;
+	RealType delta    = 0;
+	RealType beta     = 0.0;
+	bool     oneByOne = false;
+	while ((opt = getopt(argc, argv, "f:b:t:s:d:B:1")) != -1) {
 		switch (opt) {
 		case 'f':
 			file = optarg;
@@ -98,9 +108,6 @@ int main(int argc, char* argv[])
 		case '1':
 			oneByOne = true;
 			break;
-		case 'm':
-			matsubaras = atoi(optarg);
-			break;
 		case 'B':
 			beta = atof(optarg);
 			break;
@@ -110,12 +117,9 @@ int main(int argc, char* argv[])
 		}
 	}
 	// sanity checks:
-	bool real1                = (wstep <= 0 || delta <= 0);
-	bool imag1                = (beta <= 0 || matsubaras == 0);
-	bool not_valid_matsubaras = (beta > 0 && matsubaras == 0);
-	not_valid_matsubaras      = not_valid_matsubaras || (beta <= 0 && matsubaras > 0);
+	bool not_valid_real = (beta > 0 && (wstep <= 0 || delta <= 0));
 
-	if (file == "" || (real1 & imag1) || not_valid_matsubaras || beta < 0 || total == 0) {
+	if (file == "" || not_valid_real || beta < 0 || total == 0) {
 		usage(argv[0]);
 		return 1;
 	}
@@ -123,19 +127,12 @@ int main(int argc, char* argv[])
 	IoSimple::In                    io(file);
 	ContinuedFractionCollectionType cfCollection(io);
 
-	FrequencyRange<RealType>* params        = nullptr;
-	bool                      is_matsubaras = (beta > 0 && matsubaras > 0);
+	bool is_matsubaras = (beta > 0);
 	if (is_matsubaras) {
-		params = new PsimagLite::Matsubaras<RealType>(beta, matsubaras, delta);
+		PsimagLite::Matsubaras<RealType> matsubaras(beta, total, delta);
+		plot(matsubaras, cfCollection, oneByOne);
 	} else {
-		params = new PsimagLite::RealFrequencyRange<RealType>(wbegin, wstep, total, delta);
+		PsimagLite::RealFrequencyRange<RealType> real_freq(wbegin, wstep, total, delta);
+		plot<>(real_freq, cfCollection, oneByOne);
 	}
-
-	if (!oneByOne)
-		plotAll(cfCollection, *params);
-	else
-		plotOneByOne(cfCollection, *params);
-
-	delete params;
-	params = nullptr;
 }
