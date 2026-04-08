@@ -47,11 +47,8 @@ public:
 	    = LanczosPlusPlus::InternalProductOnTheFly<ModelBaseType, LanzcosSymmetryType>;
 	using EngineType = LanczosPlusPlus::
 	    Engine<ModelBaseType, LanczosPlusPlus::InternalProductOnTheFly, LanzcosSymmetryType>;
-	using TridiagMatrixType = PsimagLite::TridiagonalMatrix<RealType>;
-	using ContFractionType  = PsimagLite::ContinuedFraction<TridiagMatrixType>;
-	using CollectionContFractionType
-	    = PsimagLite::ContinuedFractionCollection<ContFractionType>;
-	using ModelParamsType = typename BaseType::ModelParamsType;
+	using CollectionContFractionType = PsimagLite::ContinuedFractionCollection<RealType>;
+	using ModelParamsType            = typename BaseType::ModelParamsType;
 
 	ImpuritySolverExactDiag(const ParamsDmftSolverType& params,
 	                        const ApplicationType&,
@@ -130,6 +127,14 @@ private:
 			sum += gimp_[i];
 
 		return sum;
+	}
+
+	void computeGreenFunction(const CollectionContFractionType& cf_collection)
+	{
+		typename CollectionContFractionType::PlotDataType   results;
+		typename CollectionContFractionType::PlotParamsType params;
+
+		cf_collection.plot(results, params);
 	}
 
 	const ParamsDmftSolverType&     params_;

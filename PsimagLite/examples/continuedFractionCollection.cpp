@@ -28,11 +28,10 @@ Please see full open source license included in file LICENSE.
 #include <string>
 
 using namespace PsimagLite;
-typedef double                                             RealType;
-typedef TridiagonalMatrix<RealType>                        TridiagonalMatrixType;
-typedef ContinuedFraction<TridiagonalMatrixType>           ContinuedFractionType;
-typedef ContinuedFractionCollection<ContinuedFractionType> ContinuedFractionCollectionType;
-typedef ContinuedFractionType::PlotParamsType              PlotParamsType;
+typedef double                                RealType;
+typedef ContinuedFraction<RealType>           ContinuedFractionType;
+typedef ContinuedFractionCollection<RealType> ContinuedFractionCollectionType;
+typedef ContinuedFractionType::PlotParamsType PlotParamsType;
 
 void usage(const char* progName)
 {

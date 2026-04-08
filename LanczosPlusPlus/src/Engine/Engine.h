@@ -66,7 +66,6 @@ public:
 	typedef PsimagLite::LanczosSolver<InternalProductDefaultType>   LanczosSolverDefaultType;
 	typedef PsimagLite::Matrix<ComplexOrRealType>                   MatrixType;
 	typedef PsimagLite::Matrix<RealType>                            MatrixRealType;
-	typedef typename LanczosSolverType::TridiagonalMatrixType       TridiagonalMatrixType;
 	typedef typename PsimagLite::Vector<SizeType>::Type             VectorSizeType;
 	typedef std::pair<SizeType, SizeType>                           PairType;
 	typedef typename PsimagLite::Vector<RealType>::Type             VectorRealType;
@@ -75,9 +74,8 @@ public:
 	typedef PsimagLite::OneOperatorSpec                             OneOperatorSpecType;
 	typedef typename ModelType::RahulOperatorType                   RahulOperatorType;
 	typedef typename ModelType::VectorRahulOperatorType             VectorRahulOperatorType;
-	using ContFractionType = PsimagLite::ContinuedFraction<TridiagonalMatrixType>;
-	using CollectionContFractionType
-	    = PsimagLite::ContinuedFractionCollection<ContFractionType>;
+	using ContFractionType           = PsimagLite::ContinuedFraction<RealType>;
+	using CollectionContFractionType = PsimagLite::ContinuedFractionCollection<RealType>;
 
 	// ContF needs to support concurrency FIXME
 	static const SizeType parallelRank_   = 0;
@@ -477,7 +475,7 @@ public:
 
 		LanczosSolverType lanczosSolver(matrix, params);
 
-		TridiagonalMatrixType ab;
+		PsimagLite::TridiagonalMatrix<RealType> ab;
 
 		lanczosSolver.decomposition(modifVector, ab);
 		typename VectorType::value_type weight = modifVector * modifVector;
