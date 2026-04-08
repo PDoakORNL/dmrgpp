@@ -119,6 +119,7 @@ public:
 
 	//! Calc Green function G(isite,jsite)  (still diagonal in spin)
 	void spectralFunction(ContinuedFractionCollectionType&          cfCollection,
+	void spectralFunction(CollectionContFractionType&               cfCollection,
 	                      VectorStringType&                         vstr,
 	                      const LabeledOperatorType&                lOperator,
 	                      int                                       isite,
@@ -188,9 +189,9 @@ public:
 			                 spins.first,
 			                 orbs);
 
-			SpecialSymmetryType   symm(*basisNew, model_.geometry(), "");
-			InternalProductType   matrix(model_, *basisNew, symm);
-			ContinuedFractionType cf(cfCollection.freqType());
+			SpecialSymmetryType symm(*basisNew, model_.geometry(), "");
+			InternalProductType matrix(model_, *basisNew, symm);
+			ContFractionType    cf(cfCollection.freqType());
 
 			if (PsimagLite::norm(modifVector) < 1e-10) {
 				std::cerr << "spectralFunction: modifVector==0, type=" << type
