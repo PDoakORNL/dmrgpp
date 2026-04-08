@@ -85,7 +85,8 @@ public:
 			scaleGimp();
 
 			std::cerr << "Sum of Gimp=" << density() << "\n";
-			writeGimpForDebugOnly();
+			MatsubarasType matsubaras(params_.ficticiousBeta, params_.nMatsubaras, 0.);
+			BaseType::writeGimpForDebugOnly("gimp_dmrg.txt", gimp_, matsubaras);
 		}
 
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
@@ -176,10 +177,11 @@ private:
 				err("Internal error: center " + ttos(params_.center_site)
 				    + " not seen, freq id = " + ttos(ind) + "\n");
 
-			if (t == DmrgType::TYPE_0)
-				gimp_[ind] = ComplexType(val1, -val2);
-			else
-				gimp_[ind] += ComplexType(val1, -val2);
+			if (t == DmrgType::TYPE_0) {
+				gimp_[ind] = ComplexType(-val1, -val2);
+			} else {
+				gimp_[ind] += ComplexType(-val1, -val2);
+			}
 
 			++ind;
 
@@ -202,10 +204,13 @@ private:
 
 	void scaleGimp()
 	{
-		const SizeType n      = gimp_.size();
-		const RealType factor = -M_PI;
-		for (SizeType i = 0; i < n; ++i)
+		const SizeType n           = gimp_.size();
+		ComplexType    pre_density = density();
+		const RealType factor
+		    = std::sqrt(std::real(1.0 / pre_density / std::conj(pre_density)));
+		for (SizeType i = 0; i < n; ++i) {
 			gimp_[i] *= factor;
+		}
 	}
 
 	ComplexType density() const
@@ -216,25 +221,6 @@ private:
 			sum += gimp_[i];
 
 		return sum;
-	}
-
-	void writeGimpForDebugOnly() const
-	{
-		const SizeType n = gimp_.size();
-		std::ofstream  fout("gimp.debug");
-		if (!fout || !fout.good())
-			err("Could not write to gimp.debug\n");
-
-		PsimagLite::Matsubaras<RealType> matsubaras(params_.ficticiousBeta,
-		                                            params_.nMatsubaras,
-		                                            0.); // last arg. is the real part
-
-		for (SizeType i = 0; i < n; ++i) {
-			const ComplexType value = gimp_[i];
-			const RealType    omega = matsubaras.omega(i);
-			fout << omega << " " << PsimagLite::real(value) << " "
-			     << PsimagLite::imag(value) << "\n";
-		}
 	}
 
 	const ParamsDmftSolverType& params_;

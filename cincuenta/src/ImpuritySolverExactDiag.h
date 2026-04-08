@@ -115,6 +115,9 @@ public:
 		// compute gimp
 		computeGreenFunction(cfCollection);
 		std::cout << "SumOfGimp=" << density() << "\n";
+
+		MatsubarasType matsubaras(params_.ficticiousBeta, params_.nMatsubaras, 0.);
+		BaseType::writeGimpForDebugOnly("gimp_exact.txt", gimp_, matsubaras);
 	}
 
 	const VectorComplexType& gimp() const { return gimp_; }
@@ -137,9 +140,15 @@ private:
 
 		cf_collection.plot(results, matsubaras_);
 		gimp_.resize(matsubaras_.total());
+		ComplexOrRealType sum = 0.;
 		for (SizeType i = 0; i < matsubaras_.total(); ++i) {
 			gimp_[i] = results[i].second;
+			sum += gimp_[i];
 		}
+
+		RealType factor = std::sqrt(std::real(1. / sum / std::conj(sum)));
+		for (SizeType i = 0; i < gimp_.size(); ++i)
+			gimp_[i] *= factor;
 	}
 
 	const ParamsDmftSolverType&     params_;
