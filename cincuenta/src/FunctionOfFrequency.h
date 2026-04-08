@@ -15,7 +15,7 @@ public:
 	using MatsubarasType = PsimagLite::Matsubaras<RealType>;
 
 	FunctionOfFrequency(RealType fictBeta, SizeType nMatsubara)
-	    : matsubaras_(fictBeta, nMatsubara)
+	    : matsubaras_(fictBeta, nMatsubara, 0)
 	    , data_(2 * nMatsubara)
 	{ }
 
@@ -25,7 +25,7 @@ public:
 	const RealType& fictitiousBeta() const { return matsubaras_.fictitiousBeta(); }
 
 	// Matsubara number i, starts at 0, and the 0th is the most negative.
-	const RealType& omega(SizeType i) const { return matsubaras_.omega(i); }
+	RealType omega(SizeType i) const { return matsubaras_.omega(i); }
 
 	// Returns the content of this function at point i
 	// the wn at this point is given by omega(i) above

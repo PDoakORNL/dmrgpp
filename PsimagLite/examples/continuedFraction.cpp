@@ -33,8 +33,8 @@ typedef ContinuedFraction<RealType> ContinuedFractionType;
 void usage(const char* progName)
 {
 	std::cerr << "Usage: " << progName << " -f file  -b omega1";
-	std::cerr << " -e omega2 -s omegaStep -d delta\n";
-	std::cerr << "Conditions: omega1<omega2 omegaStep>0 delta>0\n";
+	std::cerr << " -t total -s omegaStep -d delta\n";
+	std::cerr << "Conditions: total > 0 omegaStep>0 delta>0\n";
 }
 
 int main(int argc, char* argv[])
@@ -42,11 +42,11 @@ int main(int argc, char* argv[])
 	int      opt    = 0;
 	String   file   = "";
 	RealType wbegin = 0;
-	RealType wend   = 0;
 	RealType wstep  = 0;
 	RealType delta  = 0;
+	SizeType total  = 0;
 
-	while ((opt = getopt(argc, argv, "f:b:e:s:d:")) != -1) {
+	while ((opt = getopt(argc, argv, "f:b:t:s:d:")) != -1) {
 		switch (opt) {
 		case 'f':
 			file = optarg;
@@ -54,8 +54,8 @@ int main(int argc, char* argv[])
 		case 'b':
 			wbegin = atof(optarg);
 			break;
-		case 'e':
-			wend = atof(optarg);
+		case 't':
+			total = atoi(optarg);
 			break;
 		case 's':
 			wstep = atof(optarg);
@@ -69,16 +69,15 @@ int main(int argc, char* argv[])
 		}
 	}
 	// sanity checks:
-	if (file == "" || wbegin >= wend || wstep <= 0 || delta <= 0) {
+	if (file == "" || total <= 0 || wstep <= 0 || delta <= 0) {
 		usage(argv[0]);
 		return 1;
 	}
 
-	IoSimple::In                                           io(file);
-	ContinuedFractionType                                  cf(io);
-	typedef typename ContinuedFractionType::PlotParamsType PlotParamsType;
-	typename ContinuedFractionType::PlotDataType           v;
-	PlotParamsType plotParams(wbegin, wend, wstep, delta, 0, 0);
+	IoSimple::In                                 io(file);
+	ContinuedFractionType                        cf(io);
+	typename ContinuedFractionType::PlotDataType v;
+	RealFrequencyRange<double>                   plotParams(wbegin, wstep, total, delta);
 	cf.plot(v, plotParams);
 	for (SizeType x = 0; x < v.size(); x++) {
 		std::cout << v[x].first << " " << PsimagLite::real(v[x].second);

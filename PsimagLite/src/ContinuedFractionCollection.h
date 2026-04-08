@@ -46,7 +46,6 @@ public:
 	using TridiagonalMatrixType = typename ContinuedFractionType::TridiagonalMatrixType;
 	using MatrixType            = typename ContinuedFractionType::MatrixType;
 	using PlotDataType          = typename ContinuedFractionType::PlotDataType;
-	using PlotParamsType        = typename ContinuedFractionType::PlotParamsType;
 
 	ContinuedFractionCollection(FreqEnum freqEnum)
 	    : freqEnum_(freqEnum)
@@ -81,7 +80,8 @@ public:
 
 	void push(const ContinuedFractionType& cf) { data_.push_back(cf); }
 
-	void plot(PlotDataType& result, const PlotParamsType& params) const
+	template <typename SomePlotParamsType>
+	void plot(PlotDataType& result, const SomePlotParamsType& params) const
 	{
 		for (SizeType i = 0; i < data_.size(); i++) {
 			PlotDataType result1;
@@ -90,7 +90,8 @@ public:
 		}
 	}
 
-	void plotOne(SizeType i, PlotDataType& result, const PlotParamsType& params) const
+	template <typename SomePlotParamsType>
+	void plotOne(SizeType i, PlotDataType& result, const SomePlotParamsType& params) const
 	{
 		data_[i].plot(result, params);
 	}

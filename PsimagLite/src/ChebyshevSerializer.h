@@ -35,10 +35,11 @@ Please see full open source license included in file LICENSE.
 #include "ChebyshevFunction.h"
 #include "Io/IoSelector.h"
 #include "Io/IoSimple.h"
+#include "Matsubaras.h"
 #include "ParametersForSolver.h"
-#include "PlotParams.h"
 #include "ProgressIndicator.h"
 #include "Random48.h"
+#include "RealFrequencyRange.hh"
 #include "TridiagonalMatrix.h"
 #include "TypeToString.h"
 #include <cassert>
@@ -81,7 +82,6 @@ public:
 	using FieldType             = typename VectorType::value_type;
 	using MatrixType            = Matrix<FieldType>;
 	using PlotDataType          = typename Vector<std::pair<RealType, RealType>>::Type;
-	using PlotParamsType        = PlotParams<RealType>;
 	using ParametersType        = ParametersForSolver<RealType>;
 	using KernelParametersType  = KernelPolynomialParameters<RealType>;
 	using TridiagonalMatrixType = TridiagonalMatrix<RealType>;
@@ -125,8 +125,9 @@ public:
 
 	static const String& stringMarker() { return stringMarker_; }
 
+	template <typename SomePlotParamsType>
 	void plot(PlotDataType&               result,
-	          const PlotParamsType&       params,
+	          const SomePlotParamsType&   params,
 	          const KernelParametersType& kernelParams) const
 	{
 		SizeType cutoff = kernelParams.cutoff;
@@ -138,23 +139,19 @@ public:
 		VectorRealType gnmun(gn.size());
 		computeGnMuN(gnmun, gn);
 
-		SizeType counter = 0;
-		SizeType n       = SizeType((params.omega2 - params.omega1) / params.deltaOmega);
-		if (result.size() == 0)
-			result.resize(n);
+		SizeType n = params.total();
+		assert(n > 0);
+		result.resize(n);
 		RealType offset = params_.Eg;
 		std::cerr << "gn[0]=" << gn[0] << " gn[5]=" << gn[5] << "\n";
-		for (RealType omega = params.omega1; omega < params.omega2;
-		     omega += params.deltaOmega) {
-			RealType x = (omega + offset - params_.b) * params_.oneOverA;
+		for (SizeType i = 0; i < n; ++i) {
+			RealType omega = params.omega(i);
+			RealType x     = (omega + offset - params_.b) * params_.oneOverA;
 
 			RealType den = (x > 1.0 || x < -1.0) ? 0.0 : sqrt(1.0 - x * x);
 			RealType tmp = (fabs(den) > 1e-6) ? calcF(x, gnmun) / den : 0.0;
 			std::pair<RealType, RealType> p(omega, tmp);
-			result[counter++] = p;
-
-			if (counter >= result.size())
-				break;
+			result[i] = p;
 		}
 	}
 

@@ -31,10 +31,11 @@ Please see full open source license included in file LICENSE.
 #include "Complex.h"
 #include "FreqEnum.h"
 #include "Io/IoSimple.h"
+#include "Matsubaras.h"
 #include "ParametersForSolver.h"
-#include "PlotParams.h"
 #include "ProgressIndicator.h"
 #include "Random48.h"
+#include "RealFrequencyRange.hh"
 #include "TridiagonalMatrix.h"
 #include "TypeToString.h"
 #include <iostream>
@@ -49,7 +50,6 @@ public:
 	using MatrixType            = Matrix<RealType>;
 	using MatrixRealType        = Matrix<RealType>;
 	using PlotDataType          = std::vector<std::pair<RealType, ComplexType>>;
-	using PlotParamsType        = PlotParams<RealType>;
 	using ParametersType        = ParametersForSolver<RealType>;
 
 	ContinuedFraction(const TridiagonalMatrixType& ab, const ParametersType& params)
@@ -132,51 +132,52 @@ public:
 		diagonalize();
 	}
 
-	void plot(PlotDataType& result, const PlotParamsType& params) const
+	template <typename SomeFrequencyType>
+	void plot(PlotDataType& result, const SomeFrequencyType& params) const
 	{
-		if (freqEnum_ == FREQ_MATSUBARA || params.numberOfMatsubaras > 0) {
+		if (freqEnum_ == FREQ_MATSUBARA || params.total() > 0) {
 			plotMatsubara(result, params);
 			return;
 		}
 
-		if (freqEnum_ == FREQ_REAL || params.numberOfMatsubaras == 0) {
+		if (freqEnum_ == FREQ_REAL || params.total() == 0) {
 			plotReal(result, params);
 		}
 	}
 
-	void plotReal(PlotDataType& result, const PlotParamsType& params) const
+	void plotReal(PlotDataType& result, const FrequencyRange<RealType>& params) const
 	{
-		SizeType counter = 0;
-		SizeType n       = SizeType((params.omega2 - params.omega1) / params.deltaOmega);
-		if (result.size() == 0)
-			result.resize(n);
-		for (RealType omega = params.omega1; omega < params.omega2;
-		     omega += params.deltaOmega) {
-			ComplexType                      z(omega, params.delta);
+		SizeType total = params.total();
+		if (total == 0) {
+			return;
+		}
+
+		result.resize(total);
+		for (SizeType i = 0; i < total; ++i) {
+			RealType                         omega = params.omega(i);
+			ComplexType                      z(omega, params.delta());
 			ComplexType                      res = iOfOmega(z, Eg_, isign_);
 			std::pair<RealType, ComplexType> p(omega, res);
-			result[counter++] = p;
-			if (counter >= result.size())
-				break;
+			result[i] = p;
 		}
 	}
 
-	void plotMatsubara(PlotDataType& result, const PlotParamsType& params) const
+	void plotMatsubara(PlotDataType& result, const FrequencyRange<RealType>& matsubaras) const
 	{
-		SizeType counter = 0;
-		SizeType n       = params.numberOfMatsubaras;
-		if (result.size() == 0)
-			result.resize(n);
-		for (SizeType omegaIndex = 0; omegaIndex < params.numberOfMatsubaras;
-		     ++omegaIndex) {
-			ComplexType z(params.delta, matsubara(omegaIndex, params));
+		SizeType n = matsubaras.total();
+		if (n == 0) {
+			return;
+		}
+
+		result.resize(n);
+		for (SizeType omegaIndex = 0; omegaIndex < n; ++omegaIndex) {
+			ComplexType z(matsubaras.delta(), matsubaras.omega(omegaIndex));
 			ComplexType res = iOfOmega(z, Eg_, isign_);
 			std::pair<RealType, ComplexType> p(PsimagLite::imag(z), res);
-			result[counter++] = p;
-			if (counter >= result.size())
-				break;
+			result[omegaIndex] = p;
 		}
 	}
+
 	//! Cases:
 	//! (1) < phi0|A (z+(E0-e_k))^{-1}|A^\dagger|phi0> and
 	//! (2) < phi0|A^\dagger (z-(E0-e_k))^{-1}|A|phi0>
@@ -216,11 +217,6 @@ private:
 		for (SizeType i = 0; i < T.rows(); i++) {
 			intensity_[i] = T(0, i) * T(0, i);
 		}
-	}
-
-	RealType matsubara(int ind, const PlotParamsType& params) const
-	{
-		return (2.0 * ind + 1.0) * M_PI / params.beta;
 	}
 
 	ProgressIndicator               progress_;
