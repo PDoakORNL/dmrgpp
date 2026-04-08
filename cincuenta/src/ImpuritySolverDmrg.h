@@ -101,7 +101,7 @@ private:
 		const PsimagLite::String obsTc = (t == DmrgType::TYPE_0) ? "c'" : "c";
 		const SizeType           tt    = (t == DmrgType::TYPE_0) ? 0 : 1;
 		return data + "DynamicDmrgType=" + ttos(tt) + ";\n"
-		    + "string TSPOp0:OperatorExpression=\"" + obsTc + "\";\n";
+		    + "string TSPOp1:OperatorExpression=\"" + obsTc + "\";\n";
 	}
 
 	void doType(DmrgType t, PsimagLite::String data, SizeType mpiRank)
