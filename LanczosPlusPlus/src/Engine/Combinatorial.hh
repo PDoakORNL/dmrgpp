@@ -17,7 +17,7 @@ public:
 
 	void resize(SizeType m)
 	{
-		comb_.setTo(0);
+		comb_.resize(m, m, 0);
 		doCombinatorial();
 	}
 
