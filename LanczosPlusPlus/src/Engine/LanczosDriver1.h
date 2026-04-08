@@ -62,7 +62,6 @@ void mainLoop3(const ModelType&                 model,
 	using ContFracType          = PsimagLite::ContinuedFraction<TridiagonalMatrixType>;
 	using ContinuedFractionCollectionType
 	    = PsimagLite::ContinuedFractionCollection<ContFracType>;
-
 	typedef PsimagLite::Vector<PsimagLite::String>::Type VectorStringType;
 
 	const GeometryType& geometry = model.geometry();

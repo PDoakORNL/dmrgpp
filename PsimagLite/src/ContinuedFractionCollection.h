@@ -30,6 +30,7 @@ Please see full open source license included in file LICENSE.
 
 #ifndef CONTINUED_FRACTION_COLL_H
 #define CONTINUED_FRACTION_COLL_H
+#include "ContinuedFraction.h"
 #include "FreqEnum.h"
 #include "ProgressIndicator.h"
 #include "TypeToString.h"
@@ -37,13 +38,12 @@ Please see full open source license included in file LICENSE.
 
 namespace PsimagLite {
 
-template <typename ContinuedFractionType_> class ContinuedFractionCollection {
+template <typename RealType> class ContinuedFractionCollection {
 public:
 
-	using ContinuedFractionType = ContinuedFractionType_;
+	using ContinuedFractionType = ContinuedFraction<RealType>;
 	using ComplexType           = typename ContinuedFractionType::ComplexType;
 	using TridiagonalMatrixType = typename ContinuedFractionType::TridiagonalMatrixType;
-	using RealType              = typename TridiagonalMatrixType::value_type;
 	using MatrixType            = typename ContinuedFractionType::MatrixType;
 	using PlotDataType          = typename ContinuedFractionType::PlotDataType;
 	using PlotParamsType        = typename ContinuedFractionType::PlotParamsType;

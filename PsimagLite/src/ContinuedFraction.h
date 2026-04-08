@@ -35,22 +35,20 @@ Please see full open source license included in file LICENSE.
 #include "PlotParams.h"
 #include "ProgressIndicator.h"
 #include "Random48.h"
+#include "TridiagonalMatrix.h"
 #include "TypeToString.h"
 #include <iostream>
 #include <typeinfo>
 
 namespace PsimagLite {
-template <typename TridiagonalMatrixType_> class ContinuedFraction {
+template <typename RealType> class ContinuedFraction {
 public:
 
-	using TridiagonalMatrixType = TridiagonalMatrixType_;
-	using MatrixElementType     = typename TridiagonalMatrixType::value_type;
-	using RealType              = typename Real<MatrixElementType>::Type;
+	using TridiagonalMatrixType = TridiagonalMatrix<RealType>;
 	using ComplexType           = typename std::complex<RealType>;
-	using FieldType             = typename TridiagonalMatrixType::value_type;
-	using MatrixType            = Matrix<FieldType>;
+	using MatrixType            = Matrix<RealType>;
 	using MatrixRealType        = Matrix<RealType>;
-	using PlotDataType          = typename Vector<std::pair<RealType, ComplexType>>::Type;
+	using PlotDataType          = std::vector<std::pair<RealType, ComplexType>>;
 	using PlotParamsType        = PlotParams<RealType>;
 	using ParametersType        = ParametersForSolver<RealType>;
 

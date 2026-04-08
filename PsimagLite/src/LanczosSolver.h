@@ -21,7 +21,7 @@ public:
 	using ParametersSolverType  = ParametersForSolver<RealType>;
 	using LanczosCoreType       = LanczosCore<ParametersSolverType, MatrixType_, VectorType>;
 	using TridiagonalMatrixType = typename LanczosCoreType::TridiagonalMatrixType;
-	using PostProcType          = ContinuedFraction<TridiagonalMatrixType>;
+	using PostProcType          = ContinuedFraction<RealType>;
 
 	LanczosSolver(const MatrixType& mat, const ParametersSolverType& params)
 	    : ls_(mat, params, BaseType::isReorthoEnabled(params.options, params.lotaMemory))
