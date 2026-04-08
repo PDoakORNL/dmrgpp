@@ -5,13 +5,11 @@
 #include "CrsMatrix.h"
 #include "ImpuritySolverBase.h"
 #include "InputCheck.h"
-#include "LanczosPlusPlus/src/Engine/DefaultSymmetry.h"
-#include "LanczosPlusPlus/src/Engine/Engine.h"
-#include "LanczosPlusPlus/src/Engine/InternalProductOnTheFly.h"
-#include "LanczosPlusPlus/src/Engine/LabeledOperator.h"
-#include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
-#include "LanczosPlusPlus/src/Engine/ModelSelector.h"
+#include "InputNg.h"
+#include "LanczosSolver.h"
 #include "Matsubaras.h"
+#include "MersenneTwister.h"
+#include "ModelParams.h"
 #include "ParamsDmftSolver.h"
 #include "PsimagLite.h"
 #include "Vector.h"
@@ -72,13 +70,15 @@ public:
 	void
 	solve(const VectorRealType& bathParams, PsimagLite::FreqEnum freq_enum, SizeType iter) final
 	{
-		ModelParamsType model_params(bathParams, io_);
+		ModelParamsType    model_params(bathParams, io_);
 
 		PsimagLite::String data2 = BaseType::createGsInput(model_params, io_);
 
 		// This will replaced by a LanzosRunner at some point
 		// so that we don't repeat what's in lanczos.cpp main driver
 		// and also honor and have all its features
+
+		// IMPORTANT FIXME: pass bathParams to model here maybe by changing geometry
 
 		// std::cout << geometry;
 
@@ -87,7 +87,7 @@ public:
 		                                                                      data2);
 		DmrgInputReadable                                         io(ioWriteable);
 
-		GeometryType         geometry(io);
+		GeometryType                                              geometry(io);
 		ModelSelectorType    modelSelector(io, geometry);
 		const ModelBaseType& modelPtr = modelSelector();
 		EngineType           engine(modelPtr, io);
