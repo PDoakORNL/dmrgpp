@@ -110,12 +110,12 @@ int main(int argc, char* argv[])
 		}
 	}
 	// sanity checks:
-	bool real1                = (total < 0 || wstep <= 0 || delta <= 0);
+	bool real1                = (wstep <= 0 || delta <= 0);
 	bool imag1                = (beta <= 0 || matsubaras == 0);
 	bool not_valid_matsubaras = (beta > 0 && matsubaras == 0);
 	not_valid_matsubaras      = not_valid_matsubaras || (beta <= 0 && matsubaras > 0);
 
-	if (file == "" || (real1 & imag1) || not_valid_matsubaras || beta < 0) {
+	if (file == "" || (real1 & imag1) || not_valid_matsubaras || beta < 0 || total == 0) {
 		usage(argv[0]);
 		return 1;
 	}
