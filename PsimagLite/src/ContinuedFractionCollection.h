@@ -127,9 +127,9 @@ private:
 		}
 	}
 
-	FreqEnum                                     freqEnum_;
-	ProgressIndicator                            progress_;
-	typename Vector<ContinuedFractionType>::Type data_;
+	FreqEnum                           freqEnum_;
+	ProgressIndicator                  progress_;
+	std::vector<ContinuedFractionType> data_;
 }; // class ContinuedFractionCollection
 } // namespace PsimagLite
 /*@}*/

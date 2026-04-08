@@ -37,7 +37,7 @@ public:
 	using VectorComplexType    = typename PsimagLite::Vector<ComplexType>::Type;
 	using DmrgRunnerType       = Dmrg::DmrgRunner<RealType>;
 	using ApplicationType      = PsimagLite::PsiApp;
-	using MatsubarasType       = Matsubaras<RealType>;
+	using MatsubarasType       = PsimagLite::Matsubaras<RealType>;
 	using ManyOmegasType       = Dmrg::ManyOmegas<RealType, MatsubarasType>;
 	using ProcOmegasType       = Dmrg::ProcOmegas<RealType, MatsubarasType>;
 	using ModelParamsType      = typename BaseType::ModelParamsType;
@@ -107,7 +107,8 @@ private:
 	{
 		PsimagLite::String data2 = addTypeAndObs(t, data);
 
-		Matsubaras<RealType> matsubaras(params_.ficticiousBeta, params_.nMatsubaras);
+		PsimagLite::Matsubaras<RealType> matsubaras(params_.ficticiousBeta,
+		                                            params_.nMatsubaras);
 
 		ManyOmegasType manyOmegas(data2, matsubaras, app_);
 
@@ -223,7 +224,8 @@ private:
 		if (!fout || !fout.good())
 			err("Could not write to gimp.debug\n");
 
-		Matsubaras<RealType> matsubaras(params_.ficticiousBeta, params_.nMatsubaras);
+		PsimagLite::Matsubaras<RealType> matsubaras(params_.ficticiousBeta,
+		                                            params_.nMatsubaras);
 
 		for (SizeType i = 0; i < n; ++i) {
 			const ComplexType value = gimp_[i];

@@ -33,7 +33,7 @@ public:
 	using ApplicationType  = typename ImpuritySolverBase<ParamsDmftSolverType>::ApplicationType;
 	using SparseMatrixType = PsimagLite::CrsMatrix<ComplexOrRealType>;
 	using SolverParametersType = PsimagLite::ParametersForSolver<RealType>;
-	using MatsubarasType       = Matsubaras<RealType>;
+	using MatsubarasType       = PsimagLite::Matsubaras<RealType>;
 	using GeometryType         = PsimagLite::Geometry<ComplexOrRealType,
 	                                                  typename InputNgType::Readable,
 	                                                  LanczosPlusPlus::LanczosGlobals>;
@@ -133,6 +133,8 @@ private:
 	{
 		typename CollectionContFractionType::PlotDataType   results;
 		typename CollectionContFractionType::PlotParamsType params;
+		params.beta               = params_.ficticiousBeta;
+		params.numberOfMatsubaras = matsubaras_.size();
 
 		cf_collection.plot(results, params);
 	}
