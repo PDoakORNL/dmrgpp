@@ -12,7 +12,7 @@ public:
 
 	using RealType       = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using VectorType     = typename PsimagLite::Vector<ComplexOrRealType>::Type;
-	using MatsubarasType = Matsubaras<RealType>;
+	using MatsubarasType = PsimagLite::Matsubaras<RealType>;
 
 	FunctionOfFrequency(RealType fictBeta, SizeType nMatsubara)
 	    : matsubaras_(fictBeta, nMatsubara)

@@ -3,7 +3,7 @@
 #include "Vector.h"
 #include <cassert>
 
-namespace Dmft {
+namespace PsimagLite {
 
 template <typename RealType_> class Matsubaras {
 
