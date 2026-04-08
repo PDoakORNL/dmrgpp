@@ -108,7 +108,8 @@ private:
 		PsimagLite::String data2 = addTypeAndObs(t, data);
 
 		PsimagLite::Matsubaras<RealType> matsubaras(params_.ficticiousBeta,
-		                                            params_.nMatsubaras);
+		                                            params_.nMatsubaras,
+		                                            0.); // last argument is real part
 
 		ManyOmegasType manyOmegas(data2, matsubaras, app_);
 
@@ -225,7 +226,8 @@ private:
 			err("Could not write to gimp.debug\n");
 
 		PsimagLite::Matsubaras<RealType> matsubaras(params_.ficticiousBeta,
-		                                            params_.nMatsubaras);
+		                                            params_.nMatsubaras,
+		                                            0.); // last arg. is the real part
 
 		for (SizeType i = 0; i < n; ++i) {
 			const ComplexType value = gimp_[i];

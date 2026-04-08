@@ -55,7 +55,9 @@ public:
 	                        typename InputNgType::Readable& io)
 	    : params_(params)
 	    , solverParams_(nullptr)
-	    , matsubaras_(params.ficticiousBeta, params.nMatsubaras)
+	    , matsubaras_(params.ficticiousBeta,
+	                  params.nMatsubaras,
+	                  0.) // last arg. is the real part
 	    , gimp_(matsubaras_.total())
 	    , io_(io)
 	{ }
