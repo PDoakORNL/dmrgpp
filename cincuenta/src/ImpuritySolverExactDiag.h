@@ -152,6 +152,14 @@ private:
 		*/
 	}
 
+	void computeGreenFunction(const CollectionContFractionType& cf_collection)
+	{
+		typename CollectionContFractionType::PlotDataType   results;
+		typename CollectionContFractionType::PlotParamsType params;
+
+		cf_collection.plot(results, params);
+	}
+
 	const ParamsDmftSolverType&     params_;
 	SolverParametersType*           solverParams_;
 	VectorComplexType               gimp_;
