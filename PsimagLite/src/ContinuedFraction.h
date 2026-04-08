@@ -132,24 +132,16 @@ public:
 		diagonalize();
 	}
 
-	/*template <typename SomeFrequencyType>
-	void plot(PlotDataType& result, const SomeFrequencyType& params) const
-	{
-	        if (freqEnum_ == FREQ_MATSUBARA || params.total() > 0) {
-	                plotMatsubara(result, params);
-	                return;
-	        }
-
-	        if (freqEnum_ == FREQ_REAL || params.total() == 0) {
-	                plotReal(result, params);
-	        }
-	}*/
-
 	void plot(PlotDataType& result, const RealFrequencyRange<RealType>& params) const
 	{
 		SizeType total = params.total();
 		if (total == 0) {
 			return;
+		}
+
+		if (freqEnum_ != FREQ_REAL) {
+			throw std::runtime_error("ContinuedFraction::plot() matsubaras/realfreq. "
+			                         "mismatch: Real expected\n");
 		}
 
 		result.resize(total);
@@ -167,6 +159,11 @@ public:
 		SizeType n = matsubaras.total();
 		if (n == 0) {
 			return;
+		}
+
+		if (freqEnum_ != FREQ_MATSUBARA) {
+			throw std::runtime_error("ContinuedFraction::plot() matsubaras/realfreq. "
+			                         "mismatch: Matsubaras expected\n");
 		}
 
 		result.resize(n);
