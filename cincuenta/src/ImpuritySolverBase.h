@@ -2,6 +2,7 @@
 #define IMPURITYSOLVER_BASE_H
 
 #include "InputNg.h"
+#include "Matsubaras.h"
 #include "ModelParams.h"
 #include "PsimagLite.h"
 #include "Vector.h"
@@ -29,6 +30,25 @@ public:
 	virtual const VectorComplexType& gimp() const = 0;
 
 protected:
+
+	static void writeGimpForDebugOnly(const std::string&                      file_out,
+	                                  const std::vector<ComplexOrRealType>&   gimp,
+	                                  const PsimagLite::Matsubaras<RealType>& matsubaras)
+	{
+		const SizeType n = gimp.size();
+		std::ofstream  fout(file_out);
+		if (!fout || !fout.good())
+			err(std::string("Could not write to") + file_out + "\n");
+
+		for (SizeType i = 0; i < n; ++i) {
+			const ComplexType value = gimp[i];
+			const RealType    omega = matsubaras.omega(i);
+			fout << omega << " " << PsimagLite::real(value) << " "
+			     << PsimagLite::imag(value) << "\n";
+		}
+
+		fout.close();
+	}
 
 	static std::string readAndModifyInput(const std::string&     gs_template,
 	                                      const ModelParamsType& model_params)
