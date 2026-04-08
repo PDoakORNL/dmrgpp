@@ -113,7 +113,7 @@ public:
 		                        orb_pair);
 
 		// compute gimp
-		// computeGreenFunction(energy, gs, basis, mp);
+		computeGreenFunction(cfCollection);
 		std::cout << "SumOfGimp=" << density() << "\n";
 	}
 
@@ -133,12 +133,13 @@ private:
 
 	void computeGreenFunction(const CollectionContFractionType& cf_collection)
 	{
-		typename CollectionContFractionType::PlotDataType   results;
-		typename CollectionContFractionType::PlotParamsType params;
-		params.beta               = params_.ficticiousBeta;
-		params.numberOfMatsubaras = matsubaras_.size();
+		typename CollectionContFractionType::PlotDataType results;
 
-		cf_collection.plot(results, params);
+		cf_collection.plot(results, matsubaras_);
+		gimp_.resize(matsubaras_.total());
+		for (SizeType i = 0; i < matsubaras_.total(); ++i) {
+			gimp_[i] = results[i].second;
+		}
 	}
 
 	const ParamsDmftSolverType&     params_;
