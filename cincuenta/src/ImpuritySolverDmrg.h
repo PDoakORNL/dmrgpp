@@ -77,9 +77,11 @@ public:
 		InputNgType::Writeable::readFile(data3, params_.omegaTemplate);
 		PsimagLite::String data4 = BaseType::addBathParams(data3, model_params);
 
-		doType(DmrgType::TYPE_0, data4, mpiRank);
+		SizeType impurity_site = model_params.impuritySite();
 
-		doType(DmrgType::TYPE_1, data4, mpiRank);
+		doType(DmrgType::TYPE_0, data4, impurity_site, mpiRank);
+
+		doType(DmrgType::TYPE_1, data4, impurity_site, mpiRank);
 
 		if (mpiRank == 0) {
 			scaleGimp();
@@ -96,17 +98,60 @@ public:
 
 private:
 
-	static PsimagLite::String addTypeAndObs(DmrgType t, PsimagLite::String data)
+	/*
+	 * This business of communicating by strings is far from ideal,
+	 * but DMRG++ doesn't have an internal API right now
+	 */
+	static std::string
+	addTypeAndObs(DmrgType t, SizeType impurity_site, PsimagLite::String data)
 	{
-		const PsimagLite::String obsTc = (t == DmrgType::TYPE_0) ? "c'" : "c";
-		const SizeType           tt    = (t == DmrgType::TYPE_0) ? 0 : 1;
-		return data + "DynamicDmrgType=" + ttos(tt) + ";\n"
-		    + "string TSPOp1:OperatorExpression=\"" + obsTc + "\";\n";
+		const std::string obsTc = (t == DmrgType::TYPE_0) ? "c'" : "c";
+		return data + addType(t) + addObs(impurity_site, obsTc);
 	}
 
-	void doType(DmrgType t, PsimagLite::String data, SizeType mpiRank)
+	/* The type added is because there are two terms that need to be computed
+	 * by separate runs and the terms differ by a sign
+	 */
+	static std::string addType(DmrgType t)
 	{
-		PsimagLite::String data2 = addTypeAndObs(t, data);
+
+		const SizeType tt = (t == DmrgType::TYPE_0) ? 0 : 1;
+		return "DynamicDmrgType=" + ttos(tt) + ";\n";
+	}
+
+	/*
+	 * The observable is just one for the Green function: c (the destruction operator)
+	 * and we apply at the impurity. Now, if the impurity is site 0 (a border site)
+	 * we need to add a trigger at site 1, that is, and operator at site 1: the identity,
+	 * that is we multiply by the identity in this case.
+	 */
+	static std::string addObs(SizeType impurity_site, const std::string& obs)
+	{
+		std::string str = "TSPProductOrSum=product;\n";
+		SizeType    ind = 0;
+		if (impurity_site > 0) {
+			str += "TSPSites=[" + ttos(impurity_site)
+			    + "];\n"
+			      " TSPLoops=[0]\n";
+			ind = 0;
+		} else {
+			str += "TSPSites=[1, 0];\n"
+			       "TSPLoops=[0, 0];\n"
+			       "string TSPOp0:TSPOperator=expression;\n"
+			       "string TSPOp0:OperatorExpression=identity;\n"
+			       "string TSPOp1:TSPOperator=expression;\n";
+			ind = 1;
+		}
+
+		str += "string TSPOp" + ttos(ind) + ":OperatorExpression=" + obs + ";\n";
+		return str;
+	}
+
+	void doType(DmrgType t, PsimagLite::String data, SizeType impurity_site, SizeType mpiRank)
+	{
+		PsimagLite::String obs     = (t == DmrgType::TYPE_0) ? "c" : "c'";
+		PsimagLite::String insitu2 = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
+		PsimagLite::String data2 = addTypeAndObs(t, impurity_site, data);
 
 		PsimagLite::Matsubaras<RealType> matsubaras(params_.ficticiousBeta,
 		                                            params_.nMatsubaras,
