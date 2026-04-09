@@ -54,6 +54,10 @@ public:
 		cout_buffer_ = nullptr;
 	}
 
+	RedirectOutput(const RedirectOutput&) = delete;
+
+	RedirectOutput& operator=(const RedirectOutput&) = delete;
+
 	std::streambuf* cout_buffer_;
 	std::ofstream   cout_stream_;
 	bool            redirected_;
