@@ -22,9 +22,6 @@ integer TridiagSteps=400;
 real TridiagEps=1e-9;
 TruncationTolerance="1e-10,100";
 CorrectionA=0;
-TSPSites=[1];
-TSPLoops=[0];
-TSPProductOrSum="product";
 CorrectionVectorFreqType="Matsubara";
 
 CorrectionVectorEta=0.1;
@@ -33,7 +30,4 @@ Orbitals=1;
 GsWeight=0.1;
 
 Intent="GimpMatsubara";
-
-string TSPOp0:TSPOperator="expression";
-
 
