@@ -149,8 +149,7 @@ private:
 
 	void doType(DmrgType t, PsimagLite::String data, SizeType impurity_site, SizeType mpiRank)
 	{
-		PsimagLite::String obs     = (t == DmrgType::TYPE_0) ? "c" : "c'";
-		PsimagLite::String insitu2 = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
+		PsimagLite::String obs   = (t == DmrgType::TYPE_0) ? "c" : "c'";
 		PsimagLite::String data2 = addTypeAndObs(t, impurity_site, data);
 
 		PsimagLite::Matsubaras<RealType> matsubaras(params_.ficticiousBeta,
@@ -162,7 +161,6 @@ private:
 		const bool               dryrun   = false;
 		const PsimagLite::String rootname = "dmftDynamics";
 		Dmrg::CmdLineOptions     cmdline_options;
-		PsimagLite::String       obs         = (t == DmrgType::TYPE_0) ? "c" : "c'";
 		cmdline_options.in_situ_measurements = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
 		manyOmegas.run(dryrun, rootname, cmdline_options);
 
@@ -268,10 +266,10 @@ private:
 		return sum;
 	}
 
-	const ParamsDmftSolverType& params_;
-	const ApplicationType&      app_;
-	VectorComplexType           gimp_;
-	InputNgType::Readable&      io_;
+	const ParamsDmftSolverType&     params_;
+	const ApplicationType&          app_;
+	VectorComplexType               gimp_;
+	typename InputNgType::Readable& io_;
 };
 }
 #endif // IMPURITYSOLVER_DMRG_H
