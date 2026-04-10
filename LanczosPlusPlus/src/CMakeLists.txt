@@ -1,3 +1,7 @@
+add_library(lanczos_globals LanczosGlobals.cpp)
+target_include_directories(lanczos_globals PRIVATE Engine ${CMAKE_SOURCE_DIR})
+target_link_libraries(lanczos_globals PUBLIC psimaglite::psimaglite)
+
 add_executable(
   lanczos
   lanczos.cpp
@@ -6,10 +10,9 @@ add_executable(
   LanczosDriver2.cpp
   LanczosDriver3.cpp
   LanczosDriver4.cpp
-  LanczosDriver5.cpp
-  LanczosGlobals.cpp)
+  LanczosDriver5.cpp)
 target_include_directories(lanczos PRIVATE Engine ${CMAKE_SOURCE_DIR})
-target_link_libraries(lanczos PUBLIC psimaglite::psimaglite)
+target_link_libraries(lanczos PUBLIC lanczos_globals psimaglite::psimaglite)
 
 add_executable(thermal thermal.cpp)
 target_link_libraries(thermal psimaglite::psimaglite)
