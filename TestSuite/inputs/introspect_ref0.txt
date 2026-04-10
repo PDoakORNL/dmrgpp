@@ -1,0 +1,7 @@
+FiniteLoopLengths=[3, -6, 6];
+TargetElectronsUp=4
+TargetElectronsDown=4
+Model HubbardOneBand has 1 Hamiltonian terms
+Term 0 Term Name=hopping Dofs=2
+	[Fermionic]    	c 	c' 
+	[Fermionic]    	c?1 	c?1' 
