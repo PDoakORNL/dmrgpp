@@ -1,4 +1,3 @@
-#include "LanczosGlobals.h"
 #include "Engine/LanczosGlobals.h"
 
 namespace LanczosPlusPlus {
