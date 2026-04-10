@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 	\item[-H] [Optional] Prints the Hamiltonian terms for the model
 	\end{itemize}
 	 */
-	while ((opt = getopt(argc, argv, "f:s:p:e:o:HB")) != -1) {
+	while ((opt = getopt(argc, argv, "f:s:p:e:o:HBV")) != -1) {
 		switch (opt) {
 		case 'f':
 			filename = optarg;
@@ -97,11 +97,6 @@ int main(int argc, char** argv)
 	if (filename == "" && !versionOnly) {
 		InputCheck::usageMain(strUsage);
 		return 1;
-	}
-
-	if (!cmdline_options.logfile.empty()) {
-		throw std::runtime_error("operator does not support -l logfile. "
-		                         "Did you mean -e?\n");
 	}
 
 	if (optind < argc) {

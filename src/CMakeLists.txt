@@ -46,8 +46,16 @@ install(TARGETS dmrg toolboxdmrg omegas introspect RUNTIME DESTINATION ${CMAKE_I
 
 # Tests below for all executables
 
-# For dmrg main executable
 set(PATH_TO_INPUTS ${CMAKE_CURRENT_SOURCE_DIR}/../TestSuite/inputs)
+
+# For introspect
+add_test(
+  NAME introspect0
+  COMMAND sh -c "./introspect -f ${PATH_TO_INPUTS}/input2.ain -H >  ${CMAKE_CURRENT_BINARY_DIR}/introspect_output0.txt")
+add_test(NAME introspect0_0 COMMAND diff -q ${PATH_TO_INPUTS}/introspect_ref0.txt
+                                    ${CMAKE_CURRENT_BINARY_DIR}/introspect_output0.txt)
+
+# For dmrg main executable
 
 function(add_lowest_eigenvalue_check_test name expected output_file)
   set(options SHOULD_FAIL)
