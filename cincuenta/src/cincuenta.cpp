@@ -101,10 +101,10 @@ to the main dmrg driver are the following.
 
 	// print license
 	if (ConcurrencyType::root()) {
-		Dmft::Provenance provenance;
+		Provenance provenance;
 		std::cout << provenance;
-		std::cout << Dmft::Provenance::logo(application.name()) << "\n";
-		application.checkMicroArch(std::cout, Dmft::Provenance::compiledMicroArch());
+		std::cout << Provenance::logo(application.name()) << "\n";
+		application.checkMicroArch(std::cout, Provenance::compiledMicroArch());
 	}
 
 	if (logfile != "-") {
@@ -132,7 +132,7 @@ to the main dmrg driver are the following.
 
 		echoInput = true;
 
-		std::cerr << Dmft::Provenance::logo(application.name());
+		std::cerr << Provenance::logo(application.name());
 		std::cerr << "Standard output sent to ";
 		std::cerr << logfile << "\n";
 		std::cerr.flush();

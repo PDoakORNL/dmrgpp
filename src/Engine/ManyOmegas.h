@@ -11,26 +11,24 @@
 
 namespace Dmrg {
 
-template <typename ComplexOrRealType, typename OmegaParamsType> class ManyOmegas {
+template <typename RealType, typename OmegaParamsType> class ManyOmegas {
 
 public:
 
-	using RealType        = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using VectorRealType  = typename PsimagLite::Vector<RealType>::Type;
-	using DmrgRunnerType  = DmrgRunner<ComplexOrRealType>;
+	using DmrgRunnerType  = DmrgRunner<RealType>;
 	using InputNgType     = typename DmrgRunnerType::InputNgType;
 	using ApplicationType = PsimagLite::PsiApp;
 
 	ManyOmegas(PsimagLite::String     data,
-	           RealType               precision,
 	           const OmegaParamsType& omegaParams,
 	           const ApplicationType& app)
 	    : data_(data)
-	    , runner_(precision, app)
 	    , omegaParams_(omegaParams)
+	    , app_(app)
 	{ }
 
-	void run(bool dryRun, PsimagLite::String root, PsimagLite::String insitu)
+	void run(bool dryRun, PsimagLite::String root, const CmdLineOptions& cmdline_options)
 	{
 		// lambda
 		PsimagLite::InterNode<> internode(PsimagLite::MPI::COMM_WORLD);
@@ -38,7 +36,7 @@ public:
 		internode.parallelFor(
 		    omegaParams_.offset(),
 		    omegaParams_.total(),
-		    [this, root, dryRun, insitu](SizeType i, SizeType)
+		    [this, root, dryRun, cmdline_options](SizeType i, SizeType)
 		    {
 			    const RealType     omega = omegaParams_.omega(i);
 			    PsimagLite::String data2 = addOmega(omega);
@@ -46,11 +44,14 @@ public:
 			        = "\nOutputFile=\"" + root + ttos(i) + "\";\n";
 			    data2 += outputfile;
 
-			    PsimagLite::String logfile = "runForinput" + ttos(i) + ".cout";
+			    CmdLineOptions cmdline_options2 = cmdline_options;
+
+			    cmdline_options2.logfile
+			        = std::string("runForinput") + ttos(i) + ".cout";
 
 			    std::cerr << "ManyOmegas.h:: omega = " << omega;
 			    std::cerr << " output=" << outputfile;
-			    std::cerr << " logfile=" << logfile << " MPI rank=";
+			    std::cerr << " logfile=" << cmdline_options2.logfile << " MPI rank=";
 			    std::cerr << PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD)
 			              << "\n";
 
@@ -59,7 +60,8 @@ public:
 				    return;
 			    }
 
-			    runner_.doOneRun(data2, insitu, logfile);
+			    DmrgRunnerType runner(app_, data2, cmdline_options2);
+			    runner.doOneRun();
 		    });
 	}
 
@@ -70,8 +72,8 @@ public:
 	}
 
 	PsimagLite::String     data_;
-	DmrgRunnerType         runner_;
 	const OmegaParamsType& omegaParams_;
+	const ApplicationType& app_;
 };
 }
 #endif // MANYOMEGAS_H

@@ -1,6 +1,7 @@
 #ifndef IMPURITYSOLVER_DMRG_H
 #define IMPURITYSOLVER_DMRG_H
 
+#include "CmdLineOptions.hh"
 #include "DmrgRunner.h"
 #include "Geometry/Star.h"
 #include "ImpuritySolverBase.h"
@@ -46,7 +47,7 @@ public:
 	                   const ApplicationType&      app,
 	                   InputNgType::Readable&      io)
 	    : params_(params)
-	    , runner_(params_.precision, app)
+	    , app_(app)
 	    , io_(io)
 	{ }
 
@@ -63,7 +64,12 @@ public:
 			PsimagLite::String data2  = addBathParams(data, model_params);
 			PsimagLite::String insitu = "<gs|nup|gs>";
 
-			runner_.doOneRun(data2, insitu, "-");
+			Dmrg::CmdLineOptions cmdline_options;
+			cmdline_options.in_situ_measurements = "<gs|nup|gs>";
+			cmdline_options.logfile              = "-";
+
+			DmrgRunnerType runner(app_, data2, cmdline_options);
+			runner.doOneRun();
 		}
 
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
@@ -128,19 +134,18 @@ private:
 
 	void doType(DmrgType t, PsimagLite::String data, SizeType mpiRank)
 	{
-		PsimagLite::String obs     = (t == DmrgType::TYPE_0) ? "c" : "c'";
-		PsimagLite::String insitu2 = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
-
 		PsimagLite::String data2 = addTypeAndObs(t, data);
 
 		Matsubaras<RealType> matsubaras(params_.ficticiousBeta, params_.nMatsubaras);
 
-		ManyOmegasType manyOmegas(
-		    data2, params_.precision, matsubaras, runner_.application());
+		ManyOmegasType manyOmegas(data2, matsubaras, app_);
 
 		const bool               dryrun   = false;
 		const PsimagLite::String rootname = "dmftDynamics";
-		manyOmegas.run(dryrun, rootname, insitu2);
+		Dmrg::CmdLineOptions     cmdline_options;
+		PsimagLite::String       obs         = (t == DmrgType::TYPE_0) ? "c" : "c'";
+		cmdline_options.in_situ_measurements = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
+		manyOmegas.run(dryrun, rootname, cmdline_options);
 
 		if (mpiRank != 0)
 			return;
@@ -258,7 +263,7 @@ private:
 	}
 
 	const ParamsDmftSolverType& params_;
-	DmrgRunnerType              runner_;
+	const ApplicationType&      app_;
 	VectorComplexType           gimp_;
 	InputNgType::Readable&      io_;
 };

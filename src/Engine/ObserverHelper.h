@@ -80,7 +80,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define PRECOMPUTED_H
 #include "DmrgSerializer.h"
 #include "GetBraOrKet.h"
-#include "HDF5DisableExceptionPrinting.h"
+#include "Io/HDF5DisableExceptionPrinting.h"
 #include "ProgramGlobals.h"
 #include "ProgressIndicator.h"
 #include "SparseVector.h"

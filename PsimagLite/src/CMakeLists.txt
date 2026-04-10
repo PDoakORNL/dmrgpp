@@ -9,7 +9,6 @@ add_library(
   MemResolv.cpp
   PsimagLite.cpp
   PsiBase64.cpp
-  RedirectOutput.cpp
   SpecialFunctions.cpp
   Io/TypeToH5.cpp
   TridiagonalMatrix.cpp

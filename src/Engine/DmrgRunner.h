@@ -1,9 +1,11 @@
 #ifndef DMRGRUNNER_H
 #define DMRGRUNNER_H
 #include "BasisWithOperators.h"
+#include "CmdLineOptions.hh"
 #include "CrsMatrix.h"
 #include "DmrgSolver.h"
 #include "InputCheck.h"
+#include "Introspect.hh"
 #include "LeftRightSuper.h"
 #include "MatrixVectorKron/MatrixVectorKron.h"
 #include "MatrixVectorOnTheFly.h"
@@ -14,136 +16,59 @@
 #include "ProgramGlobals.h"
 #include "PsimagLite.h"
 #include "Qn.h"
+#include "RedirectOutput.hh"
+#include "RunFinished.h"
 #include "SuperGeometry.h"
 #include "VectorWithOffset.h"
 
 namespace Dmrg {
 
-template <typename ComplexOrRealType> class DmrgRunner {
+template <typename RealType> class DmrgRunner {
 
 public:
 
-	using RealType    = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using InputNgType = PsimagLite::InputNg<Dmrg::InputCheck>;
-	using ParametersDmrgSolverType
-	    = Dmrg::ParametersDmrgSolver<RealType, InputNgType::Readable, Dmrg::Qn>;
-	using SuperGeometryType
-	    = Dmrg::SuperGeometry<ComplexOrRealType, InputNgType::Readable, Dmrg::ProgramGlobals>;
-	using VectorWithOffsetType = Dmrg::VectorWithOffset<ComplexOrRealType, Dmrg::Qn>;
-	using ApplicationType      = PsimagLite::PsiApp;
+	using InputNgType              = PsimagLite::InputNg<InputCheck>;
+	using ParametersDmrgSolverType = ParametersDmrgSolver<RealType, InputNgType::Readable, Qn>;
+	using ApplicationType          = PsimagLite::PsiApp;
 
-	DmrgRunner(RealType precision, const ApplicationType& application)
-	    : precision_(precision)
-	    , application_(application)
-	{ }
+	DmrgRunner(const ApplicationType&    app,
+	           const PsimagLite::String& data,
+	           const CmdLineOptions&     cmd_line);
 
-	void doOneRun(PsimagLite::String data,
-	              PsimagLite::String insitu,
-	              PsimagLite::String logfile) const
-	{
-		using MySparseMatrixComplex  = PsimagLite::CrsMatrix<ComplexOrRealType>;
-		using BasisType              = Dmrg::Basis<MySparseMatrixComplex>;
-		using BasisWithOperatorsType = Dmrg::BasisWithOperators<BasisType>;
-		using LeftRightSuperType = Dmrg::LeftRightSuper<BasisWithOperatorsType, BasisType>;
-		using ModelHelperType    = Dmrg::ModelHelperLocal<LeftRightSuperType>;
-		using ModelBaseType      = Dmrg::ModelBase<ModelHelperType,
-		                                           ParametersDmrgSolverType,
-		                                           InputNgType::Readable,
-		                                           SuperGeometryType>;
+	~DmrgRunner();
 
-		std::streambuf* globalCoutBuffer = 0;
-		std::ofstream   globalCoutStream;
-		if (logfile != "-") {
-			globalCoutBuffer = std::cout.rdbuf(); // save old buf
-			globalCoutStream.open(logfile.c_str(), std::ofstream::out);
-			if (!globalCoutStream || globalCoutStream.bad()
-			    || !globalCoutStream.good()) {
-				PsimagLite::String str(application_.name());
-				str += ": Could not redirect std::cout to " + logfile + "\n";
-				err(str);
-			}
+	void doOneRun(OptionsForIntrospect& op_options) const;
 
-			std::cout.rdbuf(globalCoutStream.rdbuf()); // redirect std::cout to file
-
-			printOutputChange(logfile, data);
-		}
-
-		Dmrg::InputCheck       inputCheck;
-		InputNgType::Writeable ioWriteable(inputCheck, data);
-		InputNgType::Readable  io(ioWriteable);
-
-		ParametersDmrgSolverType dmrgSolverParams(io, "", false);
-		if (dmrgSolverParams.options.isSet("hd5DontPrint"))
-			PsimagLite::IoNg::dontPrintDebug();
-
-		if (precision_ > 0)
-			dmrgSolverParams.precision = precision_;
-
-		dmrgSolverParams.insitu = insitu;
-
-		if (dmrgSolverParams.options.isSet("MatrixVectorStored")) {
-			doOneRun2<Dmrg::MatrixVectorStored<ModelBaseType>>(dmrgSolverParams, io);
-		} else if (dmrgSolverParams.options.isSet("MatrixVectorOnTheFly")) {
-			doOneRun2<Dmrg::MatrixVectorOnTheFly<ModelBaseType>>(dmrgSolverParams, io);
-		} else {
-			doOneRun2<Dmrg::MatrixVectorKron<ModelBaseType>>(dmrgSolverParams, io);
-		}
-
-		if (logfile == "-" || globalCoutBuffer == 0)
-			return;
-		globalCoutStream.close();
-		std::cout.rdbuf(globalCoutBuffer);
-	}
-
-	void printOutputChange(PsimagLite::String logfile, PsimagLite::String data) const
-	{
-		std::cerr << Provenance::logo(application_.name());
-		std::cerr << "Standard output sent to ";
-		std::cerr << logfile << "\n";
-		std::cerr.flush();
-
-		application_.printCmdLine(std::cout);
-		application_.base64encode(std::cout, data, true);
-	}
+	void doOneRun() const;
 
 	const ApplicationType& application() const { return application_; }
 
 private:
 
+	template <typename ComplexOrRealType>
+	void doOneRun2(const OptionsForIntrospect& op_options) const;
+
 	template <typename MatrixVectorType>
-	void doOneRun2(const ParametersDmrgSolverType& dmrgSolverParams,
-	               InputNgType::Readable&          io) const
-	{
-		SuperGeometryType geometry(io);
-		if (dmrgSolverParams.options.isSet("printgeometry"))
-			std::cout << geometry;
+	void doOneRun3(const OptionsForIntrospect& op_options) const;
 
-		using SolverType    = PsimagLite::LanczosSolver<MatrixVectorType>;
-		using ModelBaseType = typename SolverType::MatrixType::ModelType;
+	template <typename MatrixVectorType, typename VectorWithOffsetType>
+	void doOneRun4(const OptionsForIntrospect& op_options) const;
 
-		//! Setup the Model
-		Dmrg::ModelSelector<ModelBaseType> modelSelector(dmrgSolverParams.model);
-		ModelBaseType& model = modelSelector(dmrgSolverParams, io, geometry);
+	void dealWithConsoleOutput(const std::string& logfile, bool unbuffered);
 
-		//! Setup the dmrg solver: (vectorwithoffset.h only):
-		using DmrgSolverType = Dmrg::DmrgSolver<SolverType, VectorWithOffsetType>;
-		DmrgSolverType dmrgSolver(model, io);
+	void adjustDmrgSolverParams(const std::string& insitu,
+	                            SizeType           precision,
+	                            SizeType           threadsInCmd);
 
-		//! Calculate observables:
-		dmrgSolver.main(geometry);
+	void setCorrectThreading() const;
 
-		std::cout.flush();
-	}
+	static bool endDueToClobber(bool is_no_clobber_set, const std::string& logfile);
 
-	static void echoBase64(std::ostream& os, const PsimagLite::String& str)
-	{
-		os << "ImpuritySolver::echoBase64: Echo of [[data]] in base64\n";
-		PsimagLite::PsiBase64::Encode base64(str);
-		os << base64() << "\n";
-	}
-
-	RealType               precision_;
-	const ApplicationType& application_;
+	const ApplicationType&     application_;
+	InputCheck                 inputCheck_;
+	InputNgType::Readable*     io_;
+	ParametersDmrgSolverType*  dmrg_solver_params_;
+	PsimagLite::RedirectOutput redirect_output_;
 };
 }
 #endif // DMRGRUNNER_H

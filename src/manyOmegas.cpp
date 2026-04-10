@@ -1,4 +1,5 @@
 #include "ManyOmegas.h"
+#include "CmdLineOptions.hh"
 #include "InputCheck.h"
 #include "ProgramGlobals.h"
 #include "Provenance.h"
@@ -12,14 +13,14 @@ void usage(const PsimagLite::String& name)
 
 int main(int argc, char** argv)
 {
-	PsimagLite::PsiApp application("manyOmegas", &argc, &argv, 1);
+	PsimagLite::PsiApp application("DMRG++::manyOmegas", &argc, &argv, 1);
 
-	int                opt         = 0;
-	bool               versionOnly = false;
-	PsimagLite::String inputfile;
-	PsimagLite::String rootname;
-	SizeType           precision = 12;
-	bool               dryrun    = false;
+	int                  opt         = 0;
+	bool                 versionOnly = false;
+	PsimagLite::String   inputfile;
+	PsimagLite::String   rootname;
+	Dmrg::CmdLineOptions cmdline_options;
+	bool                 dryrun = false;
 
 	/* PSIDOC DmrgDriverManyOmegas
 There is a single input file that is passed as the
@@ -50,9 +51,9 @@ to the main dmrg driver are the following.
 			dryrun = true;
 			break;
 		case 'p':
-			precision = atoi(optarg);
-			std::cout.precision(precision);
-			std::cerr.precision(precision);
+			cmdline_options.precision = atoi(optarg);
+			std::cout.precision(cmdline_options.precision);
+			std::cerr.precision(cmdline_options.precision);
 			break;
 		case 'V':
 			versionOnly = true;
@@ -83,25 +84,20 @@ to the main dmrg driver are the following.
 	if (versionOnly)
 		return 0;
 
-	using InputNgType = PsimagLite::InputNg<Dmrg::InputCheck>;
-	typedef
-#ifndef USE_FLOAT
-	    double
-#else
-	    float
-#endif
-	        RealType;
-	using OmegaParamsType = Dmrg::OmegaParams<InputNgType, RealType>;
-	using ManyOmegasType  = Dmrg::ManyOmegas<RealType, OmegaParamsType>;
+	using InputNgType     = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using OmegaParamsType = Dmrg::OmegaParams<InputNgType, double>;
+	using ManyOmegasType  = Dmrg::ManyOmegas<double, OmegaParamsType>;
 
 	PsimagLite::String data;
 	ManyOmegasType::InputNgType::Writeable::readFile(data, inputfile);
 	OmegaParamsType omegaParams(data);
-	ManyOmegasType  manyOmegas(data, precision, omegaParams, application);
+	ManyOmegasType  manyOmegas(data, omegaParams, application);
 
 	const PsimagLite::String obs = omegaParams.observable();
-	const PsimagLite::String insitu
+	cmdline_options.in_situ_measurements
 	    = "<gs|" + obs + "|P1>,<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
 
-	manyOmegas.run(dryrun, rootname, insitu);
+	// FIXME: TODO: We may want to honor other cmdline options here
+
+	manyOmegas.run(dryrun, rootname, cmdline_options);
 }

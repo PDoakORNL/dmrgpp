@@ -8,47 +8,41 @@ add_custom_command(
 add_subdirectory(KronUtil)
 
 # DMRG++ as a library so cincuenta can use it
-add_library(dmrgpp ProgramGlobals.cpp Provenance.cpp Utils.cpp Su2Related.cpp Qn.cpp)
-target_sources(dmrgpp PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/GitRevision.h)
-target_include_directories(dmrgpp PUBLIC ${CMAKE_CURRENT_BINARY_DIR} Engine)
-target_link_libraries(dmrgpp PUBLIC psimaglite::psimaglite)
+add_library(dmrgpp_utils ProgramGlobals.cpp Provenance.cpp Utils.cpp Su2Related.cpp Qn.cpp)
+target_sources(dmrgpp_utils PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/GitRevision.h)
+target_include_directories(dmrgpp_utils PUBLIC ${CMAKE_CURRENT_BINARY_DIR} Engine)
+target_link_libraries(dmrgpp_utils PUBLIC psimaglite::psimaglite)
 
-# generate sources file for explicitly instantiating mainLoop4
-set(counter 0)
-set(instantiationFileList)
-foreach(complexOrReal RealType std::complex<RealType>)
-  foreach(solverType LanczosSolver ChebyshevSolver)
-    foreach(matrixVectorType MatrixVectorOnTheFly MatrixVectorStored MatrixVectorKron)
-      math(EXPR counter "${counter} + 1")
-      set(instantiationFile ${CMAKE_CURRENT_BINARY_DIR}/DmrgDriver${counter}.cpp)
-      configure_file(cmake/DmrgDriver.cpp.in ${instantiationFile})
-      list(APPEND instantiationFileList ${instantiationFile})
-    endforeach()
-  endforeach()
-endforeach()
-unset(counter)
+# DMRG runner
+add_library(dmrg_runner Engine/DmrgRunner.cpp)
+target_include_directories(dmrg_runner PUBLIC ${CMAKE_CURRENT_BINARY_DIR} .. ../src/Engine)
+target_link_libraries(dmrg_runner PUBLIC dmrgpp_utils psimaglite::psimaglite)
 
 # Dmrg executable (main executable)
 add_executable(dmrg ${instantiationFileList} dmrg.cpp)
-target_link_libraries(dmrg dmrgpp kronutil)
+target_link_libraries(dmrg dmrgpp_utils dmrg_runner kronutil)
 target_include_directories(dmrg PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Observe executable
 add_executable(observe observe.cpp ObserveDriver0.cpp ObserveDriver1.cpp ObserveDriver2.cpp)
-target_link_libraries(observe dmrgpp kronutil)
+target_link_libraries(observe dmrgpp_utils kronutil)
 
 # Toolbox executable
 add_executable(toolboxdmrg toolboxdmrg.cpp Qn.cpp ProgramGlobals.cpp Provenance.cpp)
-target_link_libraries(toolboxdmrg dmrgpp)
+target_link_libraries(toolboxdmrg dmrgpp_utils)
 
 # Many omegas executable
 add_executable(omegas manyOmegas.cpp)
-target_link_libraries(omegas dmrgpp kronutil)
+target_link_libraries(omegas dmrgpp_utils dmrg_runner kronutil)
+
+# Introspect executable
+add_executable(introspect introspect.cpp)
+target_link_libraries(introspect dmrgpp_utils dmrg_runner kronutil)
 
 if(BUILD_SHARED_LIBS)
-  install(TARGETS dmrgpp LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  install(TARGETS dmrgpp_utils LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
-install(TARGETS dmrg toolboxdmrg omegas RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS dmrg toolboxdmrg omegas introspect RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Tests below for all executables
 

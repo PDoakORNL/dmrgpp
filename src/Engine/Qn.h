@@ -2,7 +2,7 @@
 #define QN_H
 
 #include "Array.h"
-#include "HDF5DisableExceptionPrinting.h"
+#include "Io/HDF5DisableExceptionPrinting.h"
 #include "Io/IoNg.h"
 #include "Profiling.h"
 #include "ProgramGlobals.h"

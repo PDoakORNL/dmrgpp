@@ -184,7 +184,7 @@ struct ProgramGlobals {
 			rootname.erase(index, filename.length());
 		}
 
-		std::string maybe_app_name = (app_name == "observe") ? app_name : "";
+		std::string maybe_app_name = (app_name == "DMRG++::observe") ? "observe" : "";
 
 		return "runFor" + maybe_app_name + rootname + ".cout";
 	}

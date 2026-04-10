@@ -132,7 +132,7 @@ Threads=number
 int main(int argc, char** argv)
 {
 	using namespace Dmrg;
-	PsimagLite::PsiApp application("observe", &argc, &argv, 1);
+	PsimagLite::PsiApp application("DMRG++::observe", &argc, &argv, 1);
 	std::string        filename;
 	std::string        filesOption;
 	std::string        output_filename;
@@ -187,6 +187,7 @@ int main(int argc, char** argv)
 		}
 	}
 
+	PsimagLite::RedirectOutput redirect_output;
 	if (!output_filename.empty()) {
 		bool queryOnly = (output_filename == "?");
 		if (queryOnly) {
@@ -200,12 +201,10 @@ int main(int argc, char** argv)
 			output_filename = ProgramGlobals::coutName(filename, application.name());
 		}
 
-		PsimagLite::RedirectOutput::setAppName(application.name(),
-		                                       Provenance::logo(application.name()));
-
 		std::ios_base::openmode open_mode = std::ofstream::out;
 
-		PsimagLite::RedirectOutput::doIt(output_filename, open_mode, unbuffered);
+		redirect_output.doIt(output_filename, open_mode, unbuffered);
+
 		application.echoBase64(std::cout, filename);
 	}
 

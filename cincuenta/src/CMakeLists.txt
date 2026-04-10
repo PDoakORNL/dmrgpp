@@ -1,15 +1,11 @@
 # This is repeated here but should possibly just use the custom
 # command and info from dmrgpp/src
 
-add_library(provenance OBJECT Provenance.cpp)
-target_link_libraries(provenance PUBLIC dmrgpp psimaglite)
+add_executable(cincuenta cincuenta.cpp)
+target_link_libraries(cincuenta PUBLIC dmrgpp_utils dmrg_runner kronutil)
 
-set(cincuenta_src cincuenta.cpp)
-add_executable(cincuenta ${cincuenta_src} $<TARGET_OBJECTS:provenance>)
-target_link_libraries(cincuenta PUBLIC dmrgpp kronutil)
-
-add_executable(freeGimp freeGimp.cpp $<TARGET_OBJECTS:provenance>)
-target_link_libraries(freeGimp PUBLIC dmrgpp kronutil)
+add_executable(freeGimp freeGimp.cpp)
+target_link_libraries(freeGimp PUBLIC dmrgpp_utils kronutil)
 
 install(TARGETS cincuenta freeGimp RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

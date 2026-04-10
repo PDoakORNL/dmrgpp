@@ -509,7 +509,7 @@ public:
 		return optsReadable_->isSet(thisOption);
 	}
 
-	void usageMain(const PsimagLite::String& name) const
+	static void usageMain(const PsimagLite::String& name)
 	{
 		std::cerr << "USAGE is " << name << "\n";
 	}
