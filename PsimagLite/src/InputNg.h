@@ -82,7 +82,6 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define INPUT_NG_H
 
 #include "Ainur/Ainur.h"
-#include "InputPath.hpp"
 #include "Map.h"
 #include "Matrix.h"
 #include "PsiBase64.h"
