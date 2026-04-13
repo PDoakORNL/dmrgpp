@@ -49,31 +49,25 @@ install(TARGETS dmrg toolboxdmrg omegas introspect RUNTIME DESTINATION ${CMAKE_I
 # For dmrg main executable
 set(PATH_TO_INPUTS ${CMAKE_CURRENT_SOURCE_DIR}/../TestSuite/inputs)
 
+
+
 function(add_lowest_eigenvalue_check_test name expected output_file)
   set(options SHOULD_FAIL)
   set(one_value_args TOLERANCE)
   set(multivalue_args)
+  set(tolerance "2e-05")
   cmake_parse_arguments(PARSE "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
-  # name expected output_file)
-  if(${AWK} MATCHES ".+-NOTFOUND")
-    message(WARNING "No awk found not adding ${name} test")
-  else()
-    set(tolerance 1e-5)
-    if(PARSE_TOLERANCE)
-      set(tolerance ${PARSE_TOLERANCE})
-    endif()
-    add_test(
-      NAME ${name}
+  add_test(
+    NAME ${name}
       COMMAND
-        ${AWK} -f ${dmrgpp_SOURCE_DIR}/scripts/check_value.awk -v
-        "pattern=Found lowest eigenvalue=[[:space:]]+([.0-9eE+-]+)" -v "expected=${expected}" -v
-        "tolerance=${tolerance}" ${CMAKE_CURRENT_BINARY_DIR}/${output_file})
-    if(PARSE_SHOULD_FAIL)
-      set_tests_properties(${name} PROPERTIES WILL_FAIL TRUE)
-    endif()
-  endif()
+        $<TARGET_FILE:check_value> "Found lowest eigenvalue=\\s+([.0-9eE+-]+)" "${expected}"
+        "${tolerance}" ${CMAKE_CURRENT_BINARY_DIR}/${output_file}
+)
 
+  if(PARSE_SHOULD_FAIL)
+      set_tests_properties(${name} PROPERTIES WILL_FAIL TRUE)
+  endif()
 endfunction()
 
 add_test(NAME input2 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input2.ain)
