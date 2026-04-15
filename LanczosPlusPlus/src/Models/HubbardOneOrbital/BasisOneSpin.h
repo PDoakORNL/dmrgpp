@@ -146,8 +146,6 @@ public:
 		}
 	}
 
-	//	static SizeType comb(SizeType n, SizeType m) { return comb_(n, m); }
-
 private:
 
 	static SizeType getNbyKet(SizeType ket, SizeType from, SizeType upto)
