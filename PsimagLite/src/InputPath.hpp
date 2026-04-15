@@ -1,5 +1,6 @@
-#ifndef INPUTPATH_HPP
-#define INPUTPATH_HPP
+#ifndef INPUT_PATH_HPP
+#define INPUT_PATH_HPP
+
 #include <algorithm>
 #include <filesystem>
 #include <string>
@@ -11,37 +12,30 @@ class InputPath {
 public:
 
 	InputPath()
-	    : paths_(1, "")
+	    : paths_ { std::filesystem::current_path() }
 	{ }
 
-	void push(const std::string& path)
-	{
-		// path already in paths
-		if (std::find(paths_.begin(), paths_.end(), path) != paths_.end()) {
-			return;
-		}
-
-		paths_.push_back(path);
-	}
+	void push(std::filesystem::path path) { paths_.push_back(std::move(path)); }
 
 	std::string findFirst(const std::string& file) const
 	{
-		for (auto rit = paths_.rbegin(); rit != paths_.rend(); ++rit) {
-			const std::string&    dir       = *rit;
-			std::string           test_file = (dir.empty()) ? file : dir + "/" + file;
-			std::filesystem::path path      = test_file;
-			if (std::filesystem::exists(path)) {
-				return test_file;
-			}
-		}
+		auto it = std::find_if(paths_.rbegin(),
+		                       paths_.rend(),
+		                       [&file](std::filesystem::path const& dir)
+		                       { return std::filesystem::exists(dir / file); });
 
-		throw std::runtime_error("File " + file
-		                         + " could not be found within available paths\n");
+		if (it == paths_.rend())
+			throw std::runtime_error("File " + file
+			                         + " could not be found within available paths\n");
+
+		return *it / file;
 	}
 
 private:
 
-	std::vector<std::string> paths_;
+	std::vector<std::filesystem::path> paths_;
 };
+
 }
-#endif // INPUTPATH_HPP
+
+#endif // INPUT_PATH_HPP

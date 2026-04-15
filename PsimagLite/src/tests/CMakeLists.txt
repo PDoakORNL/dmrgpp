@@ -10,3 +10,7 @@ catch_discover_tests(testArnoldiIteration)
 add_executable(testArnoldiSaI testArnoldiSaI.cpp)
 target_link_libraries(testArnoldiSaI PRIVATE Catch2::Catch2WithMain psimaglite)
 catch_discover_tests(testArnoldiSaI)
+
+add_executable(test_InputPath test_InputPath.cpp)
+target_link_libraries(test_InputPath PRIVATE Catch2::Catch2WithMain psimaglite)
+catch_discover_tests(test_InputPath)
