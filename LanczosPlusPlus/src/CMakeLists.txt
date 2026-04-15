@@ -1,5 +1,5 @@
 add_library(lanczos_globals LanczosGlobals.cpp)
-target_include_directories(lanczos_globals PRIVATE Engine ${CMAKE_SOURCE_DIR})
+target_include_directories(lanczos_globals PUBLIC Engine ${CMAKE_SOURCE_DIR})
 target_link_libraries(lanczos_globals PUBLIC psimaglite::psimaglite)
 
 add_executable(
