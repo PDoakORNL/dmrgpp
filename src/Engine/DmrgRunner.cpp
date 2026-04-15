@@ -139,7 +139,7 @@ void DmrgRunner<RealType>::doOneRun4(const OptionsForIntrospect& op_options) con
 	ModelSelector<ModelBaseType> modelSelector(dmrg_solver_params_->model);
 	ModelBaseType&               model = modelSelector(*dmrg_solver_params_, *io_, geometry);
 
-	Introspect introspect(dmrg_solver_params_->options.isSet("instrospect"));
+	Introspect introspect(dmrg_solver_params_->options.isSet("introspect"));
 
 	if (introspect(model, op_options)) {
 		return; // <--- EARLY EXIT HERE
