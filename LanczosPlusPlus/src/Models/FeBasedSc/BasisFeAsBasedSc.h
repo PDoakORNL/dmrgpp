@@ -29,7 +29,6 @@ template <typename GeometryType_> class BasisFeAsBasedSc : public BasisBase<Geom
 
 	typedef LanczosGlobals::PairIntType PairIntType;
 
-	static SizeType       orbitals_;
 	static const SizeType SPIN_UP = LanczosGlobals::SPIN_UP;
 
 public:
@@ -45,13 +44,12 @@ public:
 	                 SizeType            nup,
 	                 SizeType            ndown,
 	                 SizeType            orbitals)
-	    : nup_(nup)
+	    : orbitals_(orbitals)
+	    , nup_(nup)
 	    , ndown_(ndown)
 	    , basis1_(geometry.numberOfSites(), nup, orbitals)
 	    , basis2_(geometry.numberOfSites(), ndown, orbitals)
-	{
-		orbitals_ = orbitals;
-	}
+	{ }
 
 	PairIntType parts() const { return PairIntType(nup_, ndown_); }
 
@@ -382,13 +380,11 @@ private:
 		return (spin == 0) ? perfectIndex(newbra, ket2) : perfectIndex(ket1, newbra);
 	}
 
+	SizeType  orbitals_;
 	SizeType  nup_;
 	SizeType  ndown_;
 	BasisType basis1_;
 	BasisType basis2_;
 }; // class BasisFeAsBasedSc
-
-template <typename GeometryType> SizeType BasisFeAsBasedSc<GeometryType>::orbitals_ = 2;
-
 } // namespace LanczosPlusPlus
 #endif

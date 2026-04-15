@@ -5,8 +5,8 @@
 #ifndef BASIS_ONE_SPIN_H
 #define BASIS_ONE_SPIN_H
 #include "BitManip.h"
-#include "LabeledOperator.h"
-#include "LanczosGlobals.h"
+#include "LanczosPlusPlus/src/Engine/LabeledOperator.h"
+#include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
 #include "Matrix.h"
 
 namespace LanczosPlusPlus {
@@ -19,17 +19,11 @@ public:
 	typedef LanczosGlobals::WordType WordType;
 	typedef LabeledOperator          LabeledOperatorType;
 
-	static SizeType                     nsite_;
-	static PsimagLite::Matrix<SizeType> comb_;
-
 	BasisOneSpin(SizeType nsite, SizeType npart)
-	    : npart_(npart)
+	    : nsite_(nsite)
+	    , npart_(npart)
 	{
-		if (nsite_ > 0 && nsite != nsite_)
-			throw std::runtime_error(
-			    "BasisOneSpin: All basis must have same number of sites\n");
-		nsite_ = nsite;
-		doCombinatorial();
+		LanczosGlobals::doCombinatorial(2 * nsite_ + 2);
 		LanczosGlobals::doBitmask(nsite_);
 
 		/* compute size of basis */
@@ -72,7 +66,7 @@ public:
 		SizeType n = 0;
 		for (SizeType b = 0, c = 1; state > 0; b++, state >>= 1)
 			if (state & 1)
-				n += comb_(b, c++);
+				n += LanczosGlobals::combinatorial(b, c++);
 
 		assert(n < data_.size());
 		return n;
@@ -152,7 +146,7 @@ public:
 		}
 	}
 
-	static SizeType comb(SizeType n, SizeType m) { return comb_(n, m); }
+	//	static SizeType comb(SizeType n, SizeType m) { return comb_(n, m); }
 
 private:
 
@@ -169,21 +163,7 @@ private:
 		return sum;
 	}
 
-	static void doCombinatorial()
-	{
-		/* look-up table for binomial coefficients */
-		comb_.resize(2 * nsite_ + 2, 2 * nsite_ + 2, 0);
-
-		for (SizeType n = 0; n < comb_.n_row(); n++) {
-			SizeType m   = 0;
-			int      j   = n;
-			SizeType i   = 1;
-			SizeType cnm = 1;
-			for (; m <= n / 2; m++, cnm = cnm * j / i, i++, j--)
-				comb_(n, m) = comb_(n, n - m) = cnm;
-		}
-	}
-
+	SizeType                           nsite_;
 	SizeType                           size_;
 	SizeType                           npart_;
 	PsimagLite::Vector<WordType>::Type data_;

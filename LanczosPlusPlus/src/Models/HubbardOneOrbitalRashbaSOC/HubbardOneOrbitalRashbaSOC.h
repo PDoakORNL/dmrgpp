@@ -4,12 +4,12 @@
 #ifndef HUBBARDRASHBASOC_H
 #define HUBBARDRASHBASOC_H
 
-#include "../../Engine/ModelBase.h"
-#include "../HubbardOneOrbital/HubbardHelper.h"
-#include "../HubbardOneOrbital/ParametersModelHubbard.h"
 #include "BasisRashbaSOC.h"
 #include "BitManip.h"
-#include "LanczosGlobals.h"
+#include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
+#include "LanczosPlusPlus/src/Engine/ModelBase.h"
+#include "LanczosPlusPlus/src/Models/HubbardOneOrbital/HubbardHelper.h"
+#include "LanczosPlusPlus/src/Models/HubbardOneOrbital/ParametersModelHubbard.h"
 #include "SparseRow.h"
 #include "TypeToString.h"
 

@@ -44,13 +44,3 @@ std::ostream& operator<<(std::ostream& os, const LanczosPlusPlus::BasisOneSpinIm
 		os << i << " " << b[i] << "\n";
 	return os;
 }
-
-SizeType                     LanczosPlusPlus::BasisOneSpinImmm::nsite_ = 0;
-PsimagLite::Matrix<SizeType> LanczosPlusPlus::BasisOneSpinImmm::comb_;
-
-SizeType                     LanczosPlusPlus::BasisOneSpin::nsite_ = 0;
-PsimagLite::Matrix<SizeType> LanczosPlusPlus::BasisOneSpin::comb_;
-
-SizeType                     LanczosPlusPlus::BasisOneSpinFeAs::orbitals_ = 2;
-SizeType                     LanczosPlusPlus::BasisOneSpinFeAs::nsite_    = 0;
-PsimagLite::Matrix<SizeType> LanczosPlusPlus::BasisOneSpinFeAs::comb_;

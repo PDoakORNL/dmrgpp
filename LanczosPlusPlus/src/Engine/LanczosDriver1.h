@@ -57,8 +57,12 @@ void mainLoop3(const ModelType&                 model,
 	typedef typename ModelType::GeometryType         GeometryType;
 	typedef typename GeometryType::ComplexOrRealType ComplexOrRealType;
 	typedef LanczosPlusPlus::Engine<ModelType, InternalProductTemplate, SpecialSymmetryType>
-	                                                     EngineType;
-	typedef typename EngineType::TridiagonalMatrixType   TridiagonalMatrixType;
+	    EngineType;
+	using TridiagonalMatrixType = PsimagLite::TridiagonalMatrix<RealType>;
+	using ContFracType          = PsimagLite::ContinuedFraction<TridiagonalMatrixType>;
+	using ContinuedFractionCollectionType
+	    = PsimagLite::ContinuedFractionCollection<ContFracType>;
+
 	typedef PsimagLite::Vector<PsimagLite::String>::Type VectorStringType;
 
 	const GeometryType& geometry = model.geometry();
@@ -147,10 +151,6 @@ void mainLoop3(const ModelType&                 model,
 			const SizeType site1 = pairOfSites[sIndex].second;
 
 			std::cout << "#gf(i=" << site0 << ", j=" << site1 << ")\n";
-			typedef PsimagLite::ContinuedFraction<TridiagonalMatrixType>
-			    ContinuedFractionType;
-			typedef PsimagLite::ContinuedFractionCollection<ContinuedFractionType>
-			    ContinuedFractionCollectionType;
 
 			typename EngineType::VectorStringType vstr;
 			PsimagLite::IoSimple::Out ioOut(filename + ttos(counter) + ".comb");

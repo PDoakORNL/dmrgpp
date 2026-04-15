@@ -7,7 +7,7 @@
 #include "../../Engine/ModelBase.h"
 #include "BasisFermionSpinless.hh"
 #include "BitManip.h"
-#include "LanczosGlobals.h"
+#include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
 #include "Parallelizer2.h"
 #include "ParametersFermionSpinless.hh"
 #include "SparseRow.h"
