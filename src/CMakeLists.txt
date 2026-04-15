@@ -15,12 +15,11 @@ target_link_libraries(dmrgpp_utils PUBLIC psimaglite::psimaglite)
 
 # DMRG runner
 add_library(dmrg_runner Engine/DmrgRunner.cpp)
-target_include_directories(dmrg_runner PUBLIC ${CMAKE_CURRENT_BINARY_DIR} .. ../src/Engine)
-target_link_libraries(dmrg_runner PUBLIC dmrgpp_utils psimaglite::psimaglite)
+target_link_libraries(dmrg_runner PUBLIC dmrgpp_utils kronutil)
 
 # Dmrg executable (main executable)
 add_executable(dmrg ${instantiationFileList} dmrg.cpp)
-target_link_libraries(dmrg dmrgpp_utils dmrg_runner kronutil)
+target_link_libraries(dmrg dmrg_runner)
 target_include_directories(dmrg PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Observe executable
@@ -28,21 +27,21 @@ add_executable(observe observe.cpp ObserveDriver0.cpp ObserveDriver1.cpp Observe
 target_link_libraries(observe dmrgpp_utils kronutil)
 
 # Toolbox executable
-add_executable(toolboxdmrg toolboxdmrg.cpp Qn.cpp ProgramGlobals.cpp Provenance.cpp)
+add_executable(toolboxdmrg toolboxdmrg.cpp)
 target_link_libraries(toolboxdmrg dmrgpp_utils)
 
 # Many omegas executable
 add_executable(omegas manyOmegas.cpp)
-target_link_libraries(omegas dmrgpp_utils dmrg_runner kronutil)
+target_link_libraries(omegas dmrgpp_utils dmrg_runner)
 
 # Introspect executable
 add_executable(introspect introspect.cpp)
-target_link_libraries(introspect dmrgpp_utils dmrg_runner kronutil)
+target_link_libraries(introspect dmrgpp_utils dmrg_runner)
 
 if(BUILD_SHARED_LIBS)
-  install(TARGETS dmrgpp_utils LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  install(TARGETS dmrg_runner dmrgpp_utils LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
-install(TARGETS dmrg toolboxdmrg omegas introspect RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS dmrg observe toolboxdmrg omegas introspect RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Tests below for all executables
 
