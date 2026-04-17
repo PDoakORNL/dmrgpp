@@ -6,15 +6,15 @@ GeometryKind="star";
 GeometryOptions="none";
 
 #Model params
-hubbardU=[0.0, 4.0, 0.0, 0.0, 0.0, 0.0];
+hubbardU=[4.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 Model="HubbardOneBand";
 SolverOptions="twositedmrg,geometryallinsystem,fixLegacyBugs,CorrectionVectorTargeting,restart,minimizeDisk,hd5dontprint";
 RestartFilename="gsForDMFT";
 Version="templateForDMFT";
 InfiniteLoopKeptStates=100;
 FiniteLoops=[
-[-4, 300, 2],
-[ 4, 300, 2]];
+[@auto, 300, 2],
+[@auto, 300, 2]];
 TargetElectronsUp=3;
 TargetElectronsDown=3;
 
