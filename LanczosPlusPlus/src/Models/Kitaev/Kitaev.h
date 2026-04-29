@@ -7,7 +7,7 @@
 #include "BasisKitaev.h"
 #include "BitManip.h"
 #include "CrsMatrix.h"
-#include "ModelBase.h"
+#include "LanczosModelBase.hpp"
 #include "ParametersKitaev.h"
 #include "SparseRow.h"
 #include "TypeToString.h"
@@ -15,13 +15,13 @@
 namespace LanczosPlusPlus {
 
 template <typename ComplexOrRealType, typename GeometryType, typename InputType>
-class Kitaev : public ModelBase<ComplexOrRealType, GeometryType, InputType> {
+class Kitaev : public LanczosModelBase<ComplexOrRealType, GeometryType, InputType> {
 
-	typedef typename PsimagLite::Real<ComplexOrRealType>::Type    RealType;
-	typedef PsimagLite::Matrix<ComplexOrRealType>                 MatrixType;
-	typedef std::pair<SizeType, SizeType>                         PairType;
-	typedef ModelBase<ComplexOrRealType, GeometryType, InputType> BaseType;
-	typedef typename PsimagLite::Vector<RealType>::Type           VectorRealType;
+	typedef typename PsimagLite::Real<ComplexOrRealType>::Type           RealType;
+	typedef PsimagLite::Matrix<ComplexOrRealType>                        MatrixType;
+	typedef std::pair<SizeType, SizeType>                                PairType;
+	typedef LanczosModelBase<ComplexOrRealType, GeometryType, InputType> BaseType;
+	typedef typename PsimagLite::Vector<RealType>::Type                  VectorRealType;
 
 	enum
 	{

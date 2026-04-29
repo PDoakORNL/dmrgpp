@@ -4,8 +4,8 @@
 #ifndef LANCZOS_BASIS_HEISENBERG_H
 #define LANCZOS_BASIS_HEISENBERG_H
 
+#include "BasisBase.h"
 #include "BitManip.h"
-#include "LanczosBasisBase.h"
 #include "LanczosGlobals.h"
 
 namespace LanczosPlusPlus {

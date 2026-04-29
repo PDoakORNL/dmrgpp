@@ -22,7 +22,7 @@ Please see full open source license included in file LICENSE.
 #define FEBASED_SC_H
 
 #include "Geometry/GeometryDca.h"
-#include "LanczosModelBase.h"
+#include "LanczosModelBase.hpp"
 #include "Parallelizer.h"
 #include "ParametersModelFeAs.h"
 #include "SparseRow.h"
@@ -30,14 +30,15 @@ Please see full open source license included in file LICENSE.
 namespace LanczosPlusPlus {
 
 template <typename ComplexOrRealType, typename BasisType, typename InputType>
-class FeBasedSc : public ModelBase<ComplexOrRealType, typename BasisType::GeometryType, InputType> {
+class FeBasedSc
+    : public LanczosModelBase<ComplexOrRealType, typename BasisType::GeometryType, InputType> {
 
-	typedef typename BasisType::GeometryType                      GeometryType;
-	typedef FeBasedSc<ComplexOrRealType, BasisType, InputType>    ThisType;
-	typedef typename PsimagLite::Real<ComplexOrRealType>::Type    RealType;
-	typedef PsimagLite::Matrix<ComplexOrRealType>                 MatrixType;
-	typedef ModelBase<ComplexOrRealType, GeometryType, InputType> BaseType;
-	typedef PsimagLite::GeometryDca<RealType, GeometryType>       GeometryDcaType;
+	typedef typename BasisType::GeometryType                             GeometryType;
+	typedef FeBasedSc<ComplexOrRealType, BasisType, InputType>           ThisType;
+	typedef typename PsimagLite::Real<ComplexOrRealType>::Type           RealType;
+	typedef PsimagLite::Matrix<ComplexOrRealType>                        MatrixType;
+	typedef LanczosModelBase<ComplexOrRealType, GeometryType, InputType> BaseType;
+	typedef PsimagLite::GeometryDca<RealType, GeometryType>              GeometryDcaType;
 
 	enum
 	{

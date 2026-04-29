@@ -8,14 +8,14 @@
 #include "BitManip.h"
 #include "HubbardHelper.h"
 #include "LanczosGlobals.h"
-#include "LanczosModelBase.h"
+#include "LanczosModelBase.hpp"
 #include "ParametersModelHubbard.h"
 #include "TypeToString.h"
 
 namespace LanczosPlusPlus {
 
 template <typename ComplexOrRealType, typename GeometryType, typename InputType>
-class HubbardOneOrbital : public ModelBase<ComplexOrRealType, GeometryType, InputType> {
+class HubbardOneOrbital : public LanczosModelBase<ComplexOrRealType, GeometryType, InputType> {
 
 	enum
 	{
@@ -25,20 +25,20 @@ class HubbardOneOrbital : public ModelBase<ComplexOrRealType, GeometryType, Inpu
 
 public:
 
-	typedef typename PsimagLite::Real<ComplexOrRealType>::Type      RealType;
-	typedef PsimagLite::Matrix<ComplexOrRealType>                   MatrixType;
-	typedef ModelBase<ComplexOrRealType, GeometryType, InputType>   BaseType;
-	typedef ParametersModelHubbard<RealType, InputType>             ParametersModelType;
-	typedef BasisHubbardLanczos<GeometryType>                       BasisType;
-	typedef typename BasisType::PairIntType                         PairIntType;
-	typedef typename BasisType::BaseType                            BasisBaseType;
-	typedef typename BasisType::WordType                            WordType;
-	typedef typename BaseType::VectorSizeType                       VectorSizeType;
-	typedef typename BaseType::SparseMatrixType                     SparseMatrixType;
-	typedef typename BaseType::VectorType                           VectorType;
-	typedef typename BasisType::LabeledOperatorType                 LabeledOperatorType;
-	typedef HubbardHelper<BaseType, BasisType, ParametersModelType> HubbardHelperType;
-	typedef typename HubbardHelperType::VectorRahulOperatorType     VectorRahulOperatorType;
+	typedef typename PsimagLite::Real<ComplexOrRealType>::Type           RealType;
+	typedef PsimagLite::Matrix<ComplexOrRealType>                        MatrixType;
+	typedef LanczosModelBase<ComplexOrRealType, GeometryType, InputType> BaseType;
+	typedef ParametersModelHubbard<RealType, InputType>                  ParametersModelType;
+	typedef BasisHubbardLanczos<GeometryType>                            BasisType;
+	typedef typename BasisType::PairIntType                              PairIntType;
+	typedef typename BasisType::BaseType                                 BasisBaseType;
+	typedef typename BasisType::WordType                                 WordType;
+	typedef typename BaseType::VectorSizeType                            VectorSizeType;
+	typedef typename BaseType::SparseMatrixType                          SparseMatrixType;
+	typedef typename BaseType::VectorType                                VectorType;
+	typedef typename BasisType::LabeledOperatorType                      LabeledOperatorType;
+	typedef HubbardHelper<BaseType, BasisType, ParametersModelType>      HubbardHelperType;
+	typedef typename HubbardHelperType::VectorRahulOperatorType VectorRahulOperatorType;
 
 	static int const FERMION_SIGN = BasisType::BasisType::FERMION_SIGN;
 

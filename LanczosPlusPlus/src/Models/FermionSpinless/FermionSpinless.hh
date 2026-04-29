@@ -7,7 +7,7 @@
 #include "BasisFermionSpinless.hh"
 #include "BitManip.h"
 #include "LanczosGlobals.h"
-#include "LanczosModelBase.h"
+#include "LanczosModelBase.hpp"
 #include "Parallelizer2.h"
 #include "ParametersFermionSpinless.hh"
 #include "SparseRow.h"
@@ -16,23 +16,23 @@
 namespace LanczosPlusPlus {
 
 template <typename ComplexOrRealType, typename GeometryType, typename InputType>
-class FermionSpinless : public ModelBase<ComplexOrRealType, GeometryType, InputType> {
+class FermionSpinless : public LanczosModelBase<ComplexOrRealType, GeometryType, InputType> {
 
 public:
 
-	typedef typename PsimagLite::Real<ComplexOrRealType>::Type    RealType;
-	typedef PsimagLite::Matrix<ComplexOrRealType>                 MatrixType;
-	typedef ModelBase<ComplexOrRealType, GeometryType, InputType> BaseType;
-	typedef ParametersFermionSpinless<RealType, InputType>        ParametersModelType;
-	typedef BasisFermionSpinless<GeometryType>                    BasisType;
-	typedef typename BasisType::PairIntType                       PairIntType;
-	typedef typename BasisType::BaseType                          BasisBaseType;
-	typedef typename BasisType::WordType                          WordType;
-	typedef typename BaseType::VectorSizeType                     VectorSizeType;
-	typedef typename BaseType::SparseMatrixType                   SparseMatrixType;
-	typedef typename BaseType::VectorType                         VectorType;
-	typedef typename BasisType::LabeledOperatorType               LabeledOperatorType;
-	typedef PsimagLite::SparseRow<SparseMatrixType>               SparseRowType;
+	typedef typename PsimagLite::Real<ComplexOrRealType>::Type           RealType;
+	typedef PsimagLite::Matrix<ComplexOrRealType>                        MatrixType;
+	typedef LanczosModelBase<ComplexOrRealType, GeometryType, InputType> BaseType;
+	typedef ParametersFermionSpinless<RealType, InputType>               ParametersModelType;
+	typedef BasisFermionSpinless<GeometryType>                           BasisType;
+	typedef typename BasisType::PairIntType                              PairIntType;
+	typedef typename BasisType::BaseType                                 BasisBaseType;
+	typedef typename BasisType::WordType                                 WordType;
+	typedef typename BaseType::VectorSizeType                            VectorSizeType;
+	typedef typename BaseType::SparseMatrixType                          SparseMatrixType;
+	typedef typename BaseType::VectorType                                VectorType;
+	typedef typename BasisType::LabeledOperatorType                      LabeledOperatorType;
+	typedef PsimagLite::SparseRow<SparseMatrixType>                      SparseRowType;
 
 	static int const FERMION_SIGN = BasisType::BasisType::FERMION_SIGN;
 
