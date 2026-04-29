@@ -4,9 +4,9 @@
 #ifndef LANCZOS_BASIS_KITAEV_H
 #define LANCZOS_BASIS_KITAEV_H
 
+#include "BasisBase.h"
 #include "BitManip.h"
-#include "LanczosPlusPlus/src/Engine/BasisBase.h"
-#include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
+#include "LanczosGlobals.h"
 
 namespace LanczosPlusPlus {
 

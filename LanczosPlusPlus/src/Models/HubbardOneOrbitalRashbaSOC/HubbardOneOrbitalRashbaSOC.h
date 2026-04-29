@@ -6,10 +6,10 @@
 
 #include "BasisRashbaSOC.h"
 #include "BitManip.h"
-#include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
-#include "LanczosPlusPlus/src/Engine/ModelBase.h"
-#include "LanczosPlusPlus/src/Models/HubbardOneOrbital/HubbardHelper.h"
-#include "LanczosPlusPlus/src/Models/HubbardOneOrbital/ParametersModelHubbard.h"
+#include "HubbardHelper.h"
+#include "LanczosGlobals.h"
+#include "LanczosModelBase.h"
+#include "ParametersModelHubbard.h"
 #include "SparseRow.h"
 #include "TypeToString.h"
 

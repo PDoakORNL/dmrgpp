@@ -22,7 +22,7 @@ Please see full open source license included in file LICENSE.
 #define FEBASED_SC_H
 
 #include "Geometry/GeometryDca.h"
-#include "LanczosPlusPlus/src/Engine/ModelBase.h" // there are two file with same name
+#include "LanczosModelBase.h"
 #include "Parallelizer.h"
 #include "ParametersModelFeAs.h"
 #include "SparseRow.h"

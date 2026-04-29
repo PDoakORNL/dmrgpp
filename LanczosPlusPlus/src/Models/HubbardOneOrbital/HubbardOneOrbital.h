@@ -7,8 +7,8 @@
 #include "BasisHubbardLanczos.h"
 #include "BitManip.h"
 #include "HubbardHelper.h"
-#include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
-#include "LanczosPlusPlus/src/Engine/ModelBase.h"
+#include "LanczosGlobals.h"
+#include "LanczosModelBase.h"
 #include "ParametersModelHubbard.h"
 #include "TypeToString.h"
 

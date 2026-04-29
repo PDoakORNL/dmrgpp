@@ -4,10 +4,10 @@
 #ifndef LANCZOSPP_FERMION_SPINLESS_H
 #define LANCZOSPP_FERMION_SPINLESS_H
 
-#include "../../Engine/ModelBase.h"
 #include "BasisFermionSpinless.hh"
 #include "BitManip.h"
-#include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
+#include "LanczosGlobals.h"
+#include "LanczosModelBase.h"
 #include "Parallelizer2.h"
 #include "ParametersFermionSpinless.hh"
 #include "SparseRow.h"
