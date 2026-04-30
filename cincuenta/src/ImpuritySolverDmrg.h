@@ -97,8 +97,56 @@ private:
 
 	std::string createOmegaInput(const ModelParamsType& model_params) const
 	{
-		throw std::runtime_error("Unimplemented createOmegaInput\n");
+		std::string s = BaseType::commonInputString(
+		    model_params, io_, BaseType::GsOrOmegaEnum::OMEGA);
+
+		std::string root;
+		io_.readline(root, "RootOutputname=");
+		s += "RestartFilename=" + root + "gs;\n";
+
+		try {
+			SizeType tsteps = 0;
+			io_.readline(tsteps, "TridiagSteps=");
+			s += "int TridiagSteps=" + ttos(tsteps) + ";\n";
+		} catch (std::exception&) { }
+
+		try {
+			RealType teps = 0;
+			io_.readline(teps, "TridiagEps=");
+			s += "real TridiagEps=" + ttos(teps) + ";\n";
+		} catch (std::exception&) { }
+
+		try {
+			std::string tt;
+			io_.readline(tt, "TruncationTolerance=");
+			s += "TruncationTolerance=" + tt + ";\n";
+		} catch (std::exception&) { }
+
+		s += "CorrectionA=0;\n";
+
+		s += "CorrectionVectorFreqType=Matsubara;\n";
+
+		RealType eta = 0;
+		io_.readline(eta, "CorrectionVectorEta=");
+		s += "CorrectionVectorEta=" + ttos(eta) + ";\n";
+
+		s += "CorrectionVectorAlgorithm=Krylov;\n";
+		s += "Orbitals=1;\nGsWeight=0.1;\n";
+
+		try {
+			RealType gsw = 0;
+			io_.readline(gsw, "GsWeight=");
+			s += "GsWeight=" + ttos(gsw) + ";\n";
+		} catch (std::exception&) { }
+
+		std::string data = BaseType::addBathParams(s, model_params);
+
+		std::ofstream tout("testout.ain");
+		tout << data;
+		tout.close();
+		return data;
 	}
+
 	/*
 	 * This business of communicating by strings is far from ideal,
 	 * but DMRG++ doesn't have an internal API right now
