@@ -1,7 +1,7 @@
 #ifndef CINC_MODELPARAMS_H
 #define CINC_MODELPARAMS_H
+#include "CincuentaInputCheck.h"
 #include "Geometry/Star.h"
-#include "InputCheck.h"
 #include "Matrix.h"
 #include "Vector.h"
 
@@ -24,7 +24,7 @@ template <typename ComplexOrRealType> struct ModelParams {
 
 	using RealType       = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using VectorRealType = typename PsimagLite::Vector<RealType>::Type;
-	using InputNgType    = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using InputNgType    = PsimagLite::InputNg<CincuentaInputCheck>;
 	using StarType       = PsimagLite::Star<ComplexOrRealType, InputNgType::Readable>;
 
 	//---------------------------------------------------------------------------//

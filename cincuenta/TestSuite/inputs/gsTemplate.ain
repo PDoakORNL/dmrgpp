@@ -1,21 +1,18 @@
 ##Ainur1.0
-TotalNumberOfSites=6;
-NumberOfTerms=1;
-DegreesOfFreedom=1;
-GeometryKind="star";
-GeometryOptions="none";
 
+# TotalNumberOfSites includes the bath sites and the impurity
+TotalNumberOfSites=6;
+
+# Location of the impurity (must be 0 for now)
+ImpuritySite=0;
+HubbardU=4.0;
 #Model params
-hubbardU=[4.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-Model="HubbardOneBand";
-SolverOptions="twositedmrg,geometryallinsystem,fixLegacyBugs,hd5dontprint";
-Version="templateForDMFT";
-OutputFile="gsForDMFT";
+# These solver options will be appended to the one that cincuenta uses
+SolverOptions="";
+RootOutputname="MyCincuentaTest";
 InfiniteLoopKeptStates=100;
 FiniteLoops=[
 [@auto, 300, 0],
 [@auto, 300, 0]];
 TargetElectronsUp=3;
 TargetElectronsDown=3;
-Intent="GroundState";
-#ci observe arguments="<gs|c';c|gs>,<gs|2.0*sz;2.0*sz|gs>,<gs|n;n|gs>"

@@ -34,13 +34,13 @@ public:
 	using SparseMatrixType = PsimagLite::CrsMatrix<ComplexOrRealType>;
 	using SolverParametersType = PsimagLite::ParametersForSolver<RealType>;
 	using MatsubarasType       = PsimagLite::Matsubaras<RealType>;
-	using GeometryType         = PsimagLite::Geometry<ComplexOrRealType,
-	                                                  typename InputNgType::Readable,
-	                                                  LanczosPlusPlus::LanczosGlobals>;
-	using ModelSelectorType    = LanczosPlusPlus::
-	    ModelSelector<ComplexOrRealType, GeometryType, typename InputNgType::Readable>;
-	using ModelBaseType = LanczosPlusPlus::
-	    ModelBase<ComplexOrRealType, GeometryType, typename InputNgType::Readable>;
+	using DmrgInputReadable    = typename PsimagLite::InputNg<Dmrg::InputCheck>::Readable;
+	using GeometryType         = PsimagLite::
+	    Geometry<ComplexOrRealType, DmrgInputReadable, LanczosPlusPlus::LanczosGlobals>;
+	using ModelSelectorType
+	    = LanczosPlusPlus::ModelSelector<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	using ModelBaseType
+	    = LanczosPlusPlus::ModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
 	using LanzcosSymmetryType
 	    = LanczosPlusPlus::DefaultSymmetry<GeometryType, typename ModelBaseType::BasisBaseType>;
 	using InternalProductType
@@ -74,8 +74,7 @@ public:
 	{
 		ModelParamsType model_params(bathParams, io_);
 
-		PsimagLite::String data2
-		    = BaseType::readAndModifyInput(params_.gsTemplate, model_params);
+		PsimagLite::String data2 = BaseType::createGsInput(model_params, io_);
 
 		// This will replaced by a LanzosRunner at some point
 		// so that we don't repeat what's in lanczos.cpp main driver
@@ -83,9 +82,10 @@ public:
 
 		// std::cout << geometry;
 
-		Dmrg::InputCheck                inputCheck;
-		typename InputNgType::Writeable ioWriteable(inputCheck, data2);
-		typename InputNgType::Readable  io(ioWriteable);
+		Dmrg::InputCheck                                          inputCheck;
+		typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioWriteable(inputCheck,
+		                                                                      data2);
+		DmrgInputReadable                                         io(ioWriteable);
 
 		GeometryType         geometry(io);
 		ModelSelectorType    modelSelector(io, geometry);

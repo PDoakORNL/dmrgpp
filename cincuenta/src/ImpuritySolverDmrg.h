@@ -59,8 +59,7 @@ public:
 		SizeType        mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
 
 		if (mpiRank == 0) {
-			PsimagLite::String data2
-			    = BaseType::readAndModifyInput(params_.gsTemplate, model_params);
+			PsimagLite::String data2  = BaseType::createGsInput(model_params, io_);
 			PsimagLite::String insitu = "<gs|nup|gs>";
 
 			Dmrg::CmdLineOptions cmdline_options;
@@ -73,15 +72,13 @@ public:
 
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
 
-		PsimagLite::String data3;
-		InputNgType::Writeable::readFile(data3, params_.omegaTemplate);
-		PsimagLite::String data4 = BaseType::addBathParams(data3, model_params);
+		PsimagLite::String data3 = createOmegaInput(model_params);
 
 		SizeType impurity_site = model_params.impuritySite();
 
-		doType(DmrgType::TYPE_0, data4, impurity_site, mpiRank);
+		doType(DmrgType::TYPE_0, data3, impurity_site, mpiRank);
 
-		doType(DmrgType::TYPE_1, data4, impurity_site, mpiRank);
+		doType(DmrgType::TYPE_1, data3, impurity_site, mpiRank);
 
 		if (mpiRank == 0) {
 			scaleGimp();
@@ -98,6 +95,10 @@ public:
 
 private:
 
+	std::string createOmegaInput(const ModelParamsType& model_params) const
+	{
+		throw std::runtime_error("Unimplemented createOmegaInput\n");
+	}
 	/*
 	 * This business of communicating by strings is far from ideal,
 	 * but DMRG++ doesn't have an internal API right now
@@ -171,10 +172,10 @@ private:
 		const PsimagLite::String rootOname   = "OUTPUT";
 		const bool               skipFourier = true;
 
-		Dmrg::InputCheck                inputCheck;
-		typename InputNgType::Writeable ioW(inputCheck, data2);
-		typename InputNgType::Readable  io(ioW);
-		ProcOmegasType                  procOmegas(
+		Dmrg::InputCheck                                          inputCheck;
+		typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioW(inputCheck, data2);
+		typename PsimagLite::InputNg<Dmrg::InputCheck>::Readable  io(ioW);
+		ProcOmegasType                                            procOmegas(
                     io, params_.precision, skipFourier, rootIname, rootOname, matsubaras);
 
 		procOmegas.run();

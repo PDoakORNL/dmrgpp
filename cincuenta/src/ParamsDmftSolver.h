@@ -26,8 +26,6 @@ template <typename ComplexOrRealType_> struct ParamsDmftSolver {
 		io.readline(nBath, "NumberOfBathPoints=");
 		io.readline(dmftIter, "DmftNumberOfIterations=");
 		io.readline(dmftError, "DmftTolerance=");
-		io.readline(gsTemplate, "DmrgGsTemplate=");
-		io.readline(omegaTemplate, "DmrgOmegaTemplate=");
 		io.readline(impuritySolver, "ImpuritySolver=");
 
 		try {
@@ -45,8 +43,6 @@ template <typename ComplexOrRealType_> struct ParamsDmftSolver {
 	SizeType           dmftIter;
 	SizeType           precision;
 	SizeType           center_site = PsimagLite::Star<ComplexOrRealType, int>::CENTER;
-	PsimagLite::String gsTemplate;
-	PsimagLite::String omegaTemplate;
 	PsimagLite::String impuritySolver;
 	MinParamsType      minParams;
 };
