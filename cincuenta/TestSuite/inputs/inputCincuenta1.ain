@@ -1,4 +1,5 @@
 ##Ainur1.0
+
 FicticiousBeta=50;
 ChemicalPotential=0;
 Matsubaras=6;
@@ -16,5 +17,29 @@ MinParamsMaxIter=10000;
 MinParamsDelta2=0.01;
 MinParamsTolerance=0.01;
 MinParamsVerbose=1;
-DmrgGsTemplate="../../../cincuenta/TestSuite/inputs/gsTemplate.ain";
-DmrgOmegaTemplate="../../../cincuenta/TestSuite/inputs/omegaTemplate.ain";
+
+# Location of the impurity (must be 0 for now)
+int ImpuritySite=0;
+
+#Model params
+real HubbardU=4.0;
+
+# These solver options will be appended to the one that cincuenta uses
+#SolverOptions="";
+RootOutputname="MyCincuentaDmrg";
+InfiniteLoopKeptStates=100;
+matrix FiniteLoopsGs=[[@auto, 300, 0],[@auto, 300, 0]];
+matrix FiniteLoopsOmega=[[@auto, 300, 2],[@auto, 300, 2]];
+
+TargetElectronsUp=3;
+TargetElectronsDown=3;
+
+integer TridiagSteps=400;
+real TridiagEps=1e-9;
+TruncationTolerance="1e-10,100";
+CorrectionVectorFreqType="Matsubara";
+
+CorrectionVectorEta=0.1;
+CorrectionVectorAlgorithm="Krylov";
+GsWeight=0.1;
+
