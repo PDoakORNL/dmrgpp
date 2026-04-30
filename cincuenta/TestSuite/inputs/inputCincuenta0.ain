@@ -10,7 +10,7 @@ LatticeGf="energy,semicircular,4";
 NumberOfBathPoints=5;
 DmftNumberOfIterations=1;
 DmftTolerance=0.01;
-ImpuritySolver="dmrg";
+ImpuritySolver="exactdiag";
 
 MinParamsDelta=0.01;
 MinParamsMaxIter=10000;
@@ -26,7 +26,7 @@ real HubbardU=4.0;
 
 # These solver options will be appended to the one that cincuenta uses
 #SolverOptions="";
-RootOutputname="MyCincuentaTest";
+RootOutputname="MyCincuentaExact";
 InfiniteLoopKeptStates=100;
 matrix FiniteLoopsGs=[[@auto, 300, 0],[@auto, 300, 0]];
 matrix FiniteLoopsOmega=[[@auto, 300, 2],[@auto, 300, 2]];
