@@ -33,6 +33,12 @@ public:
 
 protected:
 
+	enum class GsOrOmegaEnum
+	{
+		GS,
+		OMEGA
+	};
+
 	static void writeGimpForDebugOnly(const std::string&                      file_out,
 	                                  const std::vector<ComplexOrRealType>&   gimp,
 	                                  const PsimagLite::Matsubaras<RealType>& matsubaras)
@@ -55,17 +61,14 @@ protected:
 	static std::string createGsInput(const ModelParamsType& model_params,
 	                                 InputNgReadableType&   io)
 	{
-		std::string        data  = commonInputString(model_params, io);
+		std::string        data  = commonInputString(model_params, io, GsOrOmegaEnum::GS);
 		PsimagLite::String data2 = addBathParams(data, model_params);
-
-		std::ofstream tout("testout.ain");
-		tout << data2;
-		tout.close();
 		return data2;
 	}
 
 	static std::string commonInputString(const ModelParamsType& model_params,
-	                                     InputNgReadableType&   io)
+	                                     InputNgReadableType&   io,
+	                                     GsOrOmegaEnum          gs_or_omega)
 	{
 		RealType U = 0;
 		io.readline(U, "HubbardU=");
@@ -76,15 +79,29 @@ protected:
 			io.readline(additional_solver_options, "SolverOptions=");
 		} catch (std::exception&) { }
 
+		if (gs_or_omega == GsOrOmegaEnum::OMEGA) {
+			additional_solver_options
+			    += ",CorrectionVectorTargeting,restart,minimizeDisk";
+		}
+
 		std::string root;
 		io.readline(root, "RootOutputname=");
-		std::string gs_output = root + "gs";
+		std::string gs_output    = root + "gs";
+		std::string omega_output = root + "omega";
+		std::string output = (gs_or_omega == GsOrOmegaEnum::GS) ? gs_output : omega_output;
 
 		SizeType infinite_loops = 0;
 		io.readline(infinite_loops, "InfiniteLoopKeptStates=");
 
+		std::string label = "FiniteLoops";
+		if (gs_or_omega == GsOrOmegaEnum::GS) {
+			label += "Gs=";
+		} else {
+			label += "Omega=";
+		}
+
 		std::string finite_loops;
-		io.readline(finite_loops, "FiniteLoops=");
+		io.readline(finite_loops, label);
 
 		SizeType nup = 0;
 		io.readline(nup, "TargetElectronsUp=");
@@ -103,8 +120,8 @@ protected:
 			s += additional_solver_options;
 		}
 
-		s += ";\nVersion=templateForDMFT;\nOutputFile=" + gs_output
-		    + ";InfiniteLoopKeptStates=" + ttos(infinite_loops) + ";\n";
+		s += ";\nVersion=templateForDMFT;\nOutputFile=" + output
+		    + ";\nInfiniteLoopKeptStates=" + ttos(infinite_loops) + ";\n";
 		s += "FiniteLoops=" + finite_loops + ";\nTargetElectronsUp=" + ttos(nup)
 		    + ";\nTargetElectronsDown=" + ttos(ndown) + ";\n";
 

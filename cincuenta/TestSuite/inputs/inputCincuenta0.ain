@@ -1,4 +1,5 @@
 ##Ainur1.0
+
 FicticiousBeta=50;
 ChemicalPotential=0;
 Matsubaras=6;
@@ -9,7 +10,7 @@ LatticeGf="energy,semicircular,4";
 NumberOfBathPoints=5;
 DmftNumberOfIterations=1;
 DmftTolerance=0.01;
-ImpuritySolver="exactdiag";
+ImpuritySolver="dmrg";
 
 MinParamsDelta=0.01;
 MinParamsMaxIter=10000;
@@ -18,18 +19,18 @@ MinParamsTolerance=0.01;
 MinParamsVerbose=1;
 
 # Location of the impurity (must be 0 for now)
-ImpuritySite=0;
+int ImpuritySite=0;
 
 #Model params
-HubbardU=4.0;
+real HubbardU=4.0;
 
 # These solver options will be appended to the one that cincuenta uses
-SolverOptions="";
+#SolverOptions="";
 RootOutputname="MyCincuentaTest";
 InfiniteLoopKeptStates=100;
-FiniteLoops=[
-[@auto, 300, 0],
-[@auto, 300, 0]];
+matrix FiniteLoopsGs=[[@auto, 300, 0],[@auto, 300, 0]];
+matrix FiniteLoopsOmega=[[@auto, 300, 2],[@auto, 300, 2]];
+
 TargetElectronsUp=3;
 TargetElectronsDown=3;
 
