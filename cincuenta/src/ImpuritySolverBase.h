@@ -100,10 +100,10 @@ protected:
 		    + ";\nModel=HubbardOneBand;\nSolverOptions=twositedmrg,geometryallinsystem,"
 		      "hd5dontprint";
 		if (!additional_solver_options.empty()) {
-			s += additional_solver_options + ";\n";
+			s += additional_solver_options;
 		}
 
-		s += "\nVersion=templateForDMFT\nOutputFile=" + gs_output
+		s += ";\nVersion=templateForDMFT;\nOutputFile=" + gs_output
 		    + ";InfiniteLoopKeptStates=" + ttos(infinite_loops) + ";\n";
 		s += "FiniteLoops=" + finite_loops + ";\nTargetElectronsUp=" + ttos(nup)
 		    + ";\nTargetElectronsDown=" + ttos(ndown) + ";\n";
