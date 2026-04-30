@@ -70,8 +70,13 @@ public:
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
 	// bathParams[nBath-...] ==> energies on each bath site
-	void solve(const VectorRealType& bathParams)
+	void
+	solve(const VectorRealType& bathParams, PsimagLite::FreqEnum freq_enum, SizeType iter) final
 	{
+		if (freq_enum != PsimagLite::FreqEnum::MATSUBARA) {
+			err("solve for exact diag and real freq. unimplemented, sorry\n");
+		}
+
 		ModelParamsType model_params(bathParams, io_);
 
 		PsimagLite::String data2 = BaseType::createGsInput(model_params, io_);
@@ -97,7 +102,7 @@ public:
 
 		// We need a collection of cont. fraction because we have two in the formula
 		// for the Green Function
-		CollectionContFractionType       cfCollection(PsimagLite::FreqEnum::FREQ_MATSUBARA);
+		CollectionContFractionType       cfCollection(PsimagLite::FreqEnum::MATSUBARA);
 		LanczosPlusPlus::LabeledOperator OPERATOR_C
 		    = LanczosPlusPlus::LabeledOperator::Label::OPERATOR_C;
 		SizeType                      impurity_site = model_params.impuritySite();

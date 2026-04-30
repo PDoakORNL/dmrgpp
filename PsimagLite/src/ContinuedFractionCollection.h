@@ -54,7 +54,7 @@ public:
 
 	template <typename IoInputType>
 	ContinuedFractionCollection(IoInputType& io, SizeType level = 0)
-	    : freqEnum_(FREQ_REAL)
+	    : freqEnum_(PsimagLite::FreqEnum::REAL)
 	    , progress_("ContinuedFractionCollection")
 	{
 		int n = 0;
