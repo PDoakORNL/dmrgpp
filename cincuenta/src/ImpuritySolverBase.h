@@ -55,8 +55,13 @@ protected:
 	static std::string createGsInput(const ModelParamsType& model_params,
 	                                 InputNgReadableType&   io)
 	{
-		std::string data = commonInputString(model_params, io);
-		return data;
+		std::string        data  = commonInputString(model_params, io);
+		PsimagLite::String data2 = addBathParams(data, model_params);
+
+		std::ofstream tout("testout.ain");
+		tout << data2;
+		tout.close();
+		return data2;
 	}
 
 	static std::string commonInputString(const ModelParamsType& model_params,
@@ -76,20 +81,20 @@ protected:
 		std::string gs_output = root + "gs";
 
 		SizeType infinite_loops = 0;
-		io.readline(infinite_loops, "InfiniteLoops=");
+		io.readline(infinite_loops, "InfiniteLoopKeptStates=");
 
 		std::string finite_loops;
 		io.readline(finite_loops, "FiniteLoops=");
 
 		SizeType nup = 0;
-		io.readline(nup, "nTargetElectronsUp=");
+		io.readline(nup, "TargetElectronsUp=");
 
 		SizeType ndown = 0;
-		io.readline(ndown, "nTargetElectronsDown=");
+		io.readline(ndown, "TargetElectronsDown=");
 
 		std::string s
-		    = "##Ainur1.0\nTotalNumberOfSites=" + ttos(model_params.numberOfSites())
-		    + "\nNumberOfTerms=1;\nDegreesOfFreedom=1;\nGeometryKind=star;"
+		    = "##Ainur1.0\n\nTotalNumberOfSites=" + ttos(model_params.numberOfSites())
+		    + ";\nNumberOfTerms=1;\nDegreesOfFreedom=1;\nGeometryKind=star;"
 		      "\nGeometryOptions=none;\nhubbardU="
 		    + hubbardU_vector
 		    + ";\nModel=HubbardOneBand;\nSolverOptions=twositedmrg,geometryallinsystem,"
@@ -102,6 +107,7 @@ protected:
 		    + ";InfiniteLoopKeptStates=" + ttos(infinite_loops) + ";\n";
 		s += "FiniteLoops=" + finite_loops + ";\nTargetElectronsUp=" + ttos(nup)
 		    + ";\nTargetElectronsDown=" + ttos(ndown) + ";\n";
+
 		return s;
 	}
 
