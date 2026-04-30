@@ -45,12 +45,10 @@ template <typename ComplexOrRealType> struct ModelParams {
 	 */
 	ModelParams(const VectorRealType& bathParams, InputNgType::Readable& io)
 	{
-		io.readline(nsites_, "TotalNumberOfSites=");
-		star_ = StarType(nsites_, io);
-
 		SizeType bath = bathParams.size() / 2;
 		assert((bathParams.size() & 1) == 0);
-		assert(nsites_ == bath + 1);
+		nsites_ = bath + 1;
+		star_   = StarType(nsites_, io);
 		potentialV_.resize(nsites_, 0);
 
 		// hoppings from the center to any other site
