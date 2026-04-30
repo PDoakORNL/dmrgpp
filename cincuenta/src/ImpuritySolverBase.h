@@ -2,6 +2,7 @@
 #define IMPURITYSOLVER_BASE_H
 
 #include "CincuentaInputCheck.h"
+#include "FreqEnum.h"
 #include "InputNg.h"
 #include "Matsubaras.h"
 #include "ModelParams.h"
@@ -27,7 +28,9 @@ public:
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
 	// bathParams[nBath-...] ==> energies on each bath site
-	virtual void solve(const VectorRealType& bathParams) = 0;
+	virtual void
+	solve(const VectorRealType& bathParams, PsimagLite::FreqEnum freq_enum, SizeType iter)
+	    = 0;
 
 	virtual const VectorComplexType& gimp() const = 0;
 

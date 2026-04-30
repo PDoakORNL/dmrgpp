@@ -264,7 +264,7 @@ private:
 	void
 	computeXiAndXrIndirect(VectorType& xi, VectorType& xr, const VectorType& sv, SizeType p)
 	{
-		if (tstStruct_.omega().first != PsimagLite::FREQ_REAL)
+		if (tstStruct_.omega().first != PsimagLite::FreqEnum::REAL)
 			throw PsimagLite::RuntimeError("Matsubara only with KRYLOV\n");
 
 		const RealType                                fakeTime = 0;

@@ -34,12 +34,12 @@ matrix FiniteLoopsOmega=[[@auto, 300, 2],[@auto, 300, 2]];
 TargetElectronsUp=3;
 TargetElectronsDown=3;
 
+# All the parameters below are optional
+# and reasonable defaults are provided:
 integer TridiagSteps=400;
 real TridiagEps=1e-9;
 TruncationTolerance="1e-10,100";
-CorrectionVectorFreqType="Matsubara";
 
 CorrectionVectorEta=0.1;
-CorrectionVectorAlgorithm="Krylov";
 GsWeight=0.1;
 

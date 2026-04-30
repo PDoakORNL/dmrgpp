@@ -72,7 +72,8 @@ public:
 
 			fit_.fit(latticeG_.gammaG());
 
-			impuritySolver_->solve(fit_.result());
+			impuritySolver_->solve(
+			    fit_.result(), PsimagLite::FreqEnum::MATSUBARA, iter);
 
 			error = computeNewSelfEnergy(fit_.result());
 

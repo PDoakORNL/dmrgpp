@@ -80,6 +80,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef CORRECTION_V_FUNCTION_H
 #define CORRECTION_V_FUNCTION_H
 #include "ConjugateGradient.h"
+#include "FreqEnum.h"
 
 namespace Dmrg {
 template <typename MatrixType, typename InfoType> class CorrectionVectorFunction {
@@ -98,7 +99,7 @@ template <typename MatrixType, typename InfoType> class CorrectionVectorFunction
 		    , info_(info)
 		    , E0_(E0)
 		{
-			if (info_.omega().first != PsimagLite::FREQ_REAL)
+			if (info_.omega().first != PsimagLite::FreqEnum::REAL)
 				throw PsimagLite::RuntimeError("Matsubara only with KRYLOV\n");
 		}
 

@@ -29,19 +29,18 @@ class ImpuritySolverDmrg : public ImpuritySolverBase<ComplexOrRealType> {
 
 public:
 
-	using BaseType             = ImpuritySolverBase<ComplexOrRealType>;
-	using ParamsDmftSolverType = ParamsDmftSolver<ComplexOrRealType>;
-	using RealType             = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using ComplexType          = std::complex<RealType>;
-	using VectorRealType       = typename PsimagLite::Vector<RealType>::Type;
-	using VectorComplexType    = typename PsimagLite::Vector<ComplexType>::Type;
-	using DmrgRunnerType       = Dmrg::DmrgRunner<RealType>;
-	using ApplicationType      = PsimagLite::PsiApp;
-	using MatsubarasType       = PsimagLite::Matsubaras<RealType>;
-	using ManyOmegasType       = Dmrg::ManyOmegas<RealType, MatsubarasType>;
-	using ProcOmegasType       = Dmrg::ProcOmegas<RealType, MatsubarasType>;
-	using ModelParamsType      = typename BaseType::ModelParamsType;
-	using InputNgType          = typename BaseType::InputNgType;
+	using BaseType               = ImpuritySolverBase<ComplexOrRealType>;
+	using ParamsDmftSolverType   = ParamsDmftSolver<ComplexOrRealType>;
+	using RealType               = typename PsimagLite::Real<ComplexOrRealType>::Type;
+	using ComplexType            = std::complex<RealType>;
+	using VectorRealType         = typename PsimagLite::Vector<RealType>::Type;
+	using VectorComplexType      = typename PsimagLite::Vector<ComplexType>::Type;
+	using DmrgRunnerType         = Dmrg::DmrgRunner<RealType>;
+	using ApplicationType        = PsimagLite::PsiApp;
+	using MatsubarasType         = PsimagLite::Matsubaras<RealType>;
+	using RealFrequencyRangeType = PsimagLite::RealFrequencyRange<RealType>;
+	using ModelParamsType        = typename BaseType::ModelParamsType;
+	using InputNgType            = typename BaseType::InputNgType;
 
 	ImpuritySolverDmrg(const ParamsDmftSolverType&     params,
 	                   const ApplicationType&          app,
@@ -53,14 +52,14 @@ public:
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
 	// bathParams[nBath-...] ==> energies on each bath site
-	void solve(const VectorRealType& bathParams)
+	void solve(const VectorRealType& bathParams, PsimagLite::FreqEnum freq_enum, SizeType iter)
 	{
 		ModelParamsType model_params(bathParams, io_);
 		SizeType        mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
 
 		if (mpiRank == 0) {
-			PsimagLite::String data2  = BaseType::createGsInput(model_params, io_);
-			PsimagLite::String insitu = "<gs|nup|gs>";
+			PsimagLite::String data2 = BaseType::createGsInput(model_params, io_);
+			// PsimagLite::String insitu = "<gs|nup|gs>";
 
 			Dmrg::CmdLineOptions cmdline_options;
 			cmdline_options.in_situ_measurements = "<gs|nup|gs>";
@@ -72,17 +71,17 @@ public:
 
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
 
-		PsimagLite::String data3 = createOmegaInput(model_params);
+		PsimagLite::String data3 = createOmegaInput(model_params, freq_enum);
 
 		SizeType impurity_site = model_params.impuritySite();
 
-		doType(DmrgType::TYPE_0, data3, impurity_site, mpiRank);
+		doType(DmrgType::TYPE_0, data3, impurity_site, freq_enum);
 
-		doType(DmrgType::TYPE_1, data3, impurity_site, mpiRank);
+		doType(DmrgType::TYPE_1, data3, impurity_site, freq_enum);
+
+		scaleGimp();
 
 		if (mpiRank == 0) {
-			scaleGimp();
-
 			std::cerr << "Sum of Gimp=" << density() << "\n";
 			MatsubarasType matsubaras(params_.ficticiousBeta, params_.nMatsubaras, 0.);
 			BaseType::writeGimpForDebugOnly("gimp_dmrg.txt", gimp_, matsubaras);
@@ -95,7 +94,8 @@ public:
 
 private:
 
-	std::string createOmegaInput(const ModelParamsType& model_params) const
+	std::string createOmegaInput(const ModelParamsType& model_params,
+	                             PsimagLite::FreqEnum   freq_enum) const
 	{
 		std::string s = BaseType::commonInputString(
 		    model_params, io_, BaseType::GsOrOmegaEnum::OMEGA);
@@ -124,7 +124,11 @@ private:
 
 		s += "CorrectionA=0;\n";
 
-		s += "CorrectionVectorFreqType=Matsubara;\n";
+		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
+			s += "CorrectionVectorFreqType=Matsubara;\n";
+		} else {
+			s += "CorrectionVectorFreqType=Real;\n";
+		}
 
 		RealType eta = 0;
 		io_.readline(eta, "CorrectionVectorEta=");
@@ -196,49 +200,90 @@ private:
 		return str;
 	}
 
-	void doType(DmrgType t, PsimagLite::String data, SizeType impurity_site, SizeType mpiRank)
+	void doType(DmrgType             t,
+	            PsimagLite::String   data,
+	            SizeType             impurity_site,
+	            PsimagLite::FreqEnum freq_enum)
 	{
-		PsimagLite::String obs   = (t == DmrgType::TYPE_0) ? "c" : "c'";
-		PsimagLite::String data2 = addTypeAndObs(t, impurity_site, data);
+		std::string obs   = (t == DmrgType::TYPE_0) ? "c" : "c'";
+		std::string data2 = addTypeAndObs(t, impurity_site, data);
 
-		PsimagLite::Matsubaras<RealType> matsubaras(params_.ficticiousBeta,
-		                                            params_.nMatsubaras,
-		                                            0.); // last argument is real part
+		runOmegas(data2, obs, freq_enum);
 
-		ManyOmegasType manyOmegas(data2, matsubaras, app_);
+		procOmegas(data2, t, freq_enum);
+	}
 
-		const bool               dryrun   = false;
-		const PsimagLite::String rootname = "dmftDynamics";
-		Dmrg::CmdLineOptions     cmdline_options;
-		cmdline_options.in_situ_measurements = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
-		manyOmegas.run(dryrun, rootname, cmdline_options);
+	void procOmegas(const std::string& data2, DmrgType t, PsimagLite::FreqEnum freq_enum)
+	{
+		SizeType mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
 
 		if (mpiRank != 0)
 			return;
 
-		const PsimagLite::String rootIname   = "input";
-		const PsimagLite::String rootOname   = "OUTPUT";
-		const bool               skipFourier = true;
+		const std::string rootIname   = "input";
+		const std::string rootOname   = "OUTPUT";
+		const bool        skipFourier = true;
 
 		Dmrg::InputCheck                                          inputCheck;
 		typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioW(inputCheck, data2);
 		typename PsimagLite::InputNg<Dmrg::InputCheck>::Readable  io(ioW);
-		ProcOmegasType                                            procOmegas(
-                    io, params_.precision, skipFourier, rootIname, rootOname, matsubaras);
 
-		procOmegas.run();
+		SizeType total = 0;
+		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
+			PsimagLite::Matsubaras<RealType> matsubaras(
+			    params_.ficticiousBeta,
+			    params_.nMatsubaras,
+			    0.); // last argument is real part
+			total = matsubaras.total();
+			Dmrg::ProcOmegas<RealType, MatsubarasType> procOmegas(
+			    io, params_.precision, skipFourier, rootIname, rootOname, matsubaras);
 
-		readGimp(rootOname, matsubaras, t);
+			procOmegas.run();
+		} else {
+			RealFrequencyRangeType real_freq(io_);
+			total = real_freq.total();
+			Dmrg::ProcOmegas<RealType, RealFrequencyRangeType> procOmegas(
+			    io, params_.precision, skipFourier, rootIname, rootOname, real_freq);
+
+			procOmegas.run();
+		}
+
+		readGimp(rootOname, total, t);
 	}
 
-	void readGimp(PsimagLite::String filename, const MatsubarasType& matsubaras, DmrgType t)
+	void runOmegas(const std::string&   data2,
+	               const std::string&   obs,
+	               PsimagLite::FreqEnum freq_enum) const
+	{
+		const bool               dryrun   = false;
+		const PsimagLite::String rootname = "dmftDynamics";
+		Dmrg::CmdLineOptions     cmdline_options;
+		cmdline_options.in_situ_measurements = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
+
+		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
+			PsimagLite::Matsubaras<RealType> matsubaras(
+			    params_.ficticiousBeta,
+			    params_.nMatsubaras,
+			    0.); // last argument is real part
+			Dmrg::ManyOmegas<RealType, MatsubarasType> manyOmegas(
+			    data2, matsubaras, app_);
+			manyOmegas.run(dryrun, rootname, cmdline_options);
+		} else {
+			RealFrequencyRangeType                             real_freq(io_);
+			Dmrg::ManyOmegas<RealType, RealFrequencyRangeType> manyOmegas(
+			    data2, real_freq, app_);
+			manyOmegas.run(dryrun, rootname, cmdline_options);
+		}
+	}
+
+	void readGimp(PsimagLite::String filename, SizeType total, DmrgType t)
 	{
 		std::ifstream fin(filename);
 		if (!fin || !fin.good() || fin.bad())
 			err("readGimp: Could not open " + filename + "\n");
 
 		if (gimp_.size() == 0)
-			gimp_.resize(matsubaras.total());
+			gimp_.resize(total);
 
 		SizeType ind = 0;
 		while (!fin.eof()) {

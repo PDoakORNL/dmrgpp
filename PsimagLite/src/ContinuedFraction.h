@@ -54,7 +54,7 @@ public:
 
 	ContinuedFraction(const TridiagonalMatrixType& ab, const ParametersType& params)
 	    : progress_("ContinuedFraction")
-	    , freqEnum_(FREQ_REAL)
+	    , freqEnum_(FreqEnum::REAL)
 	    , ab_(ab)
 	    , Eg_(params.Eg)
 	    , weight_(params.weight)
@@ -63,7 +63,7 @@ public:
 		diagonalize();
 	}
 
-	ContinuedFraction(FreqEnum freqEnum = FREQ_REAL)
+	ContinuedFraction(FreqEnum freqEnum = FreqEnum::REAL)
 	    : progress_("ContinuedFraction")
 	    , freqEnum_(freqEnum)
 	    , ab_()
@@ -74,7 +74,7 @@ public:
 
 	ContinuedFraction(IoSimple::In& io)
 	    : progress_("ContinuedFraction")
-	    , freqEnum_(FREQ_REAL)
+	    , freqEnum_(FreqEnum::REAL)
 	    , ab_(io)
 	{
 		String f;
@@ -87,7 +87,7 @@ public:
 		}
 
 		if (f == "Matsubara")
-			freqEnum_ = FREQ_MATSUBARA;
+			freqEnum_ = FreqEnum::MATSUBARA;
 
 		io.readline(weight_, "#CFWeight=");
 		io.readline(Eg_, "#CFEnergy=");
@@ -109,7 +109,7 @@ public:
 		io.setPrecision(12);
 		ab_.write(io);
 
-		String f = (freqEnum_ == FREQ_MATSUBARA) ? "Matsubara" : "Real";
+		String f = (freqEnum_ == FreqEnum::MATSUBARA) ? "Matsubara" : "Real";
 		io.write(" ", "#FreqEnum=" + f);
 
 		io.write(weight_, "#CFWeight");
@@ -139,7 +139,7 @@ public:
 			return;
 		}
 
-		if (freqEnum_ != FREQ_REAL) {
+		if (freqEnum_ != FreqEnum::REAL) {
 			throw std::runtime_error("ContinuedFraction::plot() matsubaras/realfreq. "
 			                         "mismatch: Real expected\n");
 		}
@@ -161,7 +161,7 @@ public:
 			return;
 		}
 
-		if (freqEnum_ != FREQ_MATSUBARA) {
+		if (freqEnum_ != FreqEnum::MATSUBARA) {
 			throw std::runtime_error("ContinuedFraction::plot() matsubaras/realfreq. "
 			                         "mismatch: Matsubaras expected\n");
 		}
