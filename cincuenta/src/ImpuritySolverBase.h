@@ -1,6 +1,7 @@
 #ifndef IMPURITYSOLVER_BASE_H
 #define IMPURITYSOLVER_BASE_H
 
+#include "CincuentaInputCheck.h"
 #include "InputNg.h"
 #include "Matsubaras.h"
 #include "ModelParams.h"
@@ -13,13 +14,14 @@ template <typename ComplexOrRealType> class ImpuritySolverBase {
 
 public:
 
-	using RealType          = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using ComplexType       = std::complex<RealType>;
-	using VectorRealType    = typename PsimagLite::Vector<RealType>::Type;
-	using VectorComplexType = typename PsimagLite::Vector<ComplexType>::Type;
-	using ApplicationType   = PsimagLite::PsiApp;
-	using ModelParamsType   = ModelParams<RealType>;
-	using InputNgType       = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using RealType            = typename PsimagLite::Real<ComplexOrRealType>::Type;
+	using ComplexType         = std::complex<RealType>;
+	using VectorRealType      = typename PsimagLite::Vector<RealType>::Type;
+	using VectorComplexType   = typename PsimagLite::Vector<ComplexType>::Type;
+	using ApplicationType     = PsimagLite::PsiApp;
+	using ModelParamsType     = ModelParams<RealType>;
+	using InputNgType         = PsimagLite::InputNg<CincuentaInputCheck>;
+	using InputNgReadableType = InputNgType::Readable;
 
 	virtual ~ImpuritySolverBase() { }
 
@@ -50,13 +52,57 @@ protected:
 		fout.close();
 	}
 
-	static std::string readAndModifyInput(const std::string&     gs_template,
-	                                      const ModelParamsType& model_params)
+	static std::string createGsInput(const ModelParamsType& model_params,
+	                                 InputNgReadableType&   io)
 	{
-		PsimagLite::String data;
-		InputNgType::Writeable::readFile(data, gs_template);
-		PsimagLite::String data2 = addBathParams(data, model_params);
-		return data2;
+		std::string data = commonInputString(model_params, io);
+		return data;
+	}
+
+	static std::string commonInputString(const ModelParamsType& model_params,
+	                                     InputNgReadableType&   io)
+	{
+		RealType U = 0;
+		io.readline(U, "HubbardU=");
+		std::string hubbardU_vector = buildHubbardU(U, model_params.numberOfSites());
+
+		std::string additional_solver_options;
+		try {
+			io.readline(additional_solver_options, "SolverOptions=");
+		} catch (std::exception&) { }
+
+		std::string root;
+		io.readline(root, "RootOutputname=");
+		std::string gs_output = root + "gs";
+
+		SizeType infinite_loops = 0;
+		io.readline(infinite_loops, "InfiniteLoops=");
+
+		std::string finite_loops;
+		io.readline(finite_loops, "FiniteLoops=");
+
+		SizeType nup = 0;
+		io.readline(nup, "nTargetElectronsUp=");
+
+		SizeType ndown = 0;
+		io.readline(ndown, "nTargetElectronsDown=");
+
+		std::string s
+		    = "##Ainur1.0\nTotalNumberOfSites=" + ttos(model_params.numberOfSites())
+		    + "\nNumberOfTerms=1;\nDegreesOfFreedom=1;\nGeometryKind=star;"
+		      "\nGeometryOptions=none;\nhubbardU="
+		    + hubbardU_vector
+		    + ";\nModel=HubbardOneBand;\nSolverOptions=twositedmrg,geometryallinsystem,"
+		      "hd5dontprint";
+		if (!additional_solver_options.empty()) {
+			s += additional_solver_options + ";\n";
+		}
+
+		s += "\nVersion=templateForDMFT\nOutputFile=" + gs_output
+		    + ";InfiniteLoopKeptStates=" + ttos(infinite_loops) + ";\n";
+		s += "FiniteLoops=" + finite_loops + ";\nTargetElectronsUp=" + ttos(nup)
+		    + ";\nTargetElectronsDown=" + ttos(ndown) + ";\n";
+		return s;
 	}
 
 	static std::string addBathParams(const std::string&     data,
@@ -73,6 +119,16 @@ protected:
 	}
 
 private:
+
+	static std::string buildHubbardU(const RealType& U, SizeType n)
+	{
+		std::string s = "[" + ttos(U);
+		for (SizeType i = 1; i < n; ++i) {
+			s += ", 0.";
+		}
+		s += "]";
+		return s;
+	}
 
 	static PsimagLite::String vectorToString(const VectorRealType& v,
 	                                         const std::string&    separator)

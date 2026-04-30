@@ -5,7 +5,6 @@
 #include "ImpuritySolverBase.h"
 #include "ImpuritySolverDmrg.h"
 #include "ImpuritySolverExactDiag.h"
-#include "InputCheck.h"
 #include "InputNg.h"
 #include "LatticeGf.h"
 #include "ParamsDmftSolver.h"
@@ -30,17 +29,18 @@ public:
 	using ApplicationType             = typename ImpuritySolverType::ApplicationType;
 	using AndersonFunctionType        = typename FitType::AndersonFunctionType;
 	using VectorComplexType           = typename ImpuritySolverType::VectorComplexType;
-	using InputNgType                 = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using InputNgType                 = PsimagLite::InputNg<CincuentaInputCheck>;
 
 	DmftSolver(const ParamsDmftSolverType&          params,
 	           const typename FitType::InitResults& initResults,
-	           const ApplicationType&               app)
+	           const ApplicationType&               app,
+	           InputNgType::Readable&               io)
 	    : params_(params)
 	    , sigma_(params.ficticiousBeta, params.nMatsubaras)
 	    , latticeG_(sigma_, params.mu, params.latticeGf)
 	    , fit_(params.nBath, params.minParams, initResults)
 	    , impuritySolver_(nullptr)
-	    , io_(InputNgType::Writeable(params.gsTemplate, Dmrg::InputCheck()))
+	    , io_(io)
 	{
 		if (params.impuritySolver == "dmrg")
 			impuritySolver_ = new ImpuritySolverDmrgType(params, app, io_);
@@ -199,7 +199,7 @@ private:
 	LatticeGfType               latticeG_;
 	FitType                     fit_;
 	ImpuritySolverType*         impuritySolver_;
-	InputNgType::Readable       io_;
+	InputNgType::Readable&      io_;
 };
 }
 #endif // DMFTSOLVER_H
