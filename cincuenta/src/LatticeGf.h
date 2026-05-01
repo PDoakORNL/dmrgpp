@@ -16,9 +16,14 @@ template <typename ComplexOrRealType> class LatticeGf {
 
 		struct Params {
 
-			Params(DensityOfStatesType* dos_, ComplexOrRealType iwnMinusSigma_)
+			using RealType = typename PsimagLite::Real<ComplexOrRealType>::Type;
+
+			Params(DensityOfStatesType* dos_,
+			       ComplexOrRealType    iwnMinusSigma_,
+			       RealType             mu_)
 			    : dos(dos_)
 			    , iwnMinusSigma(iwnMinusSigma_)
+			    , mu(mu_)
 			{ }
 
 			Params(const Params&) = delete;
@@ -27,20 +32,22 @@ template <typename ComplexOrRealType> class LatticeGf {
 
 			DensityOfStatesType* dos;
 			ComplexOrRealType    iwnMinusSigma;
+			RealType             mu;
 		};
 
 	public:
 
 		using RealType = typename PsimagLite::Real<ComplexOrRealType>::Type;
 
-		Integrand(DensityOfStatesType* dos, ComplexOrRealType iwnMinusSigma)
-		    : p_(dos, iwnMinusSigma)
+		Integrand(DensityOfStatesType* dos, RealType mu)
+		    : p_(dos, 0.0, mu)
 		{ }
 
 		static RealType function(RealType x, void* vp)
 		{
-			Params*           p      = static_cast<Params*>(vp);
-			ComplexOrRealType result = p->dos->operator()(x) / (p->iwnMinusSigma - x);
+			Params*           p = static_cast<Params*>(vp);
+			ComplexOrRealType result
+			    = p->dos->operator()(x) / (p->iwnMinusSigma - x - p->mu);
 			return (RealOrImg == 0) ? PsimagLite::real(result)
 			                        : PsimagLite::imag(result);
 		}
@@ -143,10 +150,10 @@ private:
 
 	void updateEnergy()
 	{
-		Integrand<0>                         integrand0(dos_, 0.0); // real part
+		Integrand<0>                         integrand0(dos_, mu_); // real part
 		PsimagLite::Integrator<Integrand<0>> integrator0(integrand0);
 
-		Integrand<1>                         integrand1(dos_, 0.0); // imag part
+		Integrand<1>                         integrand1(dos_, mu_); // imag part
 		PsimagLite::Integrator<Integrand<1>> integrator1(integrand1);
 
 		typename PsimagLite::Vector<RealType>::Type pts(2, 0);
