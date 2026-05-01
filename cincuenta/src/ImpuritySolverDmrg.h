@@ -45,9 +45,11 @@ public:
 	ImpuritySolverDmrg(const ParamsDmftSolverType&     params,
 	                   const ApplicationType&          app,
 	                   typename InputNgType::Readable& io)
-	    : params_(params)
+	    : BaseType(params.ficticiousBeta, params.nMatsubaras, io)
+	    , params_(params)
 	    , app_(app)
 	    , io_(io)
+	    , freq_enum_(PsimagLite::FreqEnum::MATSUBARA)
 	{ }
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
@@ -81,16 +83,14 @@ public:
 
 		scaleGimp();
 
-		if (mpiRank == 0) {
-			std::cerr << "Sum of Gimp=" << density() << "\n";
-			MatsubarasType matsubaras(params_.ficticiousBeta, params_.nMatsubaras, 0.);
-			BaseType::writeGimpForDebugOnly("gimp_dmrg.txt", gimp_, matsubaras);
-		}
+		freq_enum_ = freq_enum;
 
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
 	}
 
 	const VectorComplexType& gimp() const { return gimp_; }
+
+	PsimagLite::FreqEnum freqEnum() const { return freq_enum_; }
 
 private:
 
@@ -230,20 +230,24 @@ private:
 
 		SizeType total = 0;
 		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
-			PsimagLite::Matsubaras<RealType> matsubaras(
-			    params_.ficticiousBeta,
-			    params_.nMatsubaras,
-			    0.); // last argument is real part
-			total = matsubaras.total();
-			Dmrg::ProcOmegas<RealType, MatsubarasType> procOmegas(
-			    io, params_.precision, skipFourier, rootIname, rootOname, matsubaras);
+			total = this->matsubaras().total();
+			Dmrg::ProcOmegas<RealType, MatsubarasType> procOmegas(io,
+			                                                      params_.precision,
+			                                                      skipFourier,
+			                                                      rootIname,
+			                                                      rootOname,
+			                                                      this->matsubaras());
 
 			procOmegas.run();
 		} else {
-			RealFrequencyRangeType real_freq(io_);
-			total = real_freq.total();
+			total = this->realFreqRange().total();
 			Dmrg::ProcOmegas<RealType, RealFrequencyRangeType> procOmegas(
-			    io, params_.precision, skipFourier, rootIname, rootOname, real_freq);
+			    io,
+			    params_.precision,
+			    skipFourier,
+			    rootIname,
+			    rootOname,
+			    this->realFreqRange());
 
 			procOmegas.run();
 		}
@@ -261,17 +265,12 @@ private:
 		cmdline_options.in_situ_measurements = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
 
 		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
-			PsimagLite::Matsubaras<RealType> matsubaras(
-			    params_.ficticiousBeta,
-			    params_.nMatsubaras,
-			    0.); // last argument is real part
 			Dmrg::ManyOmegas<RealType, MatsubarasType> manyOmegas(
-			    data2, matsubaras, app_);
+			    data2, this->matsubaras(), app_);
 			manyOmegas.run(dryrun, rootname, cmdline_options);
 		} else {
-			RealFrequencyRangeType                             real_freq(io_);
 			Dmrg::ManyOmegas<RealType, RealFrequencyRangeType> manyOmegas(
-			    data2, real_freq, app_);
+			    data2, this->realFreqRange(), app_);
 			manyOmegas.run(dryrun, rootname, cmdline_options);
 		}
 	}
@@ -282,8 +281,7 @@ private:
 		if (!fin || !fin.good() || fin.bad())
 			err("readGimp: Could not open " + filename + "\n");
 
-		if (gimp_.size() == 0)
-			gimp_.resize(total);
+		gimp_.resize(total);
 
 		SizeType ind = 0;
 		while (!fin.eof()) {
@@ -314,6 +312,7 @@ private:
 				err("Internal error: center " + ttos(params_.center_site)
 				    + " not seen, freq id = " + ttos(ind) + "\n");
 
+			assert(ind < gimp_.size());
 			if (t == DmrgType::TYPE_0) {
 				gimp_[ind] = ComplexType(-val1, -val2);
 			} else {
@@ -342,7 +341,7 @@ private:
 	void scaleGimp()
 	{
 		const SizeType n           = gimp_.size();
-		ComplexType    pre_density = density();
+		ComplexType    pre_density = BaseType::density(gimp_);
 		const RealType factor
 		    = std::sqrt(std::real(1.0 / pre_density / std::conj(pre_density)));
 		for (SizeType i = 0; i < n; ++i) {
@@ -350,20 +349,11 @@ private:
 		}
 	}
 
-	ComplexType density() const
-	{
-		const SizeType n   = gimp_.size();
-		ComplexType    sum = 0;
-		for (SizeType i = 0; i < n; ++i)
-			sum += gimp_[i];
-
-		return sum;
-	}
-
 	const ParamsDmftSolverType&     params_;
 	const ApplicationType&          app_;
-	VectorComplexType               gimp_;
 	typename InputNgType::Readable& io_;
+	VectorComplexType               gimp_;
+	PsimagLite::FreqEnum            freq_enum_;
 };
 }
 #endif // IMPURITYSOLVER_DMRG_H

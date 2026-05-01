@@ -7,6 +7,7 @@
 #include "Matsubaras.h"
 #include "ModelParams.h"
 #include "PsimagLite.h"
+#include "RealFrequencyRange.hh"
 #include "Vector.h"
 
 namespace Dmft {
@@ -15,15 +16,27 @@ template <typename ComplexOrRealType> class ImpuritySolverBase {
 
 public:
 
-	using RealType            = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using ComplexType         = std::complex<RealType>;
-	using VectorRealType      = typename PsimagLite::Vector<RealType>::Type;
-	using VectorComplexType   = typename PsimagLite::Vector<ComplexType>::Type;
-	using ApplicationType     = PsimagLite::PsiApp;
-	using ModelParamsType     = ModelParams<RealType>;
-	using InputNgType         = PsimagLite::InputNg<CincuentaInputCheck>;
-	using InputNgReadableType = InputNgType::Readable;
+	using RealType               = typename PsimagLite::Real<ComplexOrRealType>::Type;
+	using ComplexType            = std::complex<RealType>;
+	using VectorRealType         = typename PsimagLite::Vector<RealType>::Type;
+	using VectorComplexType      = typename PsimagLite::Vector<ComplexType>::Type;
+	using ApplicationType        = PsimagLite::PsiApp;
+	using ModelParamsType        = ModelParams<RealType>;
+	using InputNgType            = PsimagLite::InputNg<CincuentaInputCheck>;
+	using InputNgReadableType    = InputNgType::Readable;
+	using MatsubarasType         = PsimagLite::Matsubaras<RealType>;
+	using RealFrequencyRangeType = PsimagLite::RealFrequencyRange<RealType>;
 
+	// ctor
+	ImpuritySolverBase(RealType                                            ficticiousBeta,
+	                   SizeType                                            nMatsubaras,
+	                   PsimagLite::InputNg<CincuentaInputCheck>::Readable& io)
+	    : matsubaras_(ficticiousBeta, nMatsubaras, 0.) // last argument is real part
+	    , real_range_(io)
+	{ }
+
+	// Virtuals BEGIN
+	// dtor
 	virtual ~ImpuritySolverBase() { }
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
@@ -34,6 +47,25 @@ public:
 
 	virtual const VectorComplexType& gimp() const = 0;
 
+	virtual PsimagLite::FreqEnum freqEnum() const = 0;
+
+	virtual const MatsubarasType& matsubaras() const { return matsubaras_; }
+
+	virtual const RealFrequencyRangeType& realFreqRange() const { return real_range_; }
+	// Virtuals END
+
+	// public static START
+	static ComplexOrRealType density(const VectorComplexType& g)
+	{
+		const SizeType    n   = g.size();
+		ComplexOrRealType sum = 0;
+		for (SizeType i = 0; i < n; ++i)
+			sum += g[i];
+
+		return sum;
+	}
+	// public static END
+
 protected:
 
 	enum class GsOrOmegaEnum
@@ -41,25 +73,6 @@ protected:
 		GS,
 		OMEGA
 	};
-
-	static void writeGimpForDebugOnly(const std::string&                      file_out,
-	                                  const std::vector<ComplexOrRealType>&   gimp,
-	                                  const PsimagLite::Matsubaras<RealType>& matsubaras)
-	{
-		const SizeType n = gimp.size();
-		std::ofstream  fout(file_out);
-		if (!fout || !fout.good())
-			err(std::string("Could not write to") + file_out + "\n");
-
-		for (SizeType i = 0; i < n; ++i) {
-			const ComplexType value = gimp[i];
-			const RealType    omega = matsubaras.omega(i);
-			fout << omega << " " << PsimagLite::real(value) << " "
-			     << PsimagLite::imag(value) << "\n";
-		}
-
-		fout.close();
-	}
 
 	static std::string createGsInput(const ModelParamsType& model_params,
 	                                 InputNgReadableType&   io)
@@ -170,6 +183,9 @@ private:
 
 		return buffer;
 	}
+
+	MatsubarasType         matsubaras_;
+	RealFrequencyRangeType real_range_;
 };
 }
 #endif // IMPURITYSOLVER_BASE_H
