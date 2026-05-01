@@ -133,7 +133,7 @@ protected:
 		    + ";\nModel=HubbardOneBand;\nSolverOptions=twositedmrg,geometryallinsystem,"
 		      "hd5dontprint";
 		if (!additional_solver_options.empty()) {
-			s += additional_solver_options;
+			s += "," + additional_solver_options;
 		}
 
 		s += ";\nVersion=templateForDMFT;\nOutputFile=" + output
