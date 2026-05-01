@@ -45,8 +45,9 @@ template <typename ComplexOrRealType> class LatticeGf {
 
 		static RealType function(RealType x, void* vp)
 		{
-			Params*           p      = static_cast<Params*>(vp);
-			ComplexOrRealType result = p->dos->operator()(x) / (p->iwnMinusSigma - x);
+			Params*           p = static_cast<Params*>(vp);
+			ComplexOrRealType result
+			    = p->dos->operator()(x) / (p->iwnMinusSigma + p->mu - x);
 			return (RealOrImg == 0) ? PsimagLite::real(result)
 			                        : PsimagLite::imag(result);
 		}
@@ -95,7 +96,7 @@ public:
 			        + " k points.\n";
 		} else if (option0 == "energy") {
 			const RealType W = PsimagLite::atof(option2);
-			dos_             = new DensityOfStatesType(option1, 0.5 * W, mu_);
+			dos_             = new DensityOfStatesType(option1, 0.5 * W);
 			std::cout << "LatticeGf: Using energy with " + option1
 			        + " and W = " + option2 + "\n";
 		} else {
