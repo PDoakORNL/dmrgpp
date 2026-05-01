@@ -45,9 +45,8 @@ template <typename ComplexOrRealType> class LatticeGf {
 
 		static RealType function(RealType x, void* vp)
 		{
-			Params*           p = static_cast<Params*>(vp);
-			ComplexOrRealType result
-			    = p->dos->operator()(x) / (p->iwnMinusSigma - x + p->mu);
+			Params*           p      = static_cast<Params*>(vp);
+			ComplexOrRealType result = p->dos->operator()(x) / (p->iwnMinusSigma - x);
 			return (RealOrImg == 0) ? PsimagLite::real(result)
 			                        : PsimagLite::imag(result);
 		}
