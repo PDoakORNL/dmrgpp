@@ -1,15 +1,17 @@
 ##Ainur1.0
 
 FicticiousBeta=50;
-ChemicalPotential=.0;
-Matsubaras=6;
+# Because we're using U nup ndown
+# the mu should be -0.5*U
+ChemicalPotential=0.;
+Matsubaras=400;
 # LatticeGf: 50 is the number of K points
 #LatticeGf="momentum,1D,50";
 # Here 4 is the bandwidth W
 LatticeGf="energy,semicircular,4";
 NumberOfBathPoints=5;
-DmftNumberOfIterations=1;
-DmftTolerance=0.01;
+DmftNumberOfIterations=20;
+DmftTolerance=0.001;
 ImpuritySolver="exactdiag";
 
 MinParamsDelta=0.01;
@@ -22,7 +24,7 @@ MinParamsVerbose=1;
 int ImpuritySite=0;
 
 #Model params
-real HubbardU=4.0;
+real HubbardU=8.0;
 
 # These solver options will be appended to the one that cincuenta uses
 #SolverOptions="";
@@ -35,8 +37,8 @@ TargetElectronsUp=3;
 TargetElectronsDown=3;
 
 # This is needed for the real freq. computation
-real OmegaBegin=0.;
-integer OmegaTotal=40;
+real OmegaBegin=-6.;
+integer OmegaTotal=120;
 real OmegaStep=0.1;
 real OmegaDelta=0.1;
 
@@ -45,6 +47,6 @@ integer TridiagSteps=400;
 real TridiagEps=1e-9;
 TruncationTolerance="1e-10,100";
 
-CorrectionVectorEta=0.1;
+CorrectionVectorEta=0.;
 GsWeight=0.1;
 
