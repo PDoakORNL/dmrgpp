@@ -1,7 +1,7 @@
 ##Ainur1.0
 
 FicticiousBeta=50;
-ChemicalPotential=0;
+ChemicalPotential=.0;
 Matsubaras=6;
 # LatticeGf: 50 is the number of K points
 #LatticeGf="momentum,1D,50";
@@ -26,7 +26,7 @@ real HubbardU=4.0;
 
 # These solver options will be appended to the one that cincuenta uses
 #SolverOptions="";
-RootOutputname="MyCincuentaExact";
+RootOutputname="MyCincuentaExactDiag";
 InfiniteLoopKeptStates=100;
 matrix FiniteLoopsGs=[[@auto, 300, 0],[@auto, 300, 0]];
 matrix FiniteLoopsOmega=[[@auto, 300, 2],[@auto, 300, 2]];
@@ -34,8 +34,13 @@ matrix FiniteLoopsOmega=[[@auto, 300, 2],[@auto, 300, 2]];
 TargetElectronsUp=3;
 TargetElectronsDown=3;
 
-# All the parameters below are optional
-# and reasonable defaults are provided:
+# This is needed for the real freq. computation
+real OmegaBegin=0.;
+integer OmegaTotal=40;
+real OmegaStep=0.1;
+real OmegaDelta=0.1;
+
+# Optional below
 integer TridiagSteps=400;
 real TridiagEps=1e-9;
 TruncationTolerance="1e-10,100";
