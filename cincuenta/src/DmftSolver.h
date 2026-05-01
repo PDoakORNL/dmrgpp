@@ -18,6 +18,7 @@ public:
 	using FunctionOfFrequencyType     = FunctionOfFrequency<ComplexOrRealType>;
 	using RealType                    = typename FunctionOfFrequencyType::RealType;
 	using MatsubarasType              = typename FunctionOfFrequencyType::MatsubarasType;
+	using RealFrequencyRangeType      = PsimagLite::RealFrequencyRange<RealType>;
 	using VectorRealType              = typename MatsubarasType::VectorRealType;
 	using FitType                     = Fit<ComplexOrRealType>;
 	using MinParamsType               = typename FitType::MinParamsType;
@@ -67,7 +68,8 @@ public:
 
 		for (; iter < params_.dmftIter; ++iter) {
 
-			printToStdoutAndStderr("SelfConsistLoop iter= " + ttos(iter) + "\n");
+			std::cout << "SelfConsistLoop iter= " << iter << "\n";
+
 			latticeG_.update();
 
 			fit_.fit(latticeG_.gammaG());
@@ -75,12 +77,17 @@ public:
 			impuritySolver_->solve(
 			    fit_.result(), PsimagLite::FreqEnum::MATSUBARA, iter);
 
+			this->logDebug();
+
 			error = computeNewSelfEnergy(fit_.result());
 
-			printToStdoutAndStderr("SelfConsistLoop error=" + ttos(error) + "\n");
+			std::cout << "SelfConsistLoop error=" << error << "\n";
+
 			if (error < params_.dmftError)
 				break;
 		}
+
+		impuritySolver_->solve(fit_.result(), PsimagLite::FreqEnum::REAL, 0);
 
 		if (error < params_.dmftError) {
 			std::cout << "Converged after " << iter << " iterations; error=" << error
@@ -100,7 +107,7 @@ public:
 
 		printBathParams(os);
 
-		printGimp(os);
+		writeGimpForDebugOnly(os);
 
 		os << "LatticeG\n";
 		os << latticeG_();
@@ -132,19 +139,60 @@ private:
 		}
 	}
 
-	void printGimp(std::ostream& os) const
+	void writeGimpForDebugOnly(const std::string& file_out) const
 	{
-		os << "Gimp\n";
-		const VectorComplexType& gimp            = impuritySolver_->gimp();
-		SizeType                 totalMatsubaras = sigma_.totalMatsubaras();
-		assert(gimp.size() == totalMatsubaras);
-		os << gimp.size() << "\n";
-		for (SizeType i = 0; i < totalMatsubaras; ++i) {
-			const RealType wn = sigma_.omega(i);
-			assert(i < gimp.size());
+		std::ofstream fout(file_out);
+		if (!fout || !fout.good())
+			err(std::string("Could not write to") + file_out + "\n");
+
+		writeGimpForDebugOnly(fout);
+
+		fout.close();
+	}
+
+	void writeGimpForDebugOnly(std::ostream& os) const
+	{
+		if (impuritySolver_->freqEnum() == PsimagLite::FreqEnum::MATSUBARA) {
+			writeGimpDebugOnly(os, impuritySolver_->matsubaras());
+		} else {
+			writeGimpDebugOnly(os, impuritySolver_->realFreqRange());
+		}
+	}
+
+	template <typename SomeFreqRangeType>
+	void writeGimpDebugOnly(std::ostream& os, const SomeFreqRangeType& freq_range) const
+	{
+		const VectorComplexType& gimp = impuritySolver_->gimp();
+		const SizeType           n    = gimp.size();
+
+		for (SizeType i = 0; i < n; ++i) {
 			const ComplexOrRealType value = gimp[i];
-			os << wn << " " << PsimagLite::real(value) << " " << PsimagLite::imag(value)
-			   << "\n";
+			const RealType          omega = freq_range.omega(i);
+			os << omega << " " << PsimagLite::real(value) << " "
+			   << PsimagLite::imag(value) << "\n";
+		}
+	}
+
+	void logDebug() const
+	{
+		SizeType mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
+
+		if (mpiRank != 0) {
+			return;
+		}
+
+		const VectorComplexType& gimp      = impuritySolver_->gimp();
+		PsimagLite::FreqEnum     freq_enum = impuritySolver_->freqEnum();
+
+		ComplexOrRealType d = ImpuritySolverType::density(gimp);
+		std::cerr << "Sum of Gimp=" << d << "\n";
+
+		std::string root = "gimp_" + params_.impuritySolver;
+
+		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
+			writeGimpForDebugOnly(root + ".txt");
+		} else {
+			writeGimpForDebugOnly(root + "_real.txt");
 		}
 	}
 
@@ -187,12 +235,6 @@ private:
 		os << "bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath\n";
 		os << "bathParams[nBath-...] ==> energies on each bath site\n";
 		os << fit_.result();
-	}
-
-	static void printToStdoutAndStderr(PsimagLite::String str)
-	{
-		std::cout << str;
-		std::cerr << str;
 	}
 
 	const ParamsDmftSolverType& params_;

@@ -53,13 +53,12 @@ public:
 	ImpuritySolverExactDiag(const ParamsDmftSolverType& params,
 	                        const ApplicationType&,
 	                        typename InputNgType::Readable& io)
-	    : params_(params)
+	    : BaseType(params.ficticiousBeta, params.nMatsubaras, io)
+	    , params_(params)
 	    , solverParams_(nullptr)
-	    , matsubaras_(params.ficticiousBeta,
-	                  params.nMatsubaras,
-	                  0.) // last arg. is the real part
-	    , gimp_(matsubaras_.total())
+	    , gimp_(this->matsubaras().total())
 	    , io_(io)
+	    , freq_enum_(PsimagLite::FreqEnum::MATSUBARA)
 	{ }
 
 	~ImpuritySolverExactDiag()
@@ -119,34 +118,24 @@ public:
 
 		// compute gimp
 		computeGreenFunction(cfCollection);
-		std::cout << "SumOfGimp=" << density() << "\n";
 
-		MatsubarasType matsubaras(params_.ficticiousBeta, params_.nMatsubaras, 0.);
-		BaseType::writeGimpForDebugOnly("gimp_exact.txt", gimp_, matsubaras);
+		freq_enum_ = freq_enum;
 	}
 
 	const VectorComplexType& gimp() const { return gimp_; }
 
+	PsimagLite::FreqEnum freqEnum() const { return freq_enum_; }
+
 private:
-
-	ComplexType density() const
-	{
-		const SizeType n   = gimp_.size();
-		ComplexType    sum = 0;
-		for (SizeType i = 0; i < n; ++i)
-			sum += gimp_[i];
-
-		return sum;
-	}
 
 	void computeGreenFunction(const CollectionContFractionType& cf_collection)
 	{
 		typename CollectionContFractionType::PlotDataType results;
 
-		cf_collection.plot(results, matsubaras_);
-		gimp_.resize(matsubaras_.total());
+		cf_collection.plot(results, this->matsubaras());
+		gimp_.resize(this->matsubaras().total());
 		ComplexOrRealType sum = 0.;
-		for (SizeType i = 0; i < matsubaras_.total(); ++i) {
+		for (SizeType i = 0; i < this->matsubaras().total(); ++i) {
 			gimp_[i] = results[i].second;
 			sum += gimp_[i];
 		}
@@ -158,9 +147,9 @@ private:
 
 	const ParamsDmftSolverType&     params_;
 	SolverParametersType*           solverParams_;
-	MatsubarasType                  matsubaras_;
 	VectorComplexType               gimp_;
 	typename InputNgType::Readable& io_;
+	PsimagLite::FreqEnum            freq_enum_;
 };
 }
 #endif // IMPURITYSOLVER_EXACTD_H
