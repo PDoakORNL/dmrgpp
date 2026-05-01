@@ -145,7 +145,7 @@ private:
 			sum += gimp_[i];
 		}
 
-		RealType factor = std::sqrt(std::real(1. / sum / std::conj(sum)));
+		RealType factor = std::real(1. / sum);
 		for (SizeType i = 0; i < gimp_.size(); ++i)
 			gimp_[i] *= factor;
 	}
