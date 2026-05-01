@@ -1,0 +1,53 @@
+##Ainur1.0
+
+FicticiousBeta=50;
+# Because we're using U nup ndown
+# the mu should be -0.5*U
+ChemicalPotential=4.;
+Matsubaras=20;
+# LatticeGf: 50 is the number of K points
+#LatticeGf="momentum,1D,50";
+# Here 4 is the bandwidth W
+LatticeGf="energy,semicircular,4";
+NumberOfBathPoints=1;
+DmftNumberOfIterations=20;
+DmftTolerance=-0.01;
+ImpuritySolver="exactdiag";
+
+MinParamsDelta=0.01;
+MinParamsMaxIter=10000;
+MinParamsDelta2=0.01;
+MinParamsTolerance=0.01;
+MinParamsVerbose=1;
+
+# Location of the impurity (must be 0 for now)
+int ImpuritySite=0;
+
+#Model params
+real HubbardU=8.0;
+
+# These solver options will be appended to the one that cincuenta uses
+#SolverOptions="";
+RootOutputname="MyCincuenta2";
+InfiniteLoopKeptStates=100;
+matrix FiniteLoopsGs=[[@auto, 300, 0],[@auto, 300, 0]];
+matrix FiniteLoopsOmega=[[@auto, 300, 2],[@auto, 300, 2]];
+
+TargetElectronsUp=1;
+TargetElectronsDown=1;
+
+# This is needed for the real freq. computation
+real OmegaBegin=-6.;
+integer OmegaTotal=120;
+real OmegaStep=0.1;
+real OmegaDelta=0.1;
+
+# Optional below
+integer TridiagSteps=400;
+real TridiagEps=1e-9;
+TruncationTolerance="1e-10,100";
+CorrectionVectorFreqType="Matsubara";
+
+CorrectionVectorEta=0.1;
+GsWeight=0.1;
+
