@@ -51,10 +51,13 @@ template <typename ComplexOrRealType> struct ModelParams {
 		star_   = StarType(nsites_, io);
 		potentialV_.resize(nsites_, 0);
 
+		RealType U = 0;
+		io.readline(U, "HubbardU=");
+
 		// hoppings from the center to any other site
 		hoppings_.resize(nsites_ - 1);
 		SizeType center     = star_.CENTER;
-		potentialV_[center] = 0; // potential at the impurity is set to zero
+		potentialV_[center] = -0.5 * U; // potential at the impurity
 		for (SizeType i = 0; i < nsites_; ++i) {
 			if (i == center) {
 				continue;
