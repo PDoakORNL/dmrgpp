@@ -72,7 +72,7 @@ public:
 
 			latticeG_.update();
 
-			fit_.fit(latticeG_.gammaG());
+			fit_.fit(latticeG_.gammaG(), params_.mu);
 
 			impuritySolver_->solve(
 			    fit_.result(), PsimagLite::FreqEnum::MATSUBARA, iter);
@@ -135,7 +135,7 @@ private:
 		for (SizeType i = 0; i < totalMatsubaras; ++i) {
 			const RealType          wn  = sigma_.omega(i);
 			const ComplexOrRealType val = AndersonFunctionType::anderson(
-			    fit_.result(), ComplexOrRealType(0, wn), fit_.nBath());
+			    fit_.result(), ComplexOrRealType(0, wn), fit_.nBath(), params_.mu);
 			os << wn << " " << val << "\n";
 		}
 	}
@@ -204,8 +204,8 @@ private:
 	{
 		SizeType                               totalMatsubaras = sigma_.totalMatsubaras();
 		RealType                               sum             = 0;
-		typename FitType::AndersonFunctionType andersonFunction(params_.nBath,
-		                                                        latticeG_.gammaG());
+		typename FitType::AndersonFunctionType andersonFunction(
+		    params_.nBath, latticeG_.gammaG(), params_.mu);
 
 		const VectorComplexType& gimp = impuritySolver_->gimp();
 		assert(gimp.size() == totalMatsubaras);
@@ -227,8 +227,8 @@ private:
 		const SizeType totalMatsubaras = siteEx.totalMatsubaras();
 		for (SizeType i = 0; i < totalMatsubaras; ++i) {
 			const ComplexOrRealType iwn = ComplexOrRealType(0.0, siteEx.omega(i));
-			const ComplexOrRealType sumOverAlpha
-			    = AndersonFunctionType::anderson(fit_.result(), iwn, fit_.nBath());
+			const ComplexOrRealType sumOverAlpha = AndersonFunctionType::anderson(
+			    fit_.result(), iwn, fit_.nBath(), params_.mu);
 			ComplexOrRealType value = iwn - sumOverAlpha;
 			siteEx(i)               = 1.0 / value;
 		}
