@@ -72,10 +72,6 @@ public:
 	void
 	solve(const VectorRealType& bathParams, PsimagLite::FreqEnum freq_enum, SizeType iter) final
 	{
-		if (freq_enum != PsimagLite::FreqEnum::MATSUBARA) {
-			err("solve for exact diag and real freq. unimplemented, sorry\n");
-		}
-
 		ModelParamsType model_params(bathParams, io_);
 
 		PsimagLite::String data2 = BaseType::createGsInput(model_params, io_);
@@ -101,7 +97,7 @@ public:
 
 		// We need a collection of cont. fraction because we have two in the formula
 		// for the Green Function
-		CollectionContFractionType       cfCollection(PsimagLite::FreqEnum::MATSUBARA);
+		CollectionContFractionType       cfCollection(freq_enum);
 		LanczosPlusPlus::LabeledOperator OPERATOR_C
 		    = LanczosPlusPlus::LabeledOperator::Label::OPERATOR_C;
 		SizeType                      impurity_site = model_params.impuritySite();
@@ -132,10 +128,19 @@ private:
 	{
 		typename CollectionContFractionType::PlotDataType results;
 
-		cf_collection.plot(results, this->matsubaras());
-		gimp_.resize(this->matsubaras().total());
+		SizeType total = 0;
+		if (cf_collection.freqType() == PsimagLite::FreqEnum::MATSUBARA) {
+			total = this->matsubaras().total();
+			cf_collection.plot(results, this->matsubaras());
+		} else {
+			total = this->realFreqRange().total();
+			cf_collection.plot(results, this->realFreqRange());
+		}
+
+		assert(total > 0);
+		gimp_.resize(total);
 		ComplexOrRealType sum = 0.;
-		for (SizeType i = 0; i < this->matsubaras().total(); ++i) {
+		for (SizeType i = 0; i < total; ++i) {
 			gimp_[i] = results[i].second;
 			sum += gimp_[i];
 		}

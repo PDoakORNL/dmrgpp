@@ -88,6 +88,7 @@ public:
 		}
 
 		impuritySolver_->solve(fit_.result(), PsimagLite::FreqEnum::REAL, 0);
+		this->logDebug();
 
 		if (error < params_.dmftError) {
 			std::cout << "Converged after " << iter << " iterations; error=" << error
@@ -180,6 +181,9 @@ private:
 		if (mpiRank != 0) {
 			return;
 		}
+
+		// temporary to fix legacy name
+		std::remove("gimp_exact.txt");
 
 		const VectorComplexType& gimp      = impuritySolver_->gimp();
 		PsimagLite::FreqEnum     freq_enum = impuritySolver_->freqEnum();
