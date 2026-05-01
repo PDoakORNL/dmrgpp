@@ -1,7 +1,8 @@
 ##Ainur1.0
 
 FicticiousBeta=50;
-ChemicalPotential=0;
+ChemicalPotential=.0;
+
 Matsubaras=6;
 # LatticeGf: 50 is the number of K points
 #LatticeGf="momentum,1D,50";
@@ -34,12 +35,17 @@ matrix FiniteLoopsOmega=[[@auto, 300, 2],[@auto, 300, 2]];
 TargetElectronsUp=3;
 TargetElectronsDown=3;
 
+# These are needed for real freq. computation:
+real OmegaBegin=0.;
+integer OmegaTotal=40;
+real OmegaStep=0.1;
+real OmegaDelta=0.1;
+
+# Optional
 integer TridiagSteps=400;
 real TridiagEps=1e-9;
 TruncationTolerance="1e-10,100";
-CorrectionVectorFreqType="Matsubara";
 
 CorrectionVectorEta=0.1;
-CorrectionVectorAlgorithm="Krylov";
 GsWeight=0.1;
 
