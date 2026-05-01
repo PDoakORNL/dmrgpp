@@ -21,7 +21,7 @@ public:
 
 	RealType lowerBound() const { return -wOverTwo_; }
 
-	RealType upperBound() const { return +wOverTwo_; }
+	RealType upperBound() const { return mu_; }
 
 	RealType operator()(RealType e) const
 	{
