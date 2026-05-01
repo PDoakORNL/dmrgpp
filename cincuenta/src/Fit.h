@@ -81,12 +81,12 @@ public:
 	// Compute the optimized bath parameters and store them in vector gammaG
 	// See AndersonFunction.h documentation for the fit function, and
 	// for the order of storage of bath parameters
-	void fit(const FunctionOfFrequencyType& gammaG)
+	void fit(const FunctionOfFrequencyType& gammaG, const RealType& mu)
 	{
 		if (initResults_.reset)
 			setResults();
 
-		AndersonFunctionType                                  f(nBath_, gammaG);
+		AndersonFunctionType                                  f(nBath_, gammaG, mu);
 		PsimagLite::Minimizer<RealType, AndersonFunctionType> min(
 		    f, minParams_.maxIter, minParams_.verbose);
 		int iter = 0;

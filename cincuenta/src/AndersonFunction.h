@@ -15,9 +15,10 @@ public:
 
 	using FieldType = RealType;
 
-	AndersonFunction(SizeType nBath, const FunctionOfFrequencyType& gammaG)
+	AndersonFunction(SizeType nBath, const FunctionOfFrequencyType& gammaG, const RealType& mu)
 	    : nBath_(nBath)
 	    , gammaG_(gammaG)
+	    , mu_(mu)
 	{ }
 
 	SizeType size() const { return 2 * nBath_; }
@@ -64,14 +65,16 @@ public:
 
 	ComplexOrRealType anderson(const VectorRealType& args, ComplexOrRealType iwn) const
 	{
-		return anderson(args, iwn, nBath_);
+		return anderson(args, iwn, nBath_, mu_);
 	}
 
 	// Returns \sum_{0<=j<nBath} V_j^2/(iwn - epsilon_j),
 	// where the V_j are stored in the first half or args,
 	// and the epsilon_j are stored in the last half or args
-	static ComplexOrRealType
-	anderson(const VectorRealType& args, ComplexOrRealType iwn, SizeType nBath)
+	static ComplexOrRealType anderson(const VectorRealType& args,
+	                                  ComplexOrRealType     iwn,
+	                                  SizeType              nBath,
+	                                  const RealType&       mu)
 	{
 		assert(args.size() == 2 * nBath);
 		assert(PsimagLite::real(iwn) == 0);
@@ -79,7 +82,7 @@ public:
 		for (SizeType i = 0; i < nBath; ++i) {
 			const RealType valpha  = args[i];
 			const RealType epsilon = args[i + nBath];
-			sum += valpha * valpha / (iwn - epsilon);
+			sum += valpha * valpha / (iwn + mu - epsilon);
 		}
 
 		return sum;
@@ -101,12 +104,13 @@ private:
 		assert(jnd < 2 * nBath_);
 		const RealType valpha  = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
 		const RealType epsilon = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
-		return (jnd < nBath_) ? 2.0 * valpha / (iwn - epsilon)
-		                      : squareOf(valpha / (iwn - epsilon));
+		return (jnd < nBath_) ? 2.0 * valpha / (iwn + mu_ - epsilon)
+		                      : squareOf(valpha / (iwn + mu_ - epsilon));
 	}
 
 	SizeType                       nBath_; // Number of Bath sites
 	const FunctionOfFrequencyType& gammaG_; // Gamma Green Function to fit
+	RealType                       mu_; // the Chemical potential
 };
 
 }
