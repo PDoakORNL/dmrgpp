@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	ContinuedFractionCollectionType cfCollection(FREQ_REAL);
+	ContinuedFractionCollectionType cfCollection(PsimagLite::FreqEnum::REAL);
 
 	String s = "#Avector";
 	for (int x = 1; x < argc; x++) {
