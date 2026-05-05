@@ -343,7 +343,7 @@ private:
 		const SizeType n           = gimp_.size();
 		ComplexType    pre_density = BaseType::density(gimp_);
 		const RealType factor
-		    = std::sqrt(std::real(1.0 / pre_density / std::conj(pre_density)));
+		    = -std::sqrt(std::real(M_PI / pre_density / std::conj(pre_density)));
 		for (SizeType i = 0; i < n; ++i) {
 			gimp_[i] *= factor;
 		}
