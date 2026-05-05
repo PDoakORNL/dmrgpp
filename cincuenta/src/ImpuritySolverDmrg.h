@@ -131,7 +131,12 @@ private:
 		}
 
 		RealType eta = 0;
-		io_.readline(eta, "CorrectionVectorEta=");
+		if (freq_enum == PsimagLite::FreqEnum::REAL) {
+			io_.readline(eta, "OmegaDelta=");
+		} else {
+			io_.readline(eta, "CorrectionVectorEta=");
+		}
+
 		s += "CorrectionVectorEta=" + ttos(eta) + ";\n";
 
 		s += "CorrectionVectorAlgorithm=Krylov;\n";
@@ -342,8 +347,7 @@ private:
 	{
 		const SizeType n           = gimp_.size();
 		ComplexType    pre_density = BaseType::density(gimp_);
-		const RealType factor
-		    = -std::sqrt(std::real(M_PI / pre_density / std::conj(pre_density)));
+		const RealType factor      = -M_PI / std::real(pre_density);
 		for (SizeType i = 0; i < n; ++i) {
 			gimp_[i] *= factor;
 		}
