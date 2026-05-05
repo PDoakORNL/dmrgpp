@@ -81,7 +81,7 @@ public:
 
 		doType(DmrgType::TYPE_1, data3, impurity_site, freq_enum);
 
-		scaleGimp();
+		// scaleGimp();
 
 		freq_enum_ = freq_enum;
 
