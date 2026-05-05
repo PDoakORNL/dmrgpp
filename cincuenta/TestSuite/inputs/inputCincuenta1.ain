@@ -10,23 +10,23 @@ Matsubaras=6;
 LatticeGf="energy,semicircular,4";
 NumberOfBathPoints=5;
 DmftNumberOfIterations=1;
-DmftTolerance=0.01;
+DmftTolerance=0.001;
 ImpuritySolver="dmrg";
 
 MinParamsDelta=0.01;
 MinParamsMaxIter=10000;
 MinParamsDelta2=0.01;
-MinParamsTolerance=0.01;
+MinParamsTolerance=1e-4;
 MinParamsVerbose=1;
 
 # Location of the impurity (must be 0 for now)
 int ImpuritySite=0;
 
 #Model params
-real HubbardU=4.0;
+real HubbardU=8.0;
 
 # These solver options will be appended to the one that cincuenta uses
-#SolverOptions="";
+SolverOptions=doNotCheckDmEigs;
 RootOutputname="MyCincuentaDmrg";
 InfiniteLoopKeptStates=100;
 matrix FiniteLoopsGs=[[@auto, 300, 0],[@auto, 300, 0]];
@@ -35,17 +35,17 @@ matrix FiniteLoopsOmega=[[@auto, 300, 2],[@auto, 300, 2]];
 TargetElectronsUp=3;
 TargetElectronsDown=3;
 
-# These are needed for real freq. computation:
-real OmegaBegin=0.;
-integer OmegaTotal=40;
+# This is needed for the real freq. computation
+real OmegaBegin=-6.;
+integer OmegaTotal=120;
 real OmegaStep=0.1;
 real OmegaDelta=0.1;
 
-# Optional
+# Optional below
 integer TridiagSteps=400;
 real TridiagEps=1e-9;
 TruncationTolerance="1e-10,100";
 
-CorrectionVectorEta=0.1;
+CorrectionVectorEta=0.;
 GsWeight=0.1;
 
