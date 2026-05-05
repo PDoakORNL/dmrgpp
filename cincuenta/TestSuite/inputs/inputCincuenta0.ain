@@ -10,14 +10,15 @@ Matsubaras=400;
 # Here 4 is the bandwidth W
 LatticeGf="energy,semicircular,4";
 NumberOfBathPoints=5;
-DmftNumberOfIterations=20;
+DmftNumberOfIterations=1;
 DmftTolerance=0.001;
 ImpuritySolver="exactdiag";
 
+#FitMethod=simplex;
 MinParamsDelta=0.01;
 MinParamsMaxIter=10000;
 MinParamsDelta2=0.01;
-MinParamsTolerance=0.01;
+MinParamsTolerance=1e-4;
 MinParamsVerbose=1;
 
 # Location of the impurity (must be 0 for now)
