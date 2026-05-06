@@ -38,6 +38,8 @@ target_link_libraries(omegas dmrgpp_utils dmrg_runner)
 add_executable(introspect introspect.cpp)
 target_link_libraries(introspect dmrgpp_utils dmrg_runner)
 
+add_subdirectory(GPUPlugin)
+
 if(BUILD_SHARED_LIBS)
   install(TARGETS dmrg_runner dmrgpp_utils LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
