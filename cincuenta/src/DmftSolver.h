@@ -66,13 +66,16 @@ public:
 		// const SizeType totalMatsubaras = sigma_.totalMatsubaras();
 		// for (SizeType i = 0; i < totalMatsubaras; ++i) sigma_(i) = 1.0/(i+1.0);
 
+		typename FitType::Options fit_options
+		    = FitType::computeOptions(params_.fit_options);
+
 		for (; iter < params_.dmftIter; ++iter) {
 
 			std::cout << "SelfConsistLoop iter= " << iter << "\n";
 
 			latticeG_.update();
 
-			fit_.fit(latticeG_.gammaG(), params_.mu);
+			fit_.fit(latticeG_.gammaG(), params_.mu, fit_options);
 
 			impuritySolver_->solve(
 			    fit_.result(), PsimagLite::FreqEnum::MATSUBARA, iter);

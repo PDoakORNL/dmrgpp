@@ -20,6 +20,7 @@ public:
 	using FitFunctionType         = FitFunction<ComplexOrRealType>;
 	using FunctionOfFrequencyType = typename AndersonFunctionType::FunctionOfFrequencyType;
 	using RngType                 = PsimagLite::MersenneTwister;
+	using Options                 = typename FitFunctionType::Options;
 
 	struct InitResults {
 
@@ -73,43 +74,62 @@ public:
 	Fit(SizeType nBath, const MinParamsType& minParams, const InitResults& initResults)
 	    : nBath_(nBath)
 	    , minParams_(minParams)
-	    , results_(2 * nBath)
+	    , results_(2 * nBath_)
 	    , rng_(1234)
 	    , initResults_(initResults)
-	{
-		setResults();
-	}
+	{ }
 
 	// Compute the optimized bath parameters and store them in vector gammaG
 	// See AndersonFunction.h documentation for the fit function, and
 	// for the order of storage of bath parameters
-	void fit(const FunctionOfFrequencyType& gammaG, const RealType& mu)
+	void fit(const FunctionOfFrequencyType& gammaG, const RealType& mu, Options options)
 	{
-		if (initResults_.reset)
-			setResults();
+		FitFunctionType f(nBath_, gammaG, mu, options);
 
-		FitFunctionType                                  f(nBath_, gammaG, mu);
+		VectorRealType results(f.size());
+		setResults(results);
+
 		PsimagLite::Minimizer<RealType, FitFunctionType> min(
 		    f, minParams_.maxIter, minParams_.verbose);
 		int iter = 0;
 		if (minParams_.method == MinParamsType::Method::CONJUGATE_GRADIENT) {
 			iter = min.conjugateGradient(
-			    results_, minParams_.delta, minParams_.delta2, minParams_.tolerance);
+			    results, minParams_.delta, minParams_.delta2, minParams_.tolerance);
 		} else {
-			iter = min.simplex(results_, minParams_.delta, minParams_.tolerance);
+			iter = min.simplex(results, minParams_.delta, minParams_.tolerance);
 		}
 
 		if (iter < 0)
 			std::cerr << "No minimum found\n";
+
+		for (SizeType i = 0; i < nBath_; ++i) {
+			results_[i] = results[i];
+		}
+
+		assert(results.size() == nBath_ || results.size() == 2 * nBath_);
+		if (results.size() == 2 * nBath_) {
+			for (SizeType i = nBath_; i < 2 * nBath_; ++i) {
+				results_[i] = results[i];
+			}
+		} else {
+			for (SizeType i = nBath_; i < 2 * nBath_; ++i) {
+				results_[i] = 0;
+			}
+		}
 	}
 
 	const VectorRealType& result() const { return results_; }
 
 	SizeType nBath() const { return nBath_; }
 
+	static Options computeOptions(const std::string& options)
+	{
+		return FitFunctionType::computeOptions(options);
+	}
+
 private:
 
-	void setResults()
+	void setResults(VectorRealType& results)
 	{
 		bool nonConstant = (initResults_.result.size() > 0);
 		bool isConstant  = (initResults_.ra != 0 || initResults_.rb != 0);
@@ -117,15 +137,15 @@ private:
 			err("InitResults: Cannot have ra or rb and also a vector of init "
 			    "results\n");
 
-		if (nonConstant && initResults_.result.size() != results_.size())
+		if (nonConstant && initResults_.result.size() != results.size())
 			err(PsimagLite::String(
 			        "InitResults: vector of init results has wrong size: ")
-			    + "expected " + ttos(results_.size()) + ", but found "
+			    + "expected " + ttos(results.size()) + ", but found "
 			    + ttos(initResults_.result.size()) + "\n");
 
-		for (SizeType i = 0; i < results_.size(); ++i)
-			results_[i] = (isConstant) ? initResults_.ra * rng_() + initResults_.rb
-			                           : initResults_.result[i];
+		for (SizeType i = 0; i < results.size(); ++i)
+			results[i] = (isConstant) ? initResults_.ra * rng_() + initResults_.rb
+			                          : initResults_.result[i];
 	}
 
 	const SizeType       nBath_; // number of bath sites
