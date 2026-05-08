@@ -13,6 +13,7 @@ DmftNumberOfIterations=1;
 DmftTolerance=0.001;
 ImpuritySolver="dmrg";
 
+#FitOptions=setonsitestozero;
 MinParamsDelta=0.01;
 MinParamsMaxIter=10000;
 MinParamsDelta2=0.01;

@@ -2,12 +2,19 @@
 #define FITFUNCTION_HPP
 #include "AndersonFunction.h"
 #include "FunctionOfFrequency.h"
+#include "ProgramGlobals.h"
 
 namespace Dmft {
 
 template <typename ComplexOrRealType> class FitFunction {
 
 public:
+
+	enum class Options
+	{
+		NONE,
+		SET_ONSITES_TO_ZERO
+	};
 
 	using AndersonFunctionType    = AndersonFunction<ComplexOrRealType>;
 	using FunctionOfFrequencyType = FunctionOfFrequency<ComplexOrRealType>;
@@ -16,12 +23,20 @@ public:
 
 	using FieldType = RealType;
 
-	FitFunction(SizeType nBath, const FunctionOfFrequencyType& gammaG, const RealType& mu)
+	FitFunction(SizeType                       nBath,
+	            const FunctionOfFrequencyType& gammaG,
+	            const RealType&                mu,
+	            Options                        options)
 	    : anderson_function(nBath, mu)
 	    , gammaG_(gammaG)
+	    , options_(options)
 	{ }
 
-	SizeType size() const { return 2 * anderson_function.nBath(); }
+	SizeType size() const
+	{
+		return (options_ == Options::SET_ONSITES_TO_ZERO) ? anderson_function.nBath()
+		                                                  : 2 * anderson_function.nBath();
+	}
 
 	// Returns \sum_n |Anderson(Valpha, eAlpha, iwn) - GammaG(iwn)|^2
 	// See the AndersonFunction below
@@ -47,9 +62,10 @@ public:
 	void df(VectorRealType& dest, const VectorRealType& src) const
 	{
 		const SizeType totalMatsubaras = gammaG_.totalMatsubaras();
-		SizeType       nBath           = anderson_function.nBath();
+		SizeType       n               = src.size();
+		assert(dest.size() == n);
 
-		for (SizeType j = 0; j < 2 * nBath; ++j) {
+		for (SizeType j = 0; j < n; ++j) {
 			RealType sum = 0.0;
 			for (SizeType i = 0; i < totalMatsubaras; ++i) {
 				const ComplexOrRealType iwn(0, gammaG_.omega(i));
@@ -67,10 +83,23 @@ public:
 		}
 	}
 
+	static Options computeOptions(const std::string& str)
+	{
+		std::string optionslc = Dmrg::ProgramGlobals::toLower(str);
+		if (optionslc.empty()) {
+			return Options::NONE;
+		} else if (optionslc == "setonsitestozero") {
+			return Options::SET_ONSITES_TO_ZERO;
+		} else {
+			throw std::runtime_error("FitFunction: unknown option" + str + "\n");
+		}
+	}
+
 private:
 
 	AndersonFunctionType           anderson_function;
 	const FunctionOfFrequencyType& gammaG_;
+	Options                        options_;
 };
 }
 #endif // FITFUNCTION_HPP

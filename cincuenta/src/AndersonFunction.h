@@ -35,12 +35,12 @@ public:
 	                                  SizeType              nBath,
 	                                  const RealType&       mu)
 	{
-		assert(args.size() == 2 * nBath);
+		assert(args.size() == 2 * nBath || args.size() == nBath);
 		assert(PsimagLite::real(iwn) == 0);
 		ComplexOrRealType sum = 0.0;
 		for (SizeType i = 0; i < nBath; ++i) {
 			const RealType valpha  = args[i];
-			const RealType epsilon = args[i + nBath];
+			const RealType epsilon = (args.size() == nBath) ? 0 : args[i + nBath];
 			sum += valpha * valpha / (iwn + mu - epsilon);
 		}
 
@@ -57,10 +57,14 @@ public:
 	ComplexOrRealType
 	andersonPrime(const VectorRealType& args, ComplexOrRealType iwn, SizeType jnd) const
 	{
-		assert(args.size() == 2 * nBath_);
-		assert(jnd < 2 * nBath_);
-		const RealType valpha  = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
-		const RealType epsilon = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
+		assert(args.size() == 2 * nBath_ || args.size() == nBath_);
+		assert(jnd < args.size());
+		RealType valpha  = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
+		RealType epsilon = 0;
+		if (args.size() == 2 * nBath_) {
+			epsilon = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
+		}
+
 		return (jnd < nBath_) ? 2.0 * valpha / (iwn + mu_ - epsilon)
 		                      : squareOf(valpha / (iwn + mu_ - epsilon));
 	}

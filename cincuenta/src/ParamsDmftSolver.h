@@ -31,20 +31,25 @@ template <typename ComplexOrRealType_> struct ParamsDmftSolver {
 		try {
 			io.readline(precision, "Precision=");
 		} catch (std::exception&) { }
+
+		try {
+			io.readline(fit_options, "FitOptions=");
+		} catch (std::exception&) { }
 	}
 
-	bool               echoInput;
-	RealType           ficticiousBeta;
-	RealType           mu;
-	RealType           dmftError;
-	SizeType           nMatsubaras;
-	PsimagLite::String latticeGf;
-	SizeType           nBath;
-	SizeType           dmftIter;
-	SizeType           precision;
-	SizeType           center_site = PsimagLite::Star<ComplexOrRealType, int>::CENTER;
-	PsimagLite::String impuritySolver;
-	MinParamsType      minParams;
+	bool          echoInput;
+	RealType      ficticiousBeta;
+	RealType      mu;
+	RealType      dmftError;
+	SizeType      nMatsubaras;
+	std::string   latticeGf;
+	std::string   impuritySolver;
+	std::string   fit_options;
+	SizeType      nBath;
+	SizeType      dmftIter;
+	SizeType      precision;
+	SizeType      center_site = PsimagLite::Star<ComplexOrRealType, int>::CENTER;
+	MinParamsType minParams;
 };
 }
 #endif // PARAMSDMFTSOLVER_H

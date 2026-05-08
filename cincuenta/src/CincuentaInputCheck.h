@@ -56,6 +56,7 @@ public:
 		str += "real InitBathRb;\n";
 		str += "string FitMethod;\n";
 		str += "string RootOutputname;\n";
+		str += "string FitOptions;\n";
 
 		return str;
 	}
