@@ -1,6 +1,7 @@
 #ifndef FIT_H
 #define FIT_H
 #include "AndersonFunction.h"
+#include "FitFunction.hpp"
 #include "MersenneTwister.h"
 #include "MinParams.h"
 #include "Minimizer.h"
@@ -13,9 +14,10 @@ template <typename ComplexOrRealType> class Fit {
 public:
 
 	using RealType                = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using VectorRealType          = typename PsimagLite::Vector<RealType>::Type;
+	using VectorRealType          = std::vector<RealType>;
 	using MinParamsType           = MinParams<RealType>;
 	using AndersonFunctionType    = AndersonFunction<ComplexOrRealType>;
+	using FitFunctionType         = FitFunction<ComplexOrRealType>;
 	using FunctionOfFrequencyType = typename AndersonFunctionType::FunctionOfFrequencyType;
 	using RngType                 = PsimagLite::MersenneTwister;
 
@@ -86,8 +88,8 @@ public:
 		if (initResults_.reset)
 			setResults();
 
-		AndersonFunctionType                                  f(nBath_, gammaG, mu);
-		PsimagLite::Minimizer<RealType, AndersonFunctionType> min(
+		FitFunctionType                                  f(nBath_, gammaG, mu);
+		PsimagLite::Minimizer<RealType, FitFunctionType> min(
 		    f, minParams_.maxIter, minParams_.verbose);
 		int iter = 0;
 		if (minParams_.method == MinParamsType::Method::CONJUGATE_GRADIENT) {

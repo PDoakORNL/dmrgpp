@@ -204,8 +204,7 @@ private:
 	{
 		SizeType                               totalMatsubaras = sigma_.totalMatsubaras();
 		RealType                               sum             = 0;
-		typename FitType::AndersonFunctionType andersonFunction(
-		    params_.nBath, latticeG_.gammaG(), params_.mu);
+		typename FitType::AndersonFunctionType andersonFunction(params_.nBath, params_.mu);
 
 		const VectorComplexType& gimp = impuritySolver_->gimp();
 		assert(gimp.size() == totalMatsubaras);
