@@ -13,7 +13,7 @@ public:
 	enum class Options
 	{
 		NONE,
-		SET_ONSITES_TO_ZERO
+		PARTICLE_HOLE_SYMM
 	};
 
 	using AndersonFunctionType    = AndersonFunction<ComplexOrRealType>;
@@ -23,6 +23,7 @@ public:
 
 	using FieldType = RealType;
 
+	// (FIXME document it here)
 	FitFunction(SizeType                       nBath,
 	            const FunctionOfFrequencyType& gammaG,
 	            const RealType&                mu,
@@ -30,13 +31,15 @@ public:
 	    : anderson_function(nBath, mu)
 	    , gammaG_(gammaG)
 	    , options_(options)
-	{ }
-
-	SizeType size() const
+	    , unknowns_(2 * nBath)
 	{
-		return (options_ == Options::SET_ONSITES_TO_ZERO) ? anderson_function.nBath()
-		                                                  : 2 * anderson_function.nBath();
+		if (options_ == Options::PARTICLE_HOLE_SYMM) {
+			SizeType unknown_energies = (nBath & 1) ? (nBath - 1) / 2 : nBath / 2;
+			unknowns_                 = nBath + unknown_energies;
+		}
 	}
+
+	SizeType size() const { return unknowns_; }
 
 	// Returns \sum_n |Anderson(Valpha, eAlpha, iwn) - GammaG(iwn)|^2
 	// See the AndersonFunction below
@@ -88,8 +91,8 @@ public:
 		std::string optionslc = Dmrg::ProgramGlobals::toLower(str);
 		if (optionslc.empty()) {
 			return Options::NONE;
-		} else if (optionslc == "setonsitestozero") {
-			return Options::SET_ONSITES_TO_ZERO;
+		} else if (optionslc == "particleholesymmetric") {
+			return Options::PARTICLE_HOLE_SYMM;
 		} else {
 			throw std::runtime_error("FitFunction: unknown option" + str + "\n");
 		}
@@ -100,6 +103,7 @@ private:
 	AndersonFunctionType           anderson_function;
 	const FunctionOfFrequencyType& gammaG_;
 	Options                        options_;
+	SizeType                       unknowns_;
 };
 }
 #endif // FITFUNCTION_HPP
