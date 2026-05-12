@@ -15,11 +15,11 @@ DmftTolerance=0.001;
 ImpuritySolver="exactdiag";
 
 #FitMethod=simplex;
-#FitOptions=setonsitestozero;
-MinParamsDelta=0.01;
+FitOptions=particleholesymmetric;
+MinParamsDelta=0.1;
 MinParamsMaxIter=10000;
 MinParamsDelta2=0.01;
-MinParamsTolerance=1e-4;
+MinParamsTolerance=1e-3;
 MinParamsVerbose=1;
 
 # Location of the impurity (must be 0 for now)
