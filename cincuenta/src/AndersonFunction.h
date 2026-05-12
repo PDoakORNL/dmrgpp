@@ -35,12 +35,13 @@ public:
 	                                  SizeType              nBath,
 	                                  const RealType&       mu)
 	{
-		assert(args.size() == 2 * nBath || args.size() == nBath);
 		assert(PsimagLite::real(iwn) == 0);
 		ComplexOrRealType sum = 0.0;
 		for (SizeType i = 0; i < nBath; ++i) {
 			const RealType valpha  = args[i];
-			const RealType epsilon = (args.size() == nBath) ? 0 : args[i + nBath];
+			const RealType epsilon = (args.size() == 2 * nBath)
+			    ? args[i + nBath]
+			    : calcEpsilonIfParticleHoleSymm(args, i, nBath);
 			sum += valpha * valpha / (iwn + mu - epsilon);
 		}
 
@@ -48,7 +49,6 @@ public:
 	}
 
 	static ComplexOrRealType squareOf(ComplexOrRealType x) { return x * x; }
-
 	// For any 0 <= jnd < 2*nBath, this function returns the derivative of
 	// the AndersonFunction above with respect to bath parameter jnd,
 	// evaluated at the bath parameters args
@@ -57,12 +57,14 @@ public:
 	ComplexOrRealType
 	andersonPrime(const VectorRealType& args, ComplexOrRealType iwn, SizeType jnd) const
 	{
-		assert(args.size() == 2 * nBath_ || args.size() == nBath_);
 		assert(jnd < args.size());
 		RealType valpha  = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
 		RealType epsilon = 0;
 		if (args.size() == 2 * nBath_) {
 			epsilon = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
+		} else {
+			SizeType knd = (jnd < nBath_) ? jnd : jnd - nBath_;
+			epsilon      = calcEpsilonIfParticleHoleSymm(args, knd, nBath_);
 		}
 
 		return (jnd < nBath_) ? 2.0 * valpha / (iwn + mu_ - epsilon)
@@ -70,6 +72,23 @@ public:
 	}
 
 private:
+
+	static RealType
+	calcEpsilonIfParticleHoleSymm(const VectorRealType& args, SizeType ind, SizeType nBath)
+	{
+		SizeType unknown_energies = (nBath & 1) ? (nBath - 1) / 2 : nBath / 2;
+		assert(args.size() == nBath + unknown_energies);
+
+		SizeType one_or_zero = (nBath & 1);
+		if (ind < unknown_energies) {
+			return args[ind + nBath];
+		} else if (ind + one_or_zero < nBath) {
+			return -args[ind + unknown_energies + one_or_zero];
+		}
+
+		assert(one_or_zero);
+		return 0;
+	}
 
 	SizeType nBath_; // Number of Bath sites
 	RealType mu_; // the Chemical potential

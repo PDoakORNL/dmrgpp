@@ -106,14 +106,25 @@ public:
 			results_[i] = results[i];
 		}
 
-		assert(results.size() == nBath_ || results.size() == 2 * nBath_);
+		SizeType unknown_energies = (nBath_ & 1) ? (nBath_ - 1) / 2 : nBath_ / 2;
+		assert(results.size() == nBath_ + unknown_energies || results.size() == 2 * nBath_);
 		if (results.size() == 2 * nBath_) {
 			for (SizeType i = nBath_; i < 2 * nBath_; ++i) {
 				results_[i] = results[i];
 			}
 		} else {
-			for (SizeType i = nBath_; i < 2 * nBath_; ++i) {
-				results_[i] = 0;
+			for (SizeType i = nBath_; i < nBath_ + unknown_energies; ++i) {
+				results_[i] = results[i];
+			}
+
+			for (SizeType i = nBath_ + unknown_energies;
+			     i < nBath_ + 2 * unknown_energies;
+			     ++i) {
+				results_[i] = -results[i - unknown_energies];
+			}
+
+			if (nBath_ & 1) {
+				results_[2 * nBath_ - 1] = 0;
 			}
 		}
 	}
