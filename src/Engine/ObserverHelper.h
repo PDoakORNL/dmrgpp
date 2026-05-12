@@ -343,6 +343,7 @@ private:
 				PsimagLite::String           prefix("/TargetingCommon/" + ttos(i));
 				auto ts = std::make_unique<TimeSerializerType>(io_, prefix);
 				std::cerr << "Read TimeSerializer\n";
+				std::cout << "Time=" << ts->time() << "\n";
 				if (saveOrNot == SaveEnum::YES)
 					timeSerializerV_.push_back(std::move(ts));
 			} catch (...) { }
