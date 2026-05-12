@@ -9,7 +9,7 @@
 #include "setup_nC.h"
 #include "setup_sparse_batch.h"
 #include "setup_vbatch.h"
-#include <assert.h>
-#include <math.h>
+#include <cassert>
+#include <cmath>
 
 #endif

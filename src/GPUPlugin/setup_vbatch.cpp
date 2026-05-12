@@ -2,10 +2,10 @@
 #include "dmrg_lapack.h"
 #include "dmrg_types.h"
 #include "dmrg_vbatch.h"
-#include <assert.h>
-#include <complex.h>
-#include <math.h>
-#include <stdlib.h>
+#include <cassert>
+#include <cmath>
+#include <complex>
+#include <cstdlib>
 
 #if defined(USE_COMPLEX_Z)
 double ABS(std::complex<double> x) { return std::abs(x); }

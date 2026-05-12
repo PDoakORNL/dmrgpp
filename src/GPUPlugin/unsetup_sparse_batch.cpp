@@ -1,7 +1,7 @@
 #include "dmrg_vbatch.h"
 #include "setup_sparse_batch.h"
-#include <assert.h>
-#include <complex.h>
+#include <cassert>
+#include <complex>
 
 template <typename T>
 void unsetup_sparse_batch(std::vector<T*>& gAbatch_, std::vector<T*>& gBbatch_)

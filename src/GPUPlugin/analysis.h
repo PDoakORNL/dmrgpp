@@ -2,7 +2,7 @@
 #define ANALYSIS_H
 
 #include "Vector.h"
-#include <math.h>
+#include <cmath>
 
 typedef PsimagLite::Vector<SizeType>::Type VectorSizeType;
 

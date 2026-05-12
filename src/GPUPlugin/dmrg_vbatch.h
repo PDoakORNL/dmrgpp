@@ -3,7 +3,7 @@
 
 #include "Vector.h"
 #include "dmrg_types.h"
-#include <assert.h>
+#include <cassert>
 
 #ifdef USE_INTEL_MKL
 #include "dmrg_mkl.h"

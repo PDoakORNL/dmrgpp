@@ -1,7 +1,7 @@
-#include <assert.h>
-#include <complex.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cassert>
+#include <complex>
+#include <cstdio>
+#include <cstdlib>
 
 #include "dmrg_vbatch.h"
 #include "setup_vbatch.h"

@@ -1,7 +1,7 @@
 #include "dmrg_types.h"
-#include <assert.h>
-#include <math.h>
-#include <stdlib.h>
+#include <cassert>
+#include <cmath>
+#include <cstdlib>
 
 #include "dmrg_vbatch.h"
 #include "setup_nC.h"

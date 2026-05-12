@@ -1,9 +1,9 @@
 #include "analysis.h"
 #include "dmrg_vbatch.h"
-#include <assert.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 const SizeType idebug = 0;
 

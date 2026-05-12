@@ -1,6 +1,6 @@
 #include "dmrg_types.h"
 #include "dmrg_vbatch.h"
-#include <assert.h>
+#include <cassert>
 #ifdef _OPENMP
 #include <omp.h>
 #endif

@@ -1,6 +1,6 @@
 #include "setup_matrix.h"
 #include "dmrg_types.h"
-#include <assert.h>
+#include <cassert>
 
 #if defined(USE_COMPLEX_Z)
 std::complex<double> makeFloat(double zr, double zi) { return std::complex<double>(zr, zi); }

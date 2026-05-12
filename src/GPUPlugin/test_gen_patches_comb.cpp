@@ -1,7 +1,7 @@
 #include "analysis.h"
 #include "dmrg_types.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 /*
  ---------------------------------------
