@@ -86,8 +86,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include <sched.h>
 #include <unistd.h>
 #ifdef _GNU_SOURCE
+#include <cstring>
 #include <errno.h>
-#include <string.h>
 #endif
 
 template <typename PthreadFunctionHolderType> struct PthreadFunctionStruct {

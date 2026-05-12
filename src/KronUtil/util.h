@@ -5,9 +5,9 @@
 #include "GemmR.h"
 #include "KronUtil.h"
 #include "MatrixNonOwned.h"
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
 
 template <typename ComplexOrRealType>
 void estimate_kron_cost(const int          nrow_A,

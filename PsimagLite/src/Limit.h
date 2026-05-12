@@ -1,8 +1,8 @@
 #ifndef PSIMAGLITE_LIMIT_H
 #define PSIMAGLITE_LIMIT_H
 #include "Vector.h"
+#include <cstring>
 #include <errno.h>
-#include <string.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <utility>
