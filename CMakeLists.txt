@@ -31,7 +31,7 @@ add_subdirectory(util)
 set(CHECK_VALUE_TARGET util::check_values)
 
 add_subdirectory(PsimagLite)
-add_subdirectory(src)
+add_subdirectory(dmrg)
 
 add_subdirectory(cincuenta/src)
 add_subdirectory(LanczosPlusPlus/src)
