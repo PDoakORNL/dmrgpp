@@ -26,12 +26,12 @@ void unsetup_vbatch(IntegerType** p_left_patch_start,
 	assert(p_xy_patch_start != NULL);
 
 	if (*p_Abatch_ != NULL) {
-		dmrg_free((void*)*p_Abatch_);
+		dmrg_free(*p_Abatch_);
 		*p_Abatch_ = NULL;
 	};
 
 	if (*p_Bbatch_ != NULL) {
-		dmrg_free((void*)*p_Bbatch_);
+		dmrg_free(*p_Bbatch_);
 		*p_Bbatch_ = NULL;
 	};
 
