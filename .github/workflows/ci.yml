@@ -9,16 +9,20 @@ on:
 
 jobs:
   build:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - build_type: Release
+          - name: Release (static)
+            build_type: Release
             shared_libs: OFF
-          - build_type: RelWithDebInfo
+          - name: RelWithDebInfo (shared)
+            build_type: RelWithDebInfo
             shared_libs: ON
-          - build_type: Debug
+          - name: Debug (static, no Boost)
+            build_type: Debug
             shared_libs: OFF
             extra_cmake_args: -DCMAKE_DISABLE_FIND_PACKAGE_Boost=ON
 
