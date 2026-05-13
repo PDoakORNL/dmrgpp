@@ -6,14 +6,13 @@
 #include "setup_nC.h"
 #include "setup_sparse_batch.h"
 #include "setup_vbatch.h"
-#include <assert.h>
-#include <math.h>
 
-#include <assert.h>
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <getopt.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #ifdef _OPENMP
 #include <omp.h>

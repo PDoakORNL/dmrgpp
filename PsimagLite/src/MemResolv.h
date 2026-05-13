@@ -5,9 +5,9 @@
 #include "Sort.h"
 #include "Vector.h"
 #include <cassert>
+#include <cstring>
 #include <fstream>
 #include <iostream>
-#include <string.h>
 
 namespace PsimagLite {
 

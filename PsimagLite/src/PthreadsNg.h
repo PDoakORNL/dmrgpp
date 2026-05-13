@@ -98,8 +98,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define _GNU_SOURCE
 #endif
 #ifdef _GNU_SOURCE
+#include <cstring>
 #include <errno.h>
-#include <string.h>
 #endif
 #ifndef PTHREAD_STACK_MIN
 #define PTHREAD_STACK_MIN 16384

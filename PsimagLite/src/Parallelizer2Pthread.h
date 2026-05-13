@@ -19,8 +19,8 @@
 #define _GNU_SOURCE
 #endif
 #ifdef _GNU_SOURCE
+#include <cstring>
 #include <errno.h>
-#include <string.h>
 #endif
 
 template <typename SomeLambdaType, typename LoadBalancerType = PsimagLite::LoadBalancerDefault>
