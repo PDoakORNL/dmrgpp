@@ -60,20 +60,24 @@ public:
 	andersonPrime(const VectorRealType& args, ComplexOrRealType iwn, SizeType jnd) const
 	{
 		assert(jnd < args.size());
-		RealType valpha  = 0;
-		RealType epsilon = 0;
+		RealType valpha      = 0;
+		RealType epsilon     = 0;
+		bool     diff_valpha = false;
 		if (args.size() == 2 * nBath_) {
-			valpha  = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
-			epsilon = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
+			valpha      = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
+			epsilon     = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
+			diff_valpha = (jnd < nBath_); // diff with respect to valpha
 		} else {
 			assert(args.size() == nBath_);
-			SizeType knd = (jnd < nBath_) ? jnd : jnd - nBath_;
-			valpha       = calcVsIfParticleHoleSymm(args, knd, nBath_);
-			epsilon      = calcEpsilonIfParticleHoleSymm(args, knd, nBath_);
+			SizeType offset = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
+			SizeType knd    = (jnd < offset) ? jnd : jnd - offset;
+			valpha          = calcVsIfParticleHoleSymm(args, knd, nBath_);
+			epsilon         = calcEpsilonIfParticleHoleSymm(args, knd, nBath_);
+			diff_valpha     = (jnd < offset);
 		}
 
-		return (jnd < nBath_) ? 2.0 * valpha / (iwn + mu_ - epsilon)
-		                      : squareOf(valpha / (iwn + mu_ - epsilon));
+		return (diff_valpha) ? 2.0 * valpha / (iwn + mu_ - epsilon)
+		                     : squareOf(valpha / (iwn + mu_ - epsilon));
 	}
 
 private:
