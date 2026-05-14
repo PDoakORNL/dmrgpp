@@ -38,7 +38,9 @@ public:
 		assert(PsimagLite::real(iwn) == 0);
 		ComplexOrRealType sum = 0.0;
 		for (SizeType i = 0; i < nBath; ++i) {
-			const RealType valpha  = args[i];
+			const RealType valpha  = (args.size() == 2 * nBath)
+			     ? args[i]
+			     : calcVsIfParticleHoleSymm(args, i, nBath);
 			const RealType epsilon = (args.size() == 2 * nBath)
 			    ? args[i + nBath]
 			    : calcEpsilonIfParticleHoleSymm(args, i, nBath);
@@ -58,12 +60,15 @@ public:
 	andersonPrime(const VectorRealType& args, ComplexOrRealType iwn, SizeType jnd) const
 	{
 		assert(jnd < args.size());
-		RealType valpha  = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
+		RealType valpha  = 0;
 		RealType epsilon = 0;
 		if (args.size() == 2 * nBath_) {
+			valpha  = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
 			epsilon = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
 		} else {
+			assert(args.size() == nBath_);
 			SizeType knd = (jnd < nBath_) ? jnd : jnd - nBath_;
+			valpha       = calcVsIfParticleHoleSymm(args, knd, nBath_);
 			epsilon      = calcEpsilonIfParticleHoleSymm(args, knd, nBath_);
 		}
 
@@ -76,18 +81,31 @@ private:
 	static RealType
 	calcEpsilonIfParticleHoleSymm(const VectorRealType& args, SizeType ind, SizeType nBath)
 	{
-		SizeType unknown_energies = (nBath & 1) ? (nBath - 1) / 2 : nBath / 2;
-		assert(args.size() == nBath + unknown_energies);
+		assert(args.size() == nBath);
+		SizeType offset = (nBath & 1) ? (nBath - 1) / 2 : nBath / 2;
 
-		SizeType one_or_zero = (nBath & 1);
-		if (ind < unknown_energies) {
-			return args[ind + nBath];
-		} else if (ind + one_or_zero < nBath) {
-			return -args[ind + unknown_energies + one_or_zero];
+		if (ind < offset) {
+			return args[ind + offset];
+		} else {
+			if (nBath & 1) {
+				return (ind == offset) ? 0 : -args[ind];
+			} else {
+				return -args[ind];
+			}
 		}
+	}
 
-		assert(one_or_zero);
-		return 0;
+	static RealType
+	calcVsIfParticleHoleSymm(const VectorRealType& args, SizeType ind, SizeType nBath)
+	{
+		assert(args.size() == nBath);
+		SizeType offset = (nBath & 1) ? (nBath + 1) / 2 : nBath / 2;
+
+		if (ind < offset) {
+			return args[ind];
+		} else {
+			return args[ind - offset];
+		}
 	}
 
 	SizeType nBath_; // Number of Bath sites

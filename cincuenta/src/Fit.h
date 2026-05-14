@@ -109,7 +109,11 @@ public:
 			}
 		} else {
 			// particle-hole symmetric case
+
+			// The energy zero bath site is the middle one (nBath odd case only)
+
 			// copy Vs first, starting with the fitted ones...
+			SizeType number_of_fitted_Vs = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
 			for (SizeType i = 0; i < number_of_fitted_Vs; ++i) {
 				results_[i] = results[i];
 			}
@@ -126,18 +130,20 @@ public:
 				results_[i + offset1] = results[i];
 			}
 
-			// ...and the rest are the opposites
-			SizeType offset2 = 2 * (nbath - number_of_fitted_Vs);
-			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
-				results_[i + offset2] = -results[i];
+			// .. then the center bath site (if nbath is odd)...
+			SizeType one_or_zero = (nBath_ & 1);
+			if (nBath_ & 1) {
+				results_[nBath_ + offset1] = 0;
 			}
 
-			if (nBath_ & 1) {
-				assert(nBath_ + offset2 + 1 == 2 * nBath_);
-				results_[2 * nBath_ - 1] = 0; // last onsite if nbath is odd
-			} else {
-				assert(nBath_ + offset2 == 2 * nBath_);
+			// ...and the rest are the opposites
+			// Works also for Nbath_ odd
+			SizeType offset2 = 2 * (nBath_ - number_of_fitted_Vs);
+			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
+				results_[i + offset2 + one_or_zero] = -results[i];
 			}
+
+			assert(nBath_ + offset2 + one_or_zero == 2 * nBath_);
 		}
 	}
 
