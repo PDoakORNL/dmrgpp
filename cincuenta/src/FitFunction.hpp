@@ -34,8 +34,7 @@ public:
 	    , unknowns_(2 * nBath)
 	{
 		if (options_ == Options::PARTICLE_HOLE_SYMM) {
-			SizeType unknown_energies = (nBath & 1) ? (nBath - 1) / 2 : nBath / 2;
-			unknowns_                 = nBath + unknown_energies;
+			unknowns_ = nBath;
 		}
 	}
 

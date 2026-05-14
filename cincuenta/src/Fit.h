@@ -102,29 +102,41 @@ public:
 		if (iter < 0)
 			std::cerr << "No minimum found\n";
 
-		for (SizeType i = 0; i < nBath_; ++i) {
-			results_[i] = results[i];
-		}
-
-		SizeType unknown_energies = (nBath_ & 1) ? (nBath_ - 1) / 2 : nBath_ / 2;
-		assert(results.size() == nBath_ + unknown_energies || results.size() == 2 * nBath_);
+		assert(results.size() == nBath_ || results.size() == 2 * nBath_);
 		if (results.size() == 2 * nBath_) {
-			for (SizeType i = nBath_; i < 2 * nBath_; ++i) {
+			for (SizeType i = 0; i < 2 * nBath_; ++i) {
 				results_[i] = results[i];
 			}
 		} else {
-			for (SizeType i = nBath_; i < nBath_ + unknown_energies; ++i) {
+			// particle-hole symmetric case
+			// copy Vs first, starting with the fitted ones...
+			for (SizeType i = 0; i < number_of_fitted_Vs; ++i) {
 				results_[i] = results[i];
 			}
 
-			for (SizeType i = nBath_ + unknown_energies;
-			     i < nBath_ + 2 * unknown_energies;
-			     ++i) {
-				results_[i] = -results[i - unknown_energies];
+			// ...and then the rest of the Vs are a mirror
+			// Works also for Nbath_ odd
+			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
+				results_[i] = results[i - number_of_fitted_Vs];
+			}
+
+			// copy onsite energies, first the fitted ones...
+			SizeType offset1 = nBath_ - number_of_fitted_Vs;
+			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
+				results_[i + offset1] = results[i];
+			}
+
+			// ...and the rest are the opposites
+			SizeType offset2 = 2 * (nbath - number_of_fitted_Vs);
+			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
+				results_[i + offset2] = -results[i];
 			}
 
 			if (nBath_ & 1) {
-				results_[2 * nBath_ - 1] = 0;
+				assert(nBath_ + offset2 + 1 == 2 * nBath_);
+				results_[2 * nBath_ - 1] = 0; // last onsite if nbath is odd
+			} else {
+				assert(nBath_ + offset2 == 2 * nBath_);
 			}
 		}
 	}
