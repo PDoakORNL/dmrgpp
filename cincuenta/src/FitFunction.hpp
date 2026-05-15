@@ -50,7 +50,7 @@ public:
 		SizeType totalMatsubaras = g0_.totalMatsubaras();
 		for (SizeType i = 0; i < totalMatsubaras; ++i) {
 			ComplexOrRealType iwn(0, g0_.omega(i));
-			RealType          weight = 1.0 / g0_.omega(i);
+			RealType          weight = std::abs(1.0 / g0_.omega(i));
 			ComplexOrRealType val    = clusterg0_.g0cluster(args, iwn) - g0_(i);
 			sum += weight * PsimagLite::real(val * PsimagLite::conj(val));
 		}
@@ -73,7 +73,7 @@ public:
 			RealType sum = 0.0;
 			for (SizeType i = 0; i < totalMatsubaras; ++i) {
 				ComplexOrRealType iwn(0, g0_.omega(i));
-				RealType          weight = 1.0 / g0_.omega(i);
+				RealType          weight = std::abs(1.0 / g0_.omega(i));
 				ComplexOrRealType val    = clusterg0_.g0cluster(src, iwn) - g0_(i);
 
 				ComplexOrRealType valPrime = clusterg0_.g0clusterPrime(src, iwn, j);
