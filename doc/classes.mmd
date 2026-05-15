@@ -1,4 +1,3 @@
-mermaid
 classDiagram
 
     class DmftSolver {
@@ -97,9 +96,8 @@ classDiagram
     Fit --> ModelParams : indirectly (via bathParams)
 
     LatticeGf --> FunctionOfFrequency : sigma_, latticeG_, gammaG_
-    LatticeGf --> DensityOfStates/Dispersion : via option
 
-    ModelParams --> PsimagLite::Star : geometry
+    %% ModelParams --> PsimagLite::Star : geometry
     ModelParams --> VectorRealType : hoppings_, potentialV_
 
     FunctionOfFrequency --> Matsubaras : uses
