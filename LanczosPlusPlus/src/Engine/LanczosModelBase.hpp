@@ -160,8 +160,9 @@ protected:
 	deleteGarbage(SomeVectorType& garbage)
 	{
 		for (SizeType i = 0; i < garbage.size(); ++i) {
-			delete garbage[i];
-			garbage[i] = 0;
+			// lets just leak the resource for now
+			//  delete ((SomeVectorType::value_type*)garbage[i]);
+			//  garbage[i] = nullptr;
 		}
 	}
 
