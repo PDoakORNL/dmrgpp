@@ -79,12 +79,12 @@ public:
 	    , initResults_(initResults)
 	{ }
 
-	// Compute the optimized bath parameters and store them in vector gammaG
+	// Compute the optimized bath parameters and store them in vector g0
 	// See AndersonFunction.h documentation for the fit function, and
 	// for the order of storage of bath parameters
-	void fit(const FunctionOfFrequencyType& gammaG, const RealType& mu, Options options)
+	void fit(const FunctionOfFrequencyType& g0, const RealType& mu, Options options)
 	{
-		FitFunctionType f(nBath_, gammaG, mu, options);
+		FitFunctionType f(nBath_, g0, mu, options);
 
 		VectorRealType results(f.size());
 		setResults(results);

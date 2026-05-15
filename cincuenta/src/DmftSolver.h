@@ -75,7 +75,7 @@ public:
 
 			latticeG_.update();
 
-			fit_.fit(latticeG_.gammaG(), params_.mu, fit_options);
+			fit_.fit(latticeG_.g0(), params_.mu, fit_options);
 
 			impuritySolver_->solve(
 			    fit_.result(), PsimagLite::FreqEnum::MATSUBARA, iter);
@@ -116,8 +116,8 @@ public:
 		os << "LatticeG\n";
 		os << latticeG_();
 
-		os << "Gamma\n";
-		os << latticeG_.gammaG();
+		os << "g0\n";
+		os << latticeG_.g0();
 
 		FunctionOfFrequencyType siteEx(sigma_.fictitiousBeta(),
 		                               sigma_.totalMatsubaras() / 2);
@@ -146,19 +146,19 @@ private:
 		}
 	}
 
-	// void printClusterG0(std::ostream& os) const
-	// {
-	// 	SizeType totalMatsubaras = sigma_.totalMatsubaras();
-	// 	os << "AndersonFunction\n";
-	// 	os << totalMatsubaras << "\n";
-	// 	for (SizeType i = 0; i < totalMatsubaras; ++i) {
-	// 		RealType          wn  = sigma_.omega(i);
-	// 		ComplexOrRealType tmp = AndersonFunctionType::anderson(
-	// 		    fit_.result(), ComplexOrRealType(0, wn), fit_.nBath(), params_.mu);
-	// 		ComplexOrRealType val = std::complex<RealType>(0, wn) + params_.mu -
-	// 		os << wn << " " << val << "\n";
-	// 	}
-	// }
+	void printClusterG0(std::ostream& os) const
+	{
+		SizeType totalMatsubaras = sigma_.totalMatsubaras();
+		os << "Gcluster0\n";
+		os << totalMatsubaras << "\n";
+		for (SizeType i = 0; i < totalMatsubaras; ++i) {
+			RealType          wn  = sigma_.omega(i);
+			ComplexOrRealType tmp = AndersonFunctionType::anderson(
+			    fit_.result(), ComplexOrRealType(0, wn), fit_.nBath(), params_.mu);
+			ComplexOrRealType val = std::complex<RealType>(0, wn) + params_.mu - os
+			    << wn << " " << val << "\n";
+		}
+	}
 
 	void writeGimpForDebugOnly(const std::string& file_out) const
 	{

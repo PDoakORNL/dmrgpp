@@ -74,7 +74,9 @@ public:
 	    , sigma_(sigma)
 	    , mu_(mu)
 	    , latticeG_(sigma.fictitiousBeta(), sigma.totalMatsubaras() / 2)
-	    , gammaG_(sigma.fictitiousBeta(), sigma.totalMatsubaras() / 2)
+	    // , gammaG_(sigma.fictitiousBeta(), sigma.totalMatsubaras() / 2)
+	    , g0_(sigma.fictitiousBeta(), sigma.totalMatsubaras() / 2)
+
 	{
 		VectorStringType tokens;
 		PsimagLite::split(tokens, option, ",");
@@ -116,7 +118,9 @@ public:
 
 	const FunctionOfFrequencyType& operator()() const { return latticeG_; }
 
-	const FunctionOfFrequencyType& gammaG() const { return gammaG_; }
+	// const FunctionOfFrequencyType& gammaG() const { return gammaG_; }
+
+	const FunctionOfFrequencyType& g0() const { return g0_; }
 
 	void update()
 	{
@@ -143,8 +147,9 @@ private:
 				sum += one / (iwn - ek + mu_ - value);
 			}
 
-			latticeG_(i) = sum / static_cast<RealType>(totalKvalues);
-			gammaG_(i)   = iwn - one / latticeG_(i) - value;
+			latticeG_(i)            = sum / static_cast<RealType>(totalKvalues);
+			ComplexOrRealType gamma = iwn - one / latticeG_(i) - value;
+			g0_(i)                  = 1.0 / (iwn + mu_ - gamma);
 		}
 	}
 
@@ -167,7 +172,8 @@ private:
 			integrand0.update(iwn - value);
 			integrand1.update(iwn - value);
 			latticeG_(i) = ComplexOrRealType(integrator0(pts), integrator1(pts));
-			gammaG_(i)   = iwn - one / latticeG_(i) - value;
+			ComplexOrRealType gamma = iwn - one / latticeG_(i) - value;
+			g0_(i)                  = 1.0 / (iwn + mu_ - gamma);
 		}
 	}
 
@@ -186,7 +192,8 @@ private:
 	const FunctionOfFrequencyType& sigma_;
 	RealType                       mu_;
 	FunctionOfFrequencyType        latticeG_;
-	FunctionOfFrequencyType        gammaG_;
+	// FunctionOfFrequencyType        gammaG_;
+	FunctionOfFrequencyType g0_;
 };
 
 }

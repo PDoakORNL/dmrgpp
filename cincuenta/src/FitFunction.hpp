@@ -25,22 +25,16 @@ public:
 
 	// (FIXME document it here)
 	FitFunction(SizeType                       nBath,
-	            const FunctionOfFrequencyType& gammaG,
+	            const FunctionOfFrequencyType& g0,
 	            const RealType&                mu,
 	            Options                        options)
 	    : anderson_function_(nBath, mu)
-	    , g0_(gammaG)
+	    , g0_(g0)
 	    , options_(options)
 	    , unknowns_(2 * nBath)
 	{
 		if (options_ == Options::PARTICLE_HOLE_SYMM) {
 			unknowns_ = nBath;
-		}
-
-		SizeType totalMatsubaras = gammaG.totalMatsubaras();
-		for (SizeType i = 0; i < totalMatsubaras; ++i) {
-			ComplexOrRealType iwn(0, gammaG.omega(i));
-			g0_(i) = 1.0 / (iwn + mu - gammaG(i));
 		}
 	}
 
@@ -125,10 +119,10 @@ private:
 		return -derivative_tmp / (tmp * tmp);
 	}
 
-	AndersonFunctionType    anderson_function_;
-	FunctionOfFrequencyType g0_;
-	Options                 options_;
-	SizeType                unknowns_;
+	AndersonFunctionType           anderson_function_;
+	const FunctionOfFrequencyType& g0_;
+	Options                        options_;
+	SizeType                       unknowns_;
 };
 }
 #endif // FITFUNCTION_HPP
