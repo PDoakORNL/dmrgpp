@@ -80,8 +80,8 @@ private:
 	RealType calcEpsilonIfParticleHoleSymm(const VectorRealType& args, SizeType ind) const
 	{
 		assert(ind < nBath_);
-		SizeType unknowns = (nBath_ & 1) ? nBath_ + (nBath_ - 1) / 2 : nBath_ + nBath_ / 2;
-		assert(args.size() == unknowns);
+		assert(args.size() == (nBath_ & 1) ? nBath_ + (nBath_ - 1) / 2
+		                                   : nBath_ + nBath_ / 2);
 		SizeType offset = (nBath_ & 1) ? (nBath_ - 1) / 2 : nBath_ / 2;
 
 		if (ind < offset) {
