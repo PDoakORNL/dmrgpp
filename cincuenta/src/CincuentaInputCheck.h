@@ -58,6 +58,13 @@ public:
 		str += "string RootOutputname;\n";
 		str += "string FitOptions;\n";
 
+		// Non-equilibrium DMFT (interaction quench)
+		str += "real HubbardUFinal;\n";
+		str += "real TmaxNeq;\n";
+		str += "integer NtNeq;\n";
+		str += "integer NeqDmftIter;\n";
+		str += "real NeqDmftTolerance;\n";
+
 		return str;
 	}
 

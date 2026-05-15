@@ -2,6 +2,7 @@
 #include "Dispersion.h"
 #include "DmftSolver.h"
 #include "InputPath.hpp"
+#include "NeqDmftSolver.h"
 #include "ProgramGlobals.h"
 #include "Provenance.h"
 #include "PsimagLite.h"
@@ -168,4 +169,35 @@ int main(int argc, char** argv)
 	dmftSolver.selfConsistencyLoop();
 
 	dmftSolver.print(std::cout);
+
+	// Non-equilibrium DMFT mode: triggered when TmaxNeq is present in input.
+	// The equilibrium DMFT run above supplies the bath parameters (fixed bath
+	// approximation for the interaction quench U_i -> U_f).
+	{
+		using ParamsNeqType = Dmft::ParamsNeqDmftSolver<std::complex<RealType>>;
+		using NeqSolverType = Dmft::NeqDmftSolver<std::complex<RealType>>;
+
+		RealType tMax = 0;
+		bool     isNeq = false;
+		try {
+			io.readline(tMax, "TmaxNeq=");
+			isNeq = (tMax > 0);
+		} catch (std::exception&) { }
+
+		if (isNeq) {
+			std::cout << "\n=== Non-equilibrium DMFT (interaction quench) ===\n";
+			ParamsNeqType neqParams(io);
+			NeqSolverType neqSolver(neqParams, io);
+			neqSolver.solve(dmftSolver.bathResult());
+
+			// Print G_imp^R(t, 0) for t = 0..nT as a basic diagnostic.
+			const auto& gimp = neqSolver.gimp();
+			std::cout << "G_imp^R(t_n, 0):\n";
+			for (SizeType n = 0; n <= neqParams.nT; ++n) {
+				const RealType tn = n * neqParams.dt;
+				std::cout << tn << " " << PsimagLite::real(gimp.retarded(n, 0))
+				          << " " << PsimagLite::imag(gimp.retarded(n, 0)) << "\n";
+			}
+		}
+	}
 }
