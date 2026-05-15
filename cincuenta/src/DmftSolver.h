@@ -121,27 +121,44 @@ public:
 
 		FunctionOfFrequencyType siteEx(sigma_.fictitiousBeta(),
 		                               sigma_.totalMatsubaras() / 2);
-		computeSiteExcludedG(siteEx);
+
+		AndersonFunctionType anderson_function(params_.nBath, params_.mu);
+		computeSiteExcludedG(siteEx, anderson_function);
 		os << "SiteExcludedG\n";
 		os << siteEx;
 
-		printAndersonFunction(os);
+		printAndersonFunction(os, anderson_function);
+		// printClusterG0(os);
 	}
 
 private:
 
-	void printAndersonFunction(std::ostream& os) const
+	void printAndersonFunction(std::ostream& os, const AndersonFunctionType& af) const
 	{
 		SizeType totalMatsubaras = sigma_.totalMatsubaras();
 		os << "AndersonFunction\n";
 		os << totalMatsubaras << "\n";
 		for (SizeType i = 0; i < totalMatsubaras; ++i) {
-			const RealType          wn  = sigma_.omega(i);
-			const ComplexOrRealType val = AndersonFunctionType::anderson(
-			    fit_.result(), ComplexOrRealType(0, wn), fit_.nBath(), params_.mu);
+			const RealType          wn = sigma_.omega(i);
+			const ComplexOrRealType val
+			    = af.anderson(fit_.result(), ComplexOrRealType(0, wn));
 			os << wn << " " << val << "\n";
 		}
 	}
+
+	// void printClusterG0(std::ostream& os) const
+	// {
+	// 	SizeType totalMatsubaras = sigma_.totalMatsubaras();
+	// 	os << "AndersonFunction\n";
+	// 	os << totalMatsubaras << "\n";
+	// 	for (SizeType i = 0; i < totalMatsubaras; ++i) {
+	// 		RealType          wn  = sigma_.omega(i);
+	// 		ComplexOrRealType tmp = AndersonFunctionType::anderson(
+	// 		    fit_.result(), ComplexOrRealType(0, wn), fit_.nBath(), params_.mu);
+	// 		ComplexOrRealType val = std::complex<RealType>(0, wn) + params_.mu -
+	// 		os << wn << " " << val << "\n";
+	// 	}
+	// }
 
 	void writeGimpForDebugOnly(const std::string& file_out) const
 	{
@@ -224,13 +241,14 @@ private:
 		return sum / totalMatsubaras;
 	}
 
-	void computeSiteExcludedG(FunctionOfFrequencyType& siteEx) const
+	void computeSiteExcludedG(FunctionOfFrequencyType&    siteEx,
+	                          const AndersonFunctionType& anderson_function) const
 	{
 		const SizeType totalMatsubaras = siteEx.totalMatsubaras();
 		for (SizeType i = 0; i < totalMatsubaras; ++i) {
-			const ComplexOrRealType iwn = ComplexOrRealType(0.0, siteEx.omega(i));
-			const ComplexOrRealType sumOverAlpha = AndersonFunctionType::anderson(
-			    fit_.result(), iwn, fit_.nBath(), params_.mu);
+			ComplexOrRealType iwn = ComplexOrRealType(0.0, siteEx.omega(i));
+			ComplexOrRealType sumOverAlpha
+			    = anderson_function.anderson(fit_.result(), iwn);
 			ComplexOrRealType value = iwn - sumOverAlpha;
 			siteEx(i)               = 1.0 / value;
 		}

@@ -20,11 +20,6 @@ public:
 	    , mu_(mu)
 	{ }
 
-	ComplexOrRealType anderson(const VectorRealType& args, ComplexOrRealType iwn) const
-	{
-		return anderson(args, iwn, nBath_, mu_);
-	}
-
 	SizeType nBath() const { return nBath_; }
 
 	const RealType& mu() const { return mu_; }
@@ -32,27 +27,25 @@ public:
 	// Returns \sum_{0<=j<nBath} V_j^2/(iwn - epsilon_j),
 	// where the V_j are stored in the first half or args,
 	// and the epsilon_j are stored in the last half or args
-	static ComplexOrRealType anderson(const VectorRealType& args,
-	                                  ComplexOrRealType     iwn,
-	                                  SizeType              nBath,
-	                                  const RealType&       mu)
+	ComplexOrRealType anderson(const VectorRealType& args, ComplexOrRealType iwn) const
 	{
 		assert(PsimagLite::real(iwn) == 0);
 		ComplexOrRealType sum = 0.0;
-		for (SizeType i = 0; i < nBath; ++i) {
-			const RealType valpha  = (args.size() == 2 * nBath)
+		for (SizeType i = 0; i < nBath_; ++i) {
+			const RealType valpha  = (args.size() == 2 * nBath_)
 			     ? args[i]
-			     : calcVsIfParticleHoleSymm(args, i, nBath);
-			const RealType epsilon = (args.size() == 2 * nBath)
-			    ? args[i + nBath]
-			    : calcEpsilonIfParticleHoleSymm(args, i, nBath);
-			sum += valpha * valpha / (iwn + mu - epsilon);
+			     : calcVsIfParticleHoleSymm(args, i, nBath_);
+			const RealType epsilon = (args.size() == 2 * nBath_)
+			    ? args[i + nBath_]
+			    : calcEpsilonIfParticleHoleSymm(args, i, nBath_);
+			sum += valpha * valpha / (iwn + mu_ - epsilon);
 		}
 
 		return sum;
 	}
 
 	static ComplexOrRealType squareOf(ComplexOrRealType x) { return x * x; }
+
 	// For any 0 <= jnd < 2*nBath, this function returns the derivative of
 	// the AndersonFunction above with respect to bath parameter jnd,
 	// evaluated at the bath parameters args
