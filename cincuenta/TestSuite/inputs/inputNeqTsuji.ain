@@ -1,18 +1,5 @@
 ##Ainur1.0
 
-# Non-equilibrium DMFT: interaction quench U_i=0 -> U_f=2 on the Bethe lattice
-# Reproduces the noneq-dmft/cxx/parm.sh reference run of Tsuji (2013):
-#   dos=semicircular, beta=16, t_max=5, U_i=0, U_f=2, N_tau=1024, N_t=200
-#
-# Phase 1 (equilibrium): Runs DmftSolver with ImpuritySolver=exactdiag to find
-#   the bath parameters {V_alpha, epsilon_alpha} that discretise the U_i=0
-#   Bethe-lattice Weiss field.  Converges in ~1 DMFT iteration since Sigma=0
-#   for a non-interacting impurity.
-#
-# Phase 2 (non-equilibrium): Triggered by TmaxNeq>0.  NeqDmftSolver diagonalises
-#   H(U_i=0) and H(U_f=2) and propagates G_imp(t,t') via the Lehmann
-#   representation.  The Bethe self-consistency Δ=t*^2 G_imp is maintained via
-#   the Volterra integro-differential equation for G_0(t,t').
 
 # ---- Equilibrium parameters ------------------------------------------------
 FicticiousBeta=16;
@@ -35,19 +22,21 @@ DmftTolerance=0.001;
 ImpuritySolver="exactdiag";
 
 FitOptions=particleholesymmetric;
-MinParamsDelta=0.1;
+MinParamsDelta=0.01;
 MinParamsMaxIter=10000;
 MinParamsDelta2=0.01;
 MinParamsTolerance=1e-3;
-MinParamsVerbose=0;
+MinParamsVerbose=1;
 
+TargetElectronsUp=3;
+TargetElectronsDown=3;
+
+int ImpuritySite=0;
 # ---- Anderson-impurity model ------------------------------------------------
 # U_i = 0 (non-interacting initial state).
 # potentialV[impurity] = -U/2 = 0 is enforced inside ImpuritySolverNeqExactDiag.
 real HubbardU=0.;
 
-TargetElectronsUp=3;
-TargetElectronsDown=3;
 
 # ---- LanczosPlusPlus settings (required by the equilibrium exactdiag run) ---
 RootOutputname="NeqTsuji";
@@ -68,14 +57,14 @@ GsWeight=0.1;
 
 # ---- Non-equilibrium DMFT parameters ---------------------------------------
 # U_f = 2 (interaction switched on at t=0).
-real HubbardUFinal=2.;
+HubbardUFinal=2.;
 
 # t_max = 5.0, N_t = 50 for a first test (Tsuji uses N_t=200; increase for
 # the full reference run).
-real TmaxNeq=5.0;
-integer NtNeq=50;
+TmaxNeq=5.0;
+NtNeq=50;
 
 # For the fixed-bath ExactDiag solver, G_imp is determined by the Lehmann
 # representation (no inner iteration needed).
-integer NeqDmftIter=1;
-real NeqDmftTolerance=0.0001;
+NeqDmftIter=1;
+NeqDmftTolerance=0.0001;
