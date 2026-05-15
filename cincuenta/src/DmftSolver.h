@@ -104,6 +104,8 @@ public:
 		std::cout << " that was requested\n";
 	}
 
+	const VectorRealType& bathResult() const { return fit_.result(); }
+
 	void print(std::ostream& os) const
 	{
 		os << "Sigma\n";
