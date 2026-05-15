@@ -1,6 +1,7 @@
 #ifndef FITFUNCTION_HPP
 #define FITFUNCTION_HPP
 #include "AndersonFunction.h"
+#include "ClusterG0.hpp"
 #include "FunctionOfFrequency.h"
 #include "ProgramGlobals.h"
 
@@ -17,6 +18,7 @@ public:
 	};
 
 	using AndersonFunctionType    = AndersonFunction<ComplexOrRealType>;
+	using ClusterG0Type           = ClusterG0<ComplexOrRealType>;
 	using FunctionOfFrequencyType = FunctionOfFrequency<ComplexOrRealType>;
 	using RealType                = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using VectorRealType          = typename AndersonFunctionType::VectorRealType;
@@ -29,6 +31,7 @@ public:
 	            const RealType&                mu,
 	            Options                        options)
 	    : anderson_function_(nBath, mu)
+	    , clusterg0_(anderson_function_)
 	    , g0_(g0)
 	    , options_(options)
 	    , unknowns_(2 * nBath)
@@ -48,7 +51,7 @@ public:
 		for (SizeType i = 0; i < totalMatsubaras; ++i) {
 			ComplexOrRealType iwn(0, g0_.omega(i));
 			RealType          weight = 1.0 / g0_.omega(i);
-			ComplexOrRealType val    = g0cluster(args, iwn) - g0_(i);
+			ComplexOrRealType val    = clusterg0_.g0cluster(args, iwn) - g0_(i);
 			sum += weight * PsimagLite::real(val * PsimagLite::conj(val));
 		}
 
@@ -71,9 +74,9 @@ public:
 			for (SizeType i = 0; i < totalMatsubaras; ++i) {
 				ComplexOrRealType iwn(0, g0_.omega(i));
 				RealType          weight = 1.0 / g0_.omega(i);
-				ComplexOrRealType val    = g0cluster(src, iwn) - g0_(i);
+				ComplexOrRealType val    = clusterg0_.g0cluster(src, iwn) - g0_(i);
 
-				ComplexOrRealType valPrime = g0clusterPrime(src, iwn, j);
+				ComplexOrRealType valPrime = clusterg0_.g0clusterPrime(src, iwn, j);
 
 				sum += weight
 				    * (PsimagLite::real(val * PsimagLite::conj(valPrime)
@@ -98,28 +101,8 @@ public:
 
 private:
 
-	ComplexOrRealType g0cluster(const VectorRealType& args, const ComplexOrRealType& iwn) const
-	{
-		constexpr RealType epsilon0 = 0;
-		RealType           mu       = anderson_function_.mu();
-		ComplexOrRealType  tmp
-		    = iwn + mu - epsilon0 - anderson_function_.anderson(args, iwn);
-		return 1.0 / tmp;
-	}
-
-	ComplexOrRealType
-	g0clusterPrime(const VectorRealType& args, const ComplexOrRealType& iwn, SizeType jnd) const
-	{
-		constexpr RealType epsilon0 = 0;
-		RealType           mu       = anderson_function_.mu();
-		ComplexOrRealType  tmp
-		    = iwn + mu - epsilon0 - anderson_function_.anderson(args, iwn);
-		ComplexOrRealType derivative_tmp
-		    = -anderson_function_.andersonPrime(args, iwn, jnd);
-		return -derivative_tmp / (tmp * tmp);
-	}
-
 	AndersonFunctionType           anderson_function_;
+	ClusterG0Type                  clusterg0_;
 	const FunctionOfFrequencyType& g0_;
 	Options                        options_;
 	SizeType                       unknowns_;

@@ -74,7 +74,6 @@ public:
 	    , sigma_(sigma)
 	    , mu_(mu)
 	    , latticeG_(sigma.fictitiousBeta(), sigma.totalMatsubaras() / 2)
-	    // , gammaG_(sigma.fictitiousBeta(), sigma.totalMatsubaras() / 2)
 	    , g0_(sigma.fictitiousBeta(), sigma.totalMatsubaras() / 2)
 
 	{
@@ -117,8 +116,6 @@ public:
 	}
 
 	const FunctionOfFrequencyType& operator()() const { return latticeG_; }
-
-	// const FunctionOfFrequencyType& gammaG() const { return gammaG_; }
 
 	const FunctionOfFrequencyType& g0() const { return g0_; }
 
@@ -192,8 +189,7 @@ private:
 	const FunctionOfFrequencyType& sigma_;
 	RealType                       mu_;
 	FunctionOfFrequencyType        latticeG_;
-	// FunctionOfFrequencyType        gammaG_;
-	FunctionOfFrequencyType g0_;
+	FunctionOfFrequencyType        g0_;
 };
 
 }
