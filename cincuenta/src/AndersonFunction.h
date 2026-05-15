@@ -34,10 +34,10 @@ public:
 		for (SizeType i = 0; i < nBath_; ++i) {
 			const RealType valpha  = (args.size() == 2 * nBath_)
 			     ? args[i]
-			     : calcVsIfParticleHoleSymm(args, i, nBath_);
+			     : calcVsIfParticleHoleSymm(args, i);
 			const RealType epsilon = (args.size() == 2 * nBath_)
 			    ? args[i + nBath_]
-			    : calcEpsilonIfParticleHoleSymm(args, i, nBath_);
+			    : calcEpsilonIfParticleHoleSymm(args, i);
 			sum += valpha * valpha / (iwn + mu_ - epsilon);
 		}
 
@@ -63,12 +63,12 @@ public:
 			epsilon     = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
 			diff_valpha = (jnd < nBath_); // diff with respect to valpha
 		} else {
-			assert(args.size() == nBath_);
-			SizeType offset = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
-			SizeType knd    = (jnd < offset) ? jnd : jnd - offset;
-			valpha          = calcVsIfParticleHoleSymm(args, knd, nBath_);
-			epsilon         = calcEpsilonIfParticleHoleSymm(args, knd, nBath_);
-			diff_valpha     = (jnd < offset);
+			assert(args.size() == (nBath_ & 1) ? nBath_ + (nBath_ - 1) / 2
+			                                   : nBath_ + nBath_ / 2);
+			SizeType knd = (jnd < nBath_) ? jnd : jnd - nBath_;
+			valpha       = calcVsIfParticleHoleSymm(args, knd);
+			epsilon      = calcEpsilonIfParticleHoleSymm(args, knd);
+			diff_valpha  = (jnd < nBath_);
 		}
 
 		return (diff_valpha) ? 2.0 * valpha / (iwn + mu_ - epsilon)
@@ -77,35 +77,31 @@ public:
 
 private:
 
-	static RealType
-	calcEpsilonIfParticleHoleSymm(const VectorRealType& args, SizeType ind, SizeType nBath)
+	RealType calcEpsilonIfParticleHoleSymm(const VectorRealType& args, SizeType ind) const
 	{
-		assert(args.size() == nBath);
-		SizeType offset      = (nBath & 1) ? (nBath - 1) / 2 : nBath / 2;
-		SizeType one_or_zero = (nBath & 1);
+		assert(ind < nBath_);
+		SizeType unknowns = (nBath_ & 1) ? nBath_ + (nBath_ - 1) / 2 : nBath_ + nBath_ / 2;
+		assert(args.size() == unknowns);
+		SizeType offset = (nBath_ & 1) ? (nBath_ - 1) / 2 : nBath_ / 2;
 
 		if (ind < offset) {
-			return args[ind + offset + one_or_zero];
+			return args[ind + nBath_];
 		} else {
-			if (nBath & 1) {
-				return (ind == offset) ? 0 : -args[ind];
+			if (nBath_ & 1) {
+				return (ind == offset) ? 0 : -args[ind + offset];
 			} else {
-				return -args[ind];
+				return -args[ind + offset];
 			}
 		}
 	}
 
-	static RealType
-	calcVsIfParticleHoleSymm(const VectorRealType& args, SizeType ind, SizeType nBath)
+	RealType calcVsIfParticleHoleSymm(const VectorRealType& args, SizeType ind) const
 	{
-		assert(args.size() == nBath);
-		SizeType offset = (nBath & 1) ? (nBath + 1) / 2 : nBath / 2;
+		assert(ind < nBath_);
+		assert(args.size() == (nBath_ & 1) ? nBath_ + (nBath_ - 1) / 2
+		                                   : nBath_ + nBath_ / 2);
 
-		if (ind < offset) {
-			return args[ind];
-		} else {
-			return args[ind - offset];
-		}
+		return args[ind];
 	}
 
 	SizeType nBath_; // Number of Bath sites
