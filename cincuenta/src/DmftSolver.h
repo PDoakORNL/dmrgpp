@@ -116,7 +116,7 @@ public:
 		os << "LatticeG\n";
 		os << latticeG_();
 
-		os << "g0\n";
+		os << "G0\n";
 		os << latticeG_.g0();
 
 		FunctionOfFrequencyType siteEx(sigma_.fictitiousBeta(),
@@ -128,7 +128,7 @@ public:
 		os << siteEx;
 
 		printAndersonFunction(os, anderson_function);
-		// printClusterG0(os);
+		printClusterG0(os, anderson_function);
 	}
 
 private:
@@ -146,17 +146,17 @@ private:
 		}
 	}
 
-	void printClusterG0(std::ostream& os) const
+	void printClusterG0(std::ostream& os, const AndersonFunctionType& af) const
 	{
 		SizeType totalMatsubaras = sigma_.totalMatsubaras();
 		os << "Gcluster0\n";
 		os << totalMatsubaras << "\n";
+		ClusterG0<ComplexOrRealType> cluster_g0(af);
 		for (SizeType i = 0; i < totalMatsubaras; ++i) {
-			RealType          wn  = sigma_.omega(i);
-			ComplexOrRealType tmp = AndersonFunctionType::anderson(
-			    fit_.result(), ComplexOrRealType(0, wn), fit_.nBath(), params_.mu);
-			ComplexOrRealType val = std::complex<RealType>(0, wn) + params_.mu - os
-			    << wn << " " << val << "\n";
+			RealType          wn = sigma_.omega(i);
+			ComplexOrRealType val
+			    = cluster_g0.g0cluster(fit_.result(), ComplexOrRealType(0, wn));
+			os << wn << " " << val << "\n";
 		}
 	}
 
