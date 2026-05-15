@@ -27,6 +27,8 @@ public:
 
 	SizeType nBath() const { return nBath_; }
 
+	const RealType& mu() const { return mu_; }
+
 	// Returns \sum_{0<=j<nBath} V_j^2/(iwn - epsilon_j),
 	// where the V_j are stored in the first half or args,
 	// and the epsilon_j are stored in the last half or args

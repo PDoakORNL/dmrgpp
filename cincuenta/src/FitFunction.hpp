@@ -28,29 +28,34 @@ public:
 	            const FunctionOfFrequencyType& gammaG,
 	            const RealType&                mu,
 	            Options                        options)
-	    : anderson_function(nBath, mu)
-	    , gammaG_(gammaG)
+	    : anderson_function_(nBath, mu)
+	    , g0_(gammaG)
 	    , options_(options)
 	    , unknowns_(2 * nBath)
 	{
 		if (options_ == Options::PARTICLE_HOLE_SYMM) {
 			unknowns_ = nBath;
 		}
+
+		SizeType totalMatsubaras = gammaG.totalMatsubaras();
+		for (SizeType i = 0; i < totalMatsubaras; ++i) {
+			ComplexOrRealType iwn(0, gammaG.omega(i));
+			g0_(i) = 1.0 / (iwn + mu - gammaG(i));
+		}
 	}
 
 	SizeType size() const { return unknowns_; }
 
-	// Returns \sum_n |Anderson(Valpha, eAlpha, iwn) - GammaG(iwn)|^2
-	// See the AndersonFunction below
+	// Returns \sum_n Weights_n |G0cluster(Valpha, eAlpha, iwn) - G0(iwn)|^2
 	RealType operator()(const VectorRealType& args) const
 	{
-		RealType       sum             = 0.0;
-		const SizeType totalMatsubaras = gammaG_.totalMatsubaras();
+		RealType sum             = 0.0;
+		SizeType totalMatsubaras = g0_.totalMatsubaras();
 		for (SizeType i = 0; i < totalMatsubaras; ++i) {
-			const ComplexOrRealType iwn(0, gammaG_.omega(i));
-			const ComplexOrRealType val
-			    = anderson_function.anderson(args, iwn) - gammaG_(i);
-			sum += PsimagLite::real(val * PsimagLite::conj(val));
+			ComplexOrRealType iwn(0, g0_.omega(i));
+			RealType          weight = 1.0 / g0_.omega(i);
+			ComplexOrRealType val    = g0cluster(args, iwn) - g0_(i);
+			sum += weight * PsimagLite::real(val * PsimagLite::conj(val));
 		}
 
 		return sum / totalMatsubaras;
@@ -63,22 +68,22 @@ public:
 	// for the order of bath parameters see AndersonFunction
 	void df(VectorRealType& dest, const VectorRealType& src) const
 	{
-		const SizeType totalMatsubaras = gammaG_.totalMatsubaras();
-		SizeType       n               = src.size();
+		SizeType totalMatsubaras = g0_.totalMatsubaras();
+		SizeType n               = src.size();
 		assert(dest.size() == n);
 
 		for (SizeType j = 0; j < n; ++j) {
 			RealType sum = 0.0;
 			for (SizeType i = 0; i < totalMatsubaras; ++i) {
-				const ComplexOrRealType iwn(0, gammaG_.omega(i));
-				const ComplexOrRealType val
-				    = anderson_function.anderson(src, iwn) - gammaG_(i);
+				ComplexOrRealType iwn(0, g0_.omega(i));
+				RealType          weight = 1.0 / g0_.omega(i);
+				ComplexOrRealType val    = g0cluster(src, iwn) - g0_(i);
 
-				const ComplexOrRealType valPrime
-				    = anderson_function.andersonPrime(src, iwn, j);
+				ComplexOrRealType valPrime = g0clusterPrime(src, iwn, j);
 
-				sum += PsimagLite::real(val * PsimagLite::conj(valPrime)
-				                        + valPrime * PsimagLite::conj(val));
+				sum += weight
+				    * (PsimagLite::real(val * PsimagLite::conj(valPrime)
+				                        + valPrime * PsimagLite::conj(val)));
 			}
 
 			dest[j] = sum / totalMatsubaras;
@@ -99,10 +104,31 @@ public:
 
 private:
 
-	AndersonFunctionType           anderson_function;
-	const FunctionOfFrequencyType& gammaG_;
-	Options                        options_;
-	SizeType                       unknowns_;
+	ComplexOrRealType g0cluster(const VectorRealType& args, const ComplexOrRealType& iwn) const
+	{
+		constexpr RealType epsilon0 = 0;
+		RealType           mu       = anderson_function_.mu();
+		ComplexOrRealType  tmp
+		    = iwn + mu - epsilon0 - anderson_function_.anderson(args, iwn);
+		return 1.0 / tmp;
+	}
+
+	ComplexOrRealType
+	g0clusterPrime(const VectorRealType& args, const ComplexOrRealType& iwn, SizeType jnd) const
+	{
+		constexpr RealType epsilon0 = 0;
+		RealType           mu       = anderson_function_.mu();
+		ComplexOrRealType  tmp
+		    = iwn + mu - epsilon0 - anderson_function_.anderson(args, iwn);
+		ComplexOrRealType derivative_tmp
+		    = -anderson_function_.andersonPrime(args, iwn, jnd);
+		return -derivative_tmp / (tmp * tmp);
+	}
+
+	AndersonFunctionType    anderson_function_;
+	FunctionOfFrequencyType g0_;
+	Options                 options_;
+	SizeType                unknowns_;
 };
 }
 #endif // FITFUNCTION_HPP
