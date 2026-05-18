@@ -20,9 +20,9 @@ public:
 	    , mu_(mu)
 	{ }
 
-	SizeType nBath() const { return nBath_; }
+	RealType mu() const { return mu_; }
 
-	const RealType& mu() const { return mu_; }
+	SizeType nBath() const { return nBath_; }
 
 	// Returns \sum_{0<=j<nBath} V_j^2/(iwn - epsilon_j),
 	// where the V_j are stored in the first half or args,
@@ -34,17 +34,15 @@ public:
 		for (SizeType i = 0; i < nBath_; ++i) {
 			const RealType valpha  = (args.size() == 2 * nBath_)
 			     ? args[i]
-			     : calcVsIfParticleHoleSymm(args, i);
+			     : calcVsIfParticleHoleSymm(args, i, nBath_);
 			const RealType epsilon = (args.size() == 2 * nBath_)
 			    ? args[i + nBath_]
-			    : calcEpsilonIfParticleHoleSymm(args, i);
+			    : calcEpsilonIfParticleHoleSymm(args, i, nBath_);
 			sum += valpha * valpha / (iwn + mu_ - epsilon);
 		}
 
 		return sum;
 	}
-
-	static ComplexOrRealType squareOf(ComplexOrRealType x) { return x * x; }
 
 	// For any 0 <= jnd < 2*nBath, this function returns the derivative of
 	// the AndersonFunction above with respect to bath parameter jnd,
@@ -63,45 +61,51 @@ public:
 			epsilon     = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
 			diff_valpha = (jnd < nBath_); // diff with respect to valpha
 		} else {
-			assert(args.size() == (nBath_ & 1) ? nBath_ + (nBath_ - 1) / 2
-			                                   : nBath_ + nBath_ / 2);
-			SizeType knd = (jnd < nBath_) ? jnd : jnd - nBath_;
-			valpha       = calcVsIfParticleHoleSymm(args, knd);
-			epsilon      = calcEpsilonIfParticleHoleSymm(args, knd);
-			diff_valpha  = (jnd < nBath_);
+			assert(args.size() == nBath_);
+			SizeType offset = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
+			SizeType knd    = (jnd < offset) ? jnd : jnd - offset;
+			valpha          = calcVsIfParticleHoleSymm(args, knd, nBath_);
+			epsilon         = calcEpsilonIfParticleHoleSymm(args, knd, nBath_);
+			diff_valpha     = (jnd < offset);
 		}
 
 		return (diff_valpha) ? 2.0 * valpha / (iwn + mu_ - epsilon)
 		                     : squareOf(valpha / (iwn + mu_ - epsilon));
 	}
 
+	static ComplexOrRealType squareOf(ComplexOrRealType x) { return x * x; }
+
 private:
 
-	RealType calcEpsilonIfParticleHoleSymm(const VectorRealType& args, SizeType ind) const
+	static RealType
+	calcEpsilonIfParticleHoleSymm(const VectorRealType& args, SizeType ind, SizeType nBath)
 	{
-		assert(ind < nBath_);
-		assert(args.size() == (nBath_ & 1) ? nBath_ + (nBath_ - 1) / 2
-		                                   : nBath_ + nBath_ / 2);
-		SizeType offset = (nBath_ & 1) ? (nBath_ - 1) / 2 : nBath_ / 2;
+		assert(args.size() == nBath);
+		SizeType offset      = (nBath & 1) ? (nBath - 1) / 2 : nBath / 2;
+		SizeType one_or_zero = (nBath & 1);
 
 		if (ind < offset) {
-			return args[ind + nBath_];
+			return args[ind + offset + one_or_zero];
 		} else {
-			if (nBath_ & 1) {
-				return (ind == offset) ? 0 : -args[ind + offset];
+			if (nBath & 1) {
+				return (ind == offset) ? 0 : -args[ind];
 			} else {
-				return -args[ind + offset];
+				return -args[ind];
 			}
 		}
 	}
 
-	RealType calcVsIfParticleHoleSymm(const VectorRealType& args, SizeType ind) const
+	static RealType
+	calcVsIfParticleHoleSymm(const VectorRealType& args, SizeType ind, SizeType nBath)
 	{
-		assert(ind < nBath_);
-		assert(args.size() == (nBath_ & 1) ? nBath_ + (nBath_ - 1) / 2
-		                                   : nBath_ + nBath_ / 2);
+		assert(args.size() == nBath);
+		SizeType offset = (nBath & 1) ? (nBath + 1) / 2 : nBath / 2;
 
-		return args[ind];
+		if (ind < offset) {
+			return args[ind];
+		} else {
+			return args[ind - offset];
+		}
 	}
 
 	SizeType nBath_; // Number of Bath sites

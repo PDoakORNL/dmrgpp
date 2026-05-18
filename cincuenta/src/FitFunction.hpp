@@ -37,7 +37,7 @@ public:
 	    , unknowns_(2 * nBath)
 	{
 		if (options_ == Options::PARTICLE_HOLE_SYMM) {
-			unknowns_ = (nBath & 1) ? nBath + (nBath - 1) / 2 : nBath + nBath / 2;
+			unknowns_ = nBath;
 		}
 	}
 

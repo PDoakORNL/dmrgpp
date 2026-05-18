@@ -102,41 +102,48 @@ public:
 		if (iter < 0)
 			std::cerr << "No minimum found\n";
 
+		assert(results.size() == nBath_ || results.size() == 2 * nBath_);
 		if (results.size() == 2 * nBath_) {
 			for (SizeType i = 0; i < 2 * nBath_; ++i) {
 				results_[i] = results[i];
 			}
 		} else {
 			// particle-hole symmetric case
-			assert(results.size() == (nBath_ & 1) ? nBath_ + (nBath_ - 1) / 2
-			                                      : nBath_ + nBath_ / 2);
+
 			// The energy zero bath site is the middle one (nBath odd case only)
 
-			// copy Vs first,
-			for (SizeType i = 0; i < nBath_; ++i) {
+			// copy Vs first, starting with the fitted ones...
+			SizeType number_of_fitted_Vs = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
+			for (SizeType i = 0; i < number_of_fitted_Vs; ++i) {
 				results_[i] = results[i];
 			}
 
+			// ...and then the rest of the Vs are a mirror
+			// Works also for Nbath_ odd
+			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
+				results_[i] = results[i - number_of_fitted_Vs];
+			}
+
 			// copy onsite energies, first the fitted ones...
-			SizeType number_of_fitted_es = (nBath_ & 1) ? (nBath_ - 1) / 2 : nBath_ / 2;
-			for (SizeType i = 0; i < number_of_fitted_es; ++i) {
-				results_[i + nBath_] = results[i + nBath_];
+			SizeType offset1 = nBath_ - number_of_fitted_Vs;
+			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
+				results_[i + offset1] = results[i];
 			}
 
 			// .. then the center bath site (if nbath is odd)...
+			SizeType one_or_zero = (nBath_ & 1);
 			if (nBath_ & 1) {
-				results_[nBath_ + number_of_fitted_es] = 0;
+				results_[nBath_ + offset1] = 0;
 			}
 
 			// ...and the rest are the opposites
 			// Works also for Nbath_ odd
-			SizeType one_or_zero = (nBath_ & 1);
-			for (SizeType i = 0; i < number_of_fitted_es; ++i) {
-				results_[i + nBath_ + number_of_fitted_es + one_or_zero]
-				    = -results[i + nBath_];
+			SizeType offset2 = 2 * (nBath_ - number_of_fitted_Vs);
+			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
+				results_[i + offset2 + one_or_zero] = -results[i];
 			}
 
-			assert(nBath_ + 2 * number_of_fitted_es + one_or_zero == 2 * nBath_);
+			assert(nBath_ + offset2 + one_or_zero == 2 * nBath_);
 		}
 	}
 
