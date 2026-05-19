@@ -4,6 +4,8 @@
 #include "Vector.h"
 #include <algorithm>
 #include <cassert>
+#include <fstream>
+#include <string>
 
 // Translated and adapted from Naoto Tsuji's noneq-dmft/cxx (2013).
 // green.h/green.cxx → single header, templated on ComplexOrRealType,
@@ -303,6 +305,73 @@ public:
 		    + RealType(0.25) * I * dt_ * dt_ * K.retarded(n, n);
 		G_der_new.lesser[n] += -I * h[n] * lesser(n, n)
 		    - RealType(0.5) * I * dt_ * K.retarded(n, n) * lesser(n, n);
+	}
+
+	// Write all four KB components to plain-text files matching the noneq-dmft
+	// reference format (Tsuji 2013).  Files are named <prefix>-retarded, etc.
+	// matsubara_t writes "tau Re Im" (reference writes only Re; imaginary part
+	// is near zero for single-band systems with time-reversal symmetry).
+	void dump(const std::string& prefix) const
+	{
+		const int Nt  = static_cast<int>(nT_);
+		const int Nta = static_cast<int>(nTau_);
+
+		// retarded: causal upper triangle, t >= t'
+		{
+			std::ofstream ofs(prefix + "-retarded");
+			ofs.precision(10);
+			for (int n = 0; n <= Nt; ++n) {
+				const RealType t = n * dt_;
+				for (int j = 0; j <= n; ++j) {
+					const RealType tp = j * dt_;
+					ofs << std::fixed << t << " " << tp
+					    << " " << retarded(n, j).real()
+					    << " " << retarded(n, j).imag() << "\n";
+				}
+			}
+		}
+
+		// lesser: full (nT+1) x (nT+1) matrix
+		{
+			std::ofstream ofs(prefix + "-lesser");
+			ofs.precision(10);
+			for (int n = 0; n <= Nt; ++n) {
+				const RealType t = n * dt_;
+				for (int j = 0; j <= Nt; ++j) {
+					const RealType tp = j * dt_;
+					ofs << std::fixed << t << " " << tp
+					    << " " << lesser(n, j).real()
+					    << " " << lesser(n, j).imag() << "\n";
+				}
+			}
+		}
+
+		// left_mixing: (nT+1) x (nTau+1)
+		{
+			std::ofstream ofs(prefix + "-left-mixing");
+			ofs.precision(10);
+			for (int n = 0; n <= Nt; ++n) {
+				const RealType t = n * dt_;
+				for (int j = 0; j <= Nta; ++j) {
+					const RealType tau = j * dtau_;
+					ofs << std::fixed << t << " " << tau
+					    << " " << left_mixing(n, j).real()
+					    << " " << left_mixing(n, j).imag() << "\n";
+				}
+			}
+		}
+
+		// matsubara_t: equilibrium imaginary-time GF, nTau+1 points
+		{
+			std::ofstream ofs(prefix + "-matsubara-t");
+			ofs.precision(10);
+			for (int j = 0; j <= Nta; ++j) {
+				const RealType tau = j * dtau_;
+				ofs << std::fixed << tau
+				    << " " << matsubara_t[j].real()
+				    << " " << matsubara_t[j].imag() << "\n";
+			}
+		}
 	}
 
 private:

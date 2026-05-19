@@ -1,6 +1,7 @@
 #include "CincuentaInputCheck.h"
 #include "Dispersion.h"
 #include "DmftSolver.h"
+#include "ImpuritySolverNeqDmrg.h"
 #include "InputPath.hpp"
 #include "NeqDmftSolver.h"
 #include "ProgramGlobals.h"
@@ -187,16 +188,29 @@ int main(int argc, char** argv)
 		if (isNeq) {
 			std::cout << "\n=== Non-equilibrium DMFT (interaction quench) ===\n";
 			ParamsNeqType neqParams(io);
-			NeqSolverType neqSolver(neqParams, io);
-			neqSolver.solve(dmftSolver.bathResult());
 
-			// Print G_imp^R(t, 0) for t = 0..nT as a basic diagnostic.
-			const auto& gimp = neqSolver.gimp();
-			std::cout << "G_imp^R(t_n, 0):\n";
-			for (SizeType n = 0; n <= neqParams.nT; ++n) {
-				const RealType tn = n * neqParams.dt;
-				std::cout << tn << " " << PsimagLite::real(gimp.retarded(n, 0))
-				          << " " << PsimagLite::imag(gimp.retarded(n, 0)) << "\n";
+			SizeType nStatesNeq = 0;
+			try {
+				io.readline(nStatesNeq, "NstatesNeq=");
+			} catch (std::exception&) { }
+
+			auto runNeq = [&](auto& neqSolver) {
+				neqSolver.solve(dmftSolver.bathResult());
+				neqSolver.dumpGreenFunctions();
+			};
+
+			if (nStatesNeq > 0) {
+				std::cout << "  using ImpuritySolverNeqDmrg with NstatesNeq="
+				          << nStatesNeq << "\n";
+				using DmrgNeqSolverType =
+				    Dmft::NeqDmftSolver<std::complex<RealType>,
+				                       Dmft::ImpuritySolverNeqDmrg>;
+				DmrgNeqSolverType neqSolver(neqParams, io);
+				runNeq(neqSolver);
+			} else {
+				using ExactNeqSolverType = Dmft::NeqDmftSolver<std::complex<RealType>>;
+				ExactNeqSolverType neqSolver(neqParams, io);
+				runNeq(neqSolver);
 			}
 		}
 	}

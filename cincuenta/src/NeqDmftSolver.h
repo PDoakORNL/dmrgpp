@@ -14,15 +14,15 @@ namespace Dmft {
 //
 // The loop advances the Kadanoff-Baym equations one real-time step at a time.
 // At each step n:
-//   1. Compute G_imp(n, j) from the exact Lehmann representation (fixed bath).
+//   1. Compute G_imp(n, j) from the impurity solver (fixed bath).
 //   2. Update the hybridization Δ(n, j) = t*² G_imp(n, j) (Bethe self-consistency).
 //   3. Advance the Weiss field G_0(n, j) via the Volterra integro-differential equation.
-//   4. Optionally iterate steps 1–3 until convergence (inner DMFT loop).
 //
-// The bath parameters remain fixed at their equilibrium values throughout the
-// time evolution (they are updated only once, before time-stepping begins, via
-// the equilibrium DMFT run encoded in the ImpuritySolverNeqExactDiag.initialize call).
-template <typename ComplexOrRealType>
+// ImpSolverTemplate selects the impurity solver:
+//   ImpuritySolverNeqExactDiag  — full Lehmann (default, exact for small baths)
+//   ImpuritySolverNeqDmrg       — truncated Lanczos Lehmann (larger baths)
+template <typename ComplexOrRealType,
+          template <typename> class ImpSolverTemplate = ImpuritySolverNeqExactDiag>
 class NeqDmftSolver {
 
 public:
@@ -35,7 +35,7 @@ public:
 	using KBDerivType       = KBDerivative<ComplexOrRealType>;
 	using ParamsNeqType     = ParamsNeqDmftSolver<ComplexOrRealType>;
 	using InputNgType       = PsimagLite::InputNg<CincuentaInputCheck>;
-	using ImpSolverType     = ImpuritySolverNeqExactDiag<ComplexOrRealType>;
+	using ImpSolverType     = ImpSolverTemplate<ComplexOrRealType>;
 	using LatticeGfType     = NeqLatticeGf<ComplexOrRealType>;
 
 	NeqDmftSolver(const ParamsNeqType&            params,
@@ -59,6 +59,11 @@ public:
 		std::cout << "NeqDmftSolver: initializing impurity solver\n";
 		impSolver_.initialize(bathParams);
 
+		// Copy equilibrium Matsubara components from the solver's internal gimp —
+		// computeGimp() only fills real-time (retarded/lesser/left-mixing) slices.
+		gimp_.matsubara_t = impSolver_.gimp().matsubara_t;
+		gimp_.matsubara_w = impSolver_.gimp().matsubara_w;
+
 		// Populate t=0 (equilibrium) boundary conditions.
 		impSolver_.computeGimp(gimp_, 0);
 		latticeGf_.initialize(gimp_);
@@ -80,6 +85,15 @@ public:
 
 	// Access the Weiss field G_0 (populated after solve()).
 	const KBType& g0() const { return latticeGf_.g0(); }
+
+	// Write KB Green's functions to files matching the noneq-dmft reference format.
+	//   green-{retarded,lesser,left-mixing,matsubara-t}
+	//   weiss-green-{retarded,lesser,left-mixing,matsubara-t}
+	void dumpGreenFunctions() const
+	{
+		gimp_.dump("green");
+		latticeGf_.g0().dump("weiss-green");
+	}
 
 private:
 

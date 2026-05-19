@@ -39,7 +39,7 @@ real HubbardU=0.;
 
 
 # ---- LanczosPlusPlus settings (required by the equilibrium exactdiag run) ---
-RootOutputname="NeqTsuji";
+RootOutputname="NeqTsujiDMRG";
 InfiniteLoopKeptStates=20;
 matrix FiniteLoopsGs=[[@auto, 100, 0],[@auto, 100, 0]];
 matrix FiniteLoopsOmega=[[@auto, 100, 2],[@auto, 100, 2]];
@@ -63,6 +63,7 @@ HubbardUFinal=2.;
 # the full reference run).
 TmaxNeq=5.0;
 NtNeq=200;
+NstatesNeq=50;
 
 # For the fixed-bath ExactDiag solver, G_imp is determined by the Lehmann
 # representation (no inner iteration needed).
