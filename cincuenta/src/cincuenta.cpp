@@ -1,7 +1,7 @@
 #include "CincuentaInputCheck.h"
 #include "Dispersion.h"
 #include "DmftSolver.h"
-#include "ImpuritySolverNeqDmrg.h"
+#include "ImpuritySolverNeqLanczos.h"
 #include "InputPath.hpp"
 #include "NeqDmftSolver.h"
 #include "ProgramGlobals.h"
