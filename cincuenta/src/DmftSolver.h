@@ -4,6 +4,7 @@
 #include "FunctionOfFrequency.h"
 #include "ImpuritySolverBase.h"
 #include "ImpuritySolverDmrg.h"
+#include "ImpuritySolverEqLanczos.h"
 #include "ImpuritySolverExactDiag.h"
 #include "InputNg.h"
 #include "LatticeGf.h"
@@ -24,8 +25,9 @@ public:
 	using MinParamsType               = typename FitType::MinParamsType;
 	using ParamsDmftSolverType        = ParamsDmftSolver<ComplexOrRealType>;
 	using ImpuritySolverType          = ImpuritySolverBase<ComplexOrRealType>;
-	using ImpuritySolverExactDiagType = ImpuritySolverExactDiag<ComplexOrRealType>;
-	using ImpuritySolverDmrgType      = ImpuritySolverDmrg<ComplexOrRealType>;
+	using ImpuritySolverExactDiagType  = ImpuritySolverExactDiag<ComplexOrRealType>;
+	using ImpuritySolverDmrgType       = ImpuritySolverDmrg<ComplexOrRealType>;
+	using ImpuritySolverEqLanczosType  = ImpuritySolverEqLanczos<ComplexOrRealType>;
 	using LatticeGfType               = LatticeGf<ComplexOrRealType>;
 	using ApplicationType             = typename ImpuritySolverType::ApplicationType;
 	using AndersonFunctionType        = typename FitType::AndersonFunctionType;
@@ -47,6 +49,8 @@ public:
 			impuritySolver_ = new ImpuritySolverDmrgType(params, app, io_);
 		else if (params.impuritySolver == "exactdiag")
 			impuritySolver_ = new ImpuritySolverExactDiagType(params, app, io_);
+		else if (params.impuritySolver == "lanczos")
+			impuritySolver_ = new ImpuritySolverEqLanczosType(params, app, io_);
 		else
 			err("Unknown impurity solver " + params.impuritySolver + "\n");
 	}

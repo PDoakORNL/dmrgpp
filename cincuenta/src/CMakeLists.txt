@@ -16,3 +16,6 @@ set(PATH_TO_INPUTS ${CMAKE_CURRENT_SOURCE_DIR}/../TestSuite/inputs)
 add_test(NAME cincuenta0 COMMAND ./cincuenta -I ${PATH_TO_INPUTS} -f inputCincuenta0.ain) # energy 0.456977
 # dmrg impurity solver
 add_test(NAME cincuenta1 COMMAND ./cincuenta -I ${PATH_TO_INPUTS} -f inputCincuenta1.ain) # energy 0.456977
+# equilibrium Lanczos solver, NstatesEq=0 (full diag), 1 iteration
+# G_imp(iw_0=0.0628) = (0.0623, -0.3554) -- matches exactdiag to 5 sig figs
+add_test(NAME eqLanczos0 COMMAND ./cincuenta -I ${PATH_TO_INPUTS} -f inputEqLanczosRef.ain)
