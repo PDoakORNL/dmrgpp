@@ -1,7 +1,7 @@
 #include "CincuentaInputCheck.h"
 #include "Dispersion.h"
 #include "DmftSolver.h"
-#include "ImpuritySolverNeqDmrg.h"
+#include "ImpuritySolverNeqLanczos.h"
 #include "InputPath.hpp"
 #include "NeqDmftSolver.h"
 #include "ProgramGlobals.h"
@@ -200,11 +200,11 @@ int main(int argc, char** argv)
 			};
 
 			if (nStatesNeq > 0) {
-				std::cout << "  using ImpuritySolverNeqDmrg with NstatesNeq="
+				std::cout << "  using ImpuritySolverNeqLanczos with NstatesNeq="
 				          << nStatesNeq << "\n";
 				using DmrgNeqSolverType =
 				    Dmft::NeqDmftSolver<std::complex<RealType>,
-				                       Dmft::ImpuritySolverNeqDmrg>;
+				                       Dmft::ImpuritySolverNeqLanczos>;
 				DmrgNeqSolverType neqSolver(neqParams, io);
 				runNeq(neqSolver);
 			} else {

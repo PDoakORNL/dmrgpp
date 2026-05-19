@@ -1,5 +1,5 @@
-#ifndef IMPURITYSOLVER_NEQ_DMRG_H
-#define IMPURITYSOLVER_NEQ_DMRG_H
+#ifndef IMPURITYSOLVER_NEQ_LANCZOS_H
+#define IMPURITYSOLVER_NEQ_LANCZOS_H
 
 #include "CincuentaInputCheck.h"
 #include "ImpuritySolverNeqBase.h"
@@ -41,7 +41,7 @@ namespace Dmft {
 // Accuracy improves monotonically with NstatesNeq.  For NstatesNeq >= sector
 // dimension the result is identical to ImpuritySolverNeqExactDiag.
 template <typename ComplexOrRealType>
-class ImpuritySolverNeqDmrg : public ImpuritySolverNeqBase<ComplexOrRealType> {
+class ImpuritySolverNeqLanczos : public ImpuritySolverNeqBase<ComplexOrRealType> {
 
 public:
 
@@ -78,7 +78,7 @@ public:
 	using ParametersSolverType = PsimagLite::ParametersForSolver<RealType>;
 	using LanczosSolverType    = PsimagLite::LanczosSolver<InternalProductOnTheFlyType>;
 
-	ImpuritySolverNeqDmrg(const ParamsNeqType&            params,
+	ImpuritySolverNeqLanczos(const ParamsNeqType&            params,
 	                       typename InputNgType::Readable& io)
 	    : params_(params)
 	    , io_(io)
@@ -100,7 +100,7 @@ public:
 		io.readline(ndown_,   "TargetElectronsDown=");
 		io.readline(nStates_, "NstatesNeq=");
 		if (nStates_ == 0)
-			err("ImpuritySolverNeqDmrg: NstatesNeq must be > 0\n");
+			err("ImpuritySolverNeqLanczos: NstatesNeq must be > 0\n");
 	}
 
 	// One-time setup: truncated Lanczos diagonalization of H_pre and H_post,
@@ -606,4 +606,4 @@ private:
 };
 
 } // namespace Dmft
-#endif // IMPURITYSOLVER_NEQ_DMRG_H
+#endif // IMPURITYSOLVER_NEQ_LANCZOS_H
