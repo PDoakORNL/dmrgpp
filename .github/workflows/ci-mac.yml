@@ -1,4 +1,4 @@
-name: CI - Ubuntu 24.04
+name: CI - MacOS 26
 
 on:
   push:
@@ -12,30 +12,19 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: macos-26
 
     steps:
     - name: Checkout
-      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         path: source
 
-    - name: Set up Spack
-      uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7 # v2.1.1
-      with:
-        ref: develop      # Spack version (examples: develop, releases/v0.23)
-        buildcache: true  # Configure oci://ghcr.io/spack/github-actions-buildcache
-        color: true       # Force color output (SPACK_COLOR=always)
-        path: spack       # Where to clone Spack
-
-    - name: Install Dependencies
-      run: |
-        spack -e ${{github.workspace}}/source install
+    - name: Install Dependencies 
+      run: brew install boost hdf5-mpi gsl open-mpi
 
     - name: Configure
-      shell: spack-bash {0}
       run: |
-        spack env activate ${{github.workspace}}/source
         cmake -S ${{github.workspace}}/source -B ${{github.workspace}}/build -GNinja -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wno-unused-parameter" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
     - name: Build
@@ -46,3 +35,4 @@ jobs:
 
     - name: Install
       run: cmake --install ${{github.workspace}}/build --prefix ${{github.workspace}}/install --config ${{env.BUILD_TYPE}}
+
