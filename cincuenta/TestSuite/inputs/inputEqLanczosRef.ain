@@ -1,0 +1,40 @@
+##Ainur1.0
+
+# Single-iteration regression test for ImpuritySolverEqLanczos.
+# Identical physics to inputCincuenta0.ain (U=8, 5-bath, semicircular DOS, beta=50)
+# so G_imp can be compared directly against the exactdiag reference.
+#
+# With NstatesEq=0 (full diagonalization) the Lehmann G_imp matches
+# ImpuritySolverExactDiag to >= 5 significant figures.
+# G_imp(iw_0 = 0.0628) = (0.0623, -0.3554)  -- same as exactdiag.
+
+FicticiousBeta=50;
+ChemicalPotential=0.;
+Matsubaras=400;
+LatticeGf="energy,semicircular,4";
+NumberOfBathPoints=5;
+DmftNumberOfIterations=1;
+DmftTolerance=0.001;
+ImpuritySolver="lanczos";
+
+FitOptions=particleholesymmetric;
+MinParamsDelta=0.1;
+MinParamsMaxIter=10000;
+MinParamsDelta2=0.01;
+MinParamsTolerance=1e-3;
+MinParamsVerbose=1;
+
+int ImpuritySite=0;
+real HubbardU=8.0;
+
+# 5 bath + 1 impurity = 6 sites; half-filling: 3 up + 3 down
+TargetElectronsUp=3;
+TargetElectronsDown=3;
+
+# NstatesEq=0: full diagonalization; G_imp equals ImpuritySolverExactDiag exactly.
+NstatesEq=0;
+
+real OmegaBegin=-6.;
+integer OmegaTotal=120;
+real OmegaStep=0.1;
+real OmegaDelta=0.1;

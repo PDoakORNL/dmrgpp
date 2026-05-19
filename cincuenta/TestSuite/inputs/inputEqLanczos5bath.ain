@@ -1,0 +1,45 @@
+##Ainur1.0
+
+# Equilibrium DMFT using ImpuritySolverEqLanczos.
+# Same physics as inputCincuenta0.ain (U=8, 5-bath, semicircular DOS, beta=50)
+# so results can be compared directly against the exactdiag reference.
+#
+# Key differences from inputCincuenta0.ain:
+#   ImpuritySolver="lanczos" -- Lehmann/Lanczos instead of DMRG correction-vector
+#   NstatesEq=30             -- keep 30 Lanczos states per sector (set 0 for full diag)
+#   No DMRG-specific params  -- RootOutputname, FiniteLoops*, Tridiag*, etc. not needed
+
+FicticiousBeta=50;
+ChemicalPotential=0.;
+Matsubaras=400;
+LatticeGf="energy,semicircular,4";
+NumberOfBathPoints=5;
+DmftNumberOfIterations=20;
+DmftTolerance=0.001;
+ImpuritySolver="lanczos";
+
+FitOptions=particleholesymmetric;
+MinParamsDelta=0.1;
+MinParamsMaxIter=10000;
+MinParamsDelta2=0.01;
+MinParamsTolerance=1e-3;
+MinParamsVerbose=1;
+
+int ImpuritySite=0;
+
+real HubbardU=8.0;
+
+# 5 bath + 1 impurity = 6 sites; half-filling: 3 up + 3 down
+TargetElectronsUp=3;
+TargetElectronsDown=3;
+
+# Lanczos states per sector (N and N+1).
+# With 5 bath: N sector has C(6,3)^2=400 states, N+1 has C(6,4)*C(6,3)=300.
+# NstatesEq=30 keeps the 30 lowest; set to 0 for exact full diagonalization.
+NstatesEq=30;
+
+# Real-frequency spectral function output (evaluated analytically from Lehmann poles).
+real OmegaBegin=-6.;
+integer OmegaTotal=120;
+real OmegaStep=0.1;
+real OmegaDelta=0.1;

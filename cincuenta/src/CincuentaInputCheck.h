@@ -65,6 +65,7 @@ public:
 		str += "integer NeqDmftIter;\n";
 		str += "real NeqDmftTolerance;\n";
 		str += "integer NstatesNeq;\n"; // Lanczos states per sector for ImpuritySolverNeqLanczos
+		str += "integer NstatesEq;\n";  // Lanczos states per sector for ImpuritySolverEqLanczos
 
 		return str;
 	}
