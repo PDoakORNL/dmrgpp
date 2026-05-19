@@ -7,15 +7,24 @@
 
 int main(int argc, char* argv[])
 {
-	if (argc != 5) {
-		std::cerr << "Usage: " << argv[0] << " pattern expected tolerance file\n";
+	// Optional flag: --first  => stop at the first regex match (default: use last match)
+	bool use_first = false;
+	int  arg_start = 1;
+	if (argc >= 2 && std::string(argv[1]) == "--first") {
+		use_first = true;
+		arg_start = 2;
+	}
+
+	if (argc - arg_start != 4) {
+		std::cerr << "Usage: " << argv[0]
+		          << " [--first] pattern expected tolerance file\n";
 		return 1;
 	}
 
-	std::string pattern { argv[1] };
-	double      expected  = std::stod(argv[2]);
-	double      tolerance = std::stod(argv[3]);
-	std::string filename { argv[4] };
+	std::string pattern { argv[arg_start] };
+	double      expected  = std::stod(argv[arg_start + 1]);
+	double      tolerance = std::stod(argv[arg_start + 2]);
+	std::string filename { argv[arg_start + 3] };
 
 	std::regex    re { pattern };
 	std::smatch   match;
@@ -26,16 +35,20 @@ int main(int argc, char* argv[])
 	}
 
 	std::string line;
-	double      last_found_float = 0.0;
-	bool        matched          = false;
+	double      found_float = 0.0;
+	bool        matched     = false;
 
 	while (std::getline(file, line)) {
 		std::string temp_line = line;
 		while (std::regex_search(temp_line, match, re)) {
-			matched          = true;
-			last_found_float = std::stod(match[1].str());
-			temp_line        = temp_line.substr(match.position() + match.length());
+			found_float = std::stod(match[1].str());
+			matched     = true;
+			if (use_first)
+				break;
+			temp_line = temp_line.substr(match.position() + match.length());
 		}
+		if (matched && use_first)
+			break;
 	}
 
 	if (!matched) {
@@ -43,13 +56,13 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	double diff = std::abs(last_found_float - expected);
+	double diff = std::abs(found_float - expected);
 	if (diff <= tolerance) {
-		std::cout << "Value " << last_found_float << " within tolerance of " << tolerance
+		std::cout << "Value " << found_float << " within tolerance of " << tolerance
 		          << " of expected value " << expected << " diff: " << diff << '\n';
 		return 0;
 	} else {
-		std::cout << "FAIL! Value " << last_found_float << " differs from expected value "
+		std::cout << "FAIL! Value " << found_float << " differs from expected value "
 		          << expected << " by " << diff << '\n';
 		return 1;
 	}
