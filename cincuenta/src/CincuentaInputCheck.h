@@ -64,6 +64,8 @@ public:
 		str += "real NeqDmftTolerance;\n";
 		str += "real BandwidthFinal;\n"; // W_f for hopping quench; default 0 = no quench
 		str += "string NeqOutputPrefix;\n"; // prefix for output Green's function files
+		str += "integer NstatesNeq;\n"; // Lanczos states per sector for
+		                                // ImpuritySolverNeqDmrg
 
 		return str;
 	}
