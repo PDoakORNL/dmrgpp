@@ -5,15 +5,11 @@
 #include "ImpuritySolverNeqBase.h"
 #include "InputCheck.h"
 #include "KadanoffBaym.h"
-#include "LanczosPlusPlus/src/Engine/DefaultSymmetry.h"
-#include "LanczosPlusPlus/src/Engine/InternalProductOnTheFly.h"
-#include "LanczosPlusPlus/src/Engine/InternalProductStored.h"
 #include "LanczosPlusPlus/src/Engine/LabeledOperator.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
 #include "LanczosPlusPlus/src/Engine/ModelSelector.h"
-#include "LanczosSolver.h"
+#include "LanczosImpurityUtils.h"
 #include "Matrix.h"
-#include "ParametersForSolver.h"
 #include "ParamsNeqDmftSolver.h"
 #include "PsimagLite.h"
 #include "Vector.h"
@@ -73,10 +69,9 @@ public:
 	using WordType            = LanczosPlusPlus::LanczosGlobals::WordType;
 	using PairIntType         = LanczosPlusPlus::LanczosGlobals::PairIntType;
 
+	using Utils              = LanczosImpurityUtils<ComplexOrRealType>;
 	using VectorType         = typename PsimagLite::Vector<ComplexOrRealType>::Type;
 	using VectorVectorType   = typename PsimagLite::Vector<VectorType>::Type;
-	using ParametersSolverType = PsimagLite::ParametersForSolver<RealType>;
-	using LanczosSolverType    = PsimagLite::LanczosSolver<InternalProductOnTheFlyType>;
 
 	ImpuritySolverNeqLanczos(const ParamsNeqType&            params,
 	                       typename InputNgType::Readable& io)
@@ -131,7 +126,7 @@ public:
 		VectorRealType energiesPreN;
 		MatrixType     eigvecsPreN, eigvecsPreN1;
 		{
-			const std::string inputStr = buildLanczosInput(
+			const std::string inputStr = Utils::buildLanczosInput(
 			    params_.uInitial, nup_, ndown_, hoppings, potPre, nsites);
 			Dmrg::InputCheck ic;
 			typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioW(ic, inputStr);
@@ -140,11 +135,13 @@ public:
 			ModelSelectorType ms(ioR, geom);
 			const ModelBaseType& model = ms();
 
-			diagWithBasisTruncated(model, model.basis(), geom, energiesPreN, eigvecsPreN);
+			Utils::diagWithBasisTruncated(model, model.basis(), geom, nStates_,
+			                              energiesPreN, eigvecsPreN);
 			E0_pre_ = energiesPreN[0];
 
 			std::unique_ptr<BasisBaseType> bN1pre(model.createBasis(nup_ + 1, ndown_));
-			diagWithBasisTruncated(model, *bN1pre, geom, energiesN1_pre_, eigvecsPreN1);
+			Utils::diagWithBasisTruncated(model, *bN1pre, geom, nStates_,
+			                              energiesN1_pre_, eigvecsPreN1);
 
 			buildF(model.basis(), *bN1pre, eigvecsPreN, eigvecsPreN1, impSite);
 		}
@@ -152,7 +149,7 @@ public:
 		// ---- Post-quench: N, N+1, and N-1 sectors -------------------------
 		MatrixType eigvecsPostN, eigvecsPostN1, eigvecsPostNm1;
 		{
-			const std::string inputStr = buildLanczosInput(
+			const std::string inputStr = Utils::buildLanczosInput(
 			    params_.uFinal, nup_, ndown_, hoppings, potPost, nsites);
 			Dmrg::InputCheck ic;
 			typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioW(ic, inputStr);
@@ -161,13 +158,16 @@ public:
 			ModelSelectorType ms(ioR, geom);
 			const ModelBaseType& model = ms();
 
-			diagWithBasisTruncated(model, model.basis(), geom, energiesN_post_, eigvecsPostN);
+			Utils::diagWithBasisTruncated(model, model.basis(), geom, nStates_,
+			                              energiesN_post_, eigvecsPostN);
 
 			std::unique_ptr<BasisBaseType> bN1post(model.createBasis(nup_ + 1, ndown_));
-			diagWithBasisTruncated(model, *bN1post, geom, energiesN1_post_, eigvecsPostN1);
+			Utils::diagWithBasisTruncated(model, *bN1post, geom, nStates_,
+			                              energiesN1_post_, eigvecsPostN1);
 
 			std::unique_ptr<BasisBaseType> bNm1post(model.createBasis(nup_ - 1, ndown_));
-			diagWithBasisTruncated(model, *bNm1post, geom, energiesNm1_post_, eigvecsPostNm1);
+			Utils::diagWithBasisTruncated(model, *bNm1post, geom, nStates_,
+			                              energiesNm1_post_, eigvecsPostNm1);
 
 			// b_n = <n^N_post | GS_pre>
 			// Outer: kept post-quench N states; inner: full Fock basis
@@ -209,62 +209,6 @@ public:
 	const KBType& gimp() const override { return gimp_; }
 
 private:
-
-	// Truncated Lanczos diagonalization of the Hamiltonian in the given basis.
-	// Returns up to min(nStates_, dim) lowest eigenpairs.
-	// eigvecs has shape (dim, nKept): eigvecs(j, i) = component j of eigenvector i.
-	// Falls back to fullDiag (via InternalProductStored) if Lanczos fails or
-	// the sector is smaller than nStates_.
-	void diagWithBasisTruncated(const ModelBaseType& model,
-	                            const BasisBaseType& basis,
-	                            const GeometryType&  geom,
-	                            VectorRealType&      eigs,
-	                            MatrixType&          eigvecs)
-	{
-		const SizeType dim   = basis.size();
-		const SizeType nKeep = std::min(nStates_, dim);
-
-		DefaultSymmetryType         rs(basis, geom, "");
-		InternalProductOnTheFlyType ham(model, basis, rs);
-
-		VectorType       initial(dim);
-		PsimagLite::fillRandom(initial);
-		VectorVectorType zs(nKeep, VectorType(dim));
-		eigs.resize(nKeep);
-
-		ParametersSolverType lparams;
-		lparams.lotaMemory = true;
-		lparams.options    = "reortho"; // full re-orthogonalization keeps eigenvectors orthonormal
-		LanczosSolverType lanczosSolver(ham, lparams);
-
-		try {
-			lanczosSolver.computeAllStatesBelow(eigs, zs, initial, nKeep);
-			// diag() inside computeAllStatesBelow resizes eigs to the full
-			// tridiagonal matrix dimension (Lanczos steps), not nKeep.
-			// Truncate to the nKeep lowest eigenvalues, which are in eigs[0..nKeep-1].
-			eigs.resize(nKeep);
-		} catch (std::exception&) {
-			// Sector is small or Lanczos failed: use fullDiag instead.
-			InternalProductStoredType hamS(model, basis, rs);
-			VectorRealType eigs2(dim);
-			MatrixType     fm;
-			hamS.fullDiag(eigs2, fm);
-			eigs.resize(nKeep);
-			zs.resize(nKeep, VectorType(dim));
-			for (SizeType i = 0; i < nKeep; ++i) {
-				eigs[i] = eigs2[i];
-				for (SizeType j = 0; j < dim; ++j)
-					zs[i][j] = fm(j, i);
-			}
-		}
-
-		// Pack into column-major matrix: eigvecs(j, i) = i-th eigenvector at index j
-		// eigs.size() == nKeep; zs[0..nKeep-1] are valid.
-		eigvecs.resize(dim, eigs.size());
-		for (SizeType i = 0; i < eigs.size(); ++i)
-			for (SizeType j = 0; j < dim; ++j)
-				eigvecs(j, i) = zs[i][j];
-	}
 
 	// f_[l] = <l^{N+1}_pre | c†_{imp,up} | GS_pre>
 	// l runs over nKeptN1_pre kept eigenstates; inner sums over full Fock basis.
@@ -519,58 +463,6 @@ private:
 		for (SizeType k = 0; k < nKeptN1; ++k)
 			s += chi_(k, j) * std::conj(Phi_(k, static_cast<SizeType>(n)));
 		return ComplexType(0, -1) * s;
-	}
-
-	// Build LanczosPlusPlus Anderson-model input string (same as ExactDiag version).
-	static std::string buildLanczosInput(RealType              U,
-	                                     SizeType              nup,
-	                                     SizeType              ndown,
-	                                     const VectorRealType& hoppings,
-	                                     const VectorRealType& potV,
-	                                     SizeType              nsites)
-	{
-		std::string uStr = "[" + ttos(U);
-		for (SizeType i = 1; i < nsites; ++i)
-			uStr += ", 0.";
-		uStr += "]";
-
-		std::string connStr = "[";
-		for (SizeType i = 0; i < hoppings.size(); ++i) {
-			if (i > 0) connStr += ",";
-			connStr += ttos(hoppings[i]);
-		}
-		connStr += "]";
-
-		std::string potStr = "[";
-		for (SizeType i = 0; i < nsites; ++i) {
-			if (i > 0) potStr += ",";
-			potStr += ttos(potV[i]);
-		}
-		potStr += ",";
-		for (SizeType i = 0; i < nsites; ++i) {
-			if (i > 0) potStr += ",";
-			potStr += ttos(potV[i]);
-		}
-		potStr += "]";
-
-		std::string s = "##Ainur1.0\n\n";
-		s += "TotalNumberOfSites=" + ttos(nsites) + ";\n";
-		s += "NumberOfTerms=1;\n";
-		s += "DegreesOfFreedom=1;\n";
-		s += "GeometryKind=star;\n";
-		s += "GeometryOptions=none;\n";
-		s += "hubbardU=" + uStr + ";\n";
-		s += "Model=HubbardOneBand;\n";
-		s += "SolverOptions=twositedmrg,geometryallinsystem,hd5dontprint;\n";
-		s += "Version=templateForDMFT;\n";
-		s += "OutputFile=neqDmrgDummy;\n";
-		s += "InfiniteLoopKeptStates=1;\n";
-		s += "FiniteLoops=0 0 0;\n";
-		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
-		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
-		s += "dir0:Connectors=" + connStr + ";\n";
-		s += "potentialV=" + potStr + ";\n";
-		return s;
 	}
 
 	// ---- Member variables --------------------------------------------------
