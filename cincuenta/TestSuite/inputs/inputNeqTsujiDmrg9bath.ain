@@ -14,8 +14,11 @@
 FicticiousBeta=16;
 ChemicalPotential=0.;
 
-# N_tau imaginary-time steps
-Matsubaras=200;
+# N_tau imaginary-time steps.
+# Keep this small for DMRG: each Matsubara frequency spawns a separate
+# correction-vector sub-process.  20 is sufficient for the self-consistency
+# loop; use 200 only with ImpuritySolver="exactdiag".
+Matsubaras=20;
 
 # Bethe lattice: semicircular DOS, full bandwidth W=4 (half-bandwidth D=2)
 LatticeGf="energy,semicircular,4";
@@ -73,7 +76,7 @@ SolverOptions=doNotCheckDmEigs;
 HubbardUFinal=2.;
 
 TmaxNeq=5.0;
-NtNeq=200;
+NtNeq=50;  # 50 steps for a quick test; raise to 200 for the full Tsuji run
 
 # Sector dimension for 10-site half-filled system is 63k; exact diag is
 # infeasible.  NstatesNeq=50 keeps the 50 lowest Lanczos eigenstates per
