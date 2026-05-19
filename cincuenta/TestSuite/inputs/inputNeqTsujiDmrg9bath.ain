@@ -4,7 +4,7 @@
 # Tsuji interaction-quench benchmark: U_i=0 -> U_f=2 on a half-filled
 # Bethe-lattice Hubbard model (semicircular DOS, W=4, beta=16).
 #
-# Differences from inputNeqTsujiDmrg.ain:
+# Differences from inputNeqTsujiLanczos.ain:
 #   - ImpuritySolver="dmrg"  (DMRG++ instead of exactdiag for equilibrium)
 #   - NumberOfBathPoints=9   (10-site star: 9 bath + 1 impurity)
 #   - TargetElectronsUp/Down=5 (half-filling for 10 sites)

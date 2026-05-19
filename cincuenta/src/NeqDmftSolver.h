@@ -20,7 +20,7 @@ namespace Dmft {
 //
 // ImpSolverTemplate selects the impurity solver:
 //   ImpuritySolverNeqExactDiag  — full Lehmann (default, exact for small baths)
-//   ImpuritySolverNeqDmrg       — truncated Lanczos Lehmann (larger baths)
+//   ImpuritySolverNeqLanczos       — truncated Lanczos Lehmann (larger baths)
 template <typename ComplexOrRealType,
           template <typename> class ImpSolverTemplate = ImpuritySolverNeqExactDiag>
 class NeqDmftSolver {
