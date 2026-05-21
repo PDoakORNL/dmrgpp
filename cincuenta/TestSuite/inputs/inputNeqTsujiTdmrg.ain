@@ -27,7 +27,7 @@ real HubbardU=0.;
 # ---- LanczosPlusPlus/DMRG GS settings --------------------------------------
 RootOutputname="NeqTsujiTdmrg";
 InfiniteLoopKeptStates=200;
-matrix FiniteLoopsGs=[[@auto, 200, 0],[@auto, 200, -1],[@auto, 200, 0],[@auto, 200, -1]];
+matrix FiniteLoopsGs=[[@auto, 200, 0],[@auto, 200, 0],[@auto, 200, 0],[@auto, 200, 0]];
 
 real OmegaBegin=-6.;
 integer OmegaTotal=120;
@@ -56,18 +56,40 @@ NeqDmftTolerance=0.001;
 # ---- tDMRG impurity solver selection ---------------------------------------
 NeqSolver="tdmrg";
 
-# tDMRG finite loops: must cover enough sweeps to accumulate NtNeq=50 time
-# advances.  With TSPAdvanceEach=1 on a 6-site star (~4 interior sites/half-
-# sweep): need ceil(50/4) = 13 half-sweeps -> 7 forward+backward pairs here.
+# tDMRG finite loops: observed ~28 advances per 30 loops on a 6-site star.
+# For NtNeq=50: need ceil(50 * 30/28) = 54 -> use 60 loops (30 pairs).
 matrix FiniteLoopsTdmrg=[
-    [@auto, 200, 0],[@auto, 200, -1],
-    [@auto, 200, 0],[@auto, 200, -1],
-    [@auto, 200, 0],[@auto, 200, -1],
-    [@auto, 200, 0],[@auto, 200, -1],
-    [@auto, 200, 0],[@auto, 200, -1],
-    [@auto, 200, 0],[@auto, 200, -1],
-    [@auto, 200, 0],[@auto, 200, -1]];
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0],
+    [@auto, 200, 0],[@auto, 200, 0]];
 
 # tDMRG parameters: TSPTau matches dt = TmaxNeq/NtNeq = 0.1
-integer TSPTimeSteps=4;
-integer TSPAdvanceEach=1;
+TSPTimeSteps=4;
+TSPAdvanceEach=1;
