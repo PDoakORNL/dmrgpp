@@ -220,7 +220,6 @@ private:
 
 		// Restart from the GS of H(U_i)
 		s += "RestartFilename=" + root_ + "gs;\n";
-		s += "RestartSourceTvForPsi=0;\n";
 
 		// tDMRG time-stepping parameters
 		s += "GsWeight=0.1;\n";
@@ -246,16 +245,12 @@ private:
 	// Parse the tDMRG log file written by DmrgRunner to extract time-series
 	// in-situ measurements and fill the KB grid.
 	//
-	// Log format (per in-situ block, printed by TargetingCommon::test()):
-	//   "-------------&*&*&* In-situ measurements start"
-	//   "<site> <value> <time> <label> <norm>"
-	//   ...
-	//   "-------------&*&*&* In-situ measurements end"
+	// Log format (printed by TargetingCommon::test()):
+	//   "<site> (<re>,<im>) <time> <label> (<norm_re>,<norm_im>)"
 	//
-	// <value> and <norm> are complex in the TimeStepTargeting context and
-	// printed as "(re,im)".  We keep the last measurement per (time_step, label)
-	// pair at site 0 (impurity), which corresponds to the most-swept (most
-	// converged) sweep direction.
+	// Lines that cannot be parsed as this pattern are silently skipped.
+	// We keep the last measurement per (time_step, label) pair at site 0
+	// (impurity), which corresponds to the most-swept (most converged) sweep.
 	void parseTdmrgLog(const std::string& logfile)
 	{
 		std::ifstream fin(logfile);
@@ -269,22 +264,8 @@ private:
 		std::map<int, RealType>    nup_at_step;
 		std::map<int, ComplexType> ggt0_at_step; // <gs|c|P1> at impurity
 
-		bool        inBlock = false;
 		std::string line;
 		while (std::getline(fin, line)) {
-			if (line.find("In-situ measurements start") != std::string::npos) {
-				inBlock = true;
-				continue;
-			}
-			if (line.find("In-situ measurements end") != std::string::npos) {
-				inBlock = false;
-				continue;
-			}
-			if (!inBlock)
-				continue;
-			if (line.find("cocoon:") != std::string::npos)
-				continue;
-
 			// Parse: "<site> <value> <time> <label> <norm>"
 			std::istringstream iss(line);
 			SizeType           site = 0;
