@@ -319,20 +319,16 @@ private:
 		const ComplexType mI   = ComplexType(0, -1); // −i
 
 		for (int n = 0; n <= nT; ++n) {
-			// Diagonal G^<(n,n) = i · n(t_n)  (n total = 2 × n_up by SU(2) symmetry)
+			// G^<(n,n) = i·n_↑(t_n): same single-spin convention as ImpuritySolverNeqExactDiag
 			auto itN = nup_at_step.find(n);
-			if (itN != nup_at_step.end()) {
-				const RealType ntot = RealType(2) * itN->second;
-				gimp_.lesser(n, n)  = ComplexType(0, ntot);
-			}
+			if (itN != nup_at_step.end())
+				gimp_.lesser(n, n) = ComplexType(0, itN->second);
 
-			// G^>(n,0) = −i · <gs|c|P1>  (spin-up channel; SU(2) gives full GF via ×2)
+			// G^>(n,0) = −i·⟨Ψ_B(t)|c_↑|Φ(t)⟩ (spin-up only, matching exactdiag convention)
 			// G^R(n,0) ≈ G^>(n,0) — placeholder until G^<(n,0) is computed.
 			auto itG = ggt0_at_step.find(n);
-			if (itG != ggt0_at_step.end()) {
-				const ComplexType ggt0 = mI * itG->second * RealType(2);
-				gimp_.retarded(n, 0)  = ggt0;
-			}
+			if (itG != ggt0_at_step.end())
+				gimp_.retarded(n, 0) = mI * itG->second;
 		}
 	}
 
