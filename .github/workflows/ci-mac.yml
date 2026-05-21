@@ -1,0 +1,38 @@
+name: CI - MacOS 26
+
+on:
+  push:
+    branches:
+  pull_request:
+    branches:
+      - master
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: macos-26
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        path: source
+
+    - name: Install Dependencies 
+      run: brew install boost hdf5-mpi gsl open-mpi
+
+    - name: Configure
+      run: |
+        cmake -S ${{github.workspace}}/source -B ${{github.workspace}}/build -GNinja -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wno-unused-parameter" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Test
+      run: ctest --test-dir ${{github.workspace}}/build -C ${{env.BUILD_TYPE}} -E ^output3$ --output-on-failure
+
+    - name: Install
+      run: cmake --install ${{github.workspace}}/build --prefix ${{github.workspace}}/install --config ${{env.BUILD_TYPE}}
+
