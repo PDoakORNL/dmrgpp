@@ -67,6 +67,10 @@ public:
 		str += "integer NstatesNeq;\n"; // Lanczos states per sector for ImpuritySolverNeqLanczos
 		str += "integer NstatesEq;\n";  // Lanczos states per sector for ImpuritySolverEqLanczos
 
+		// tDMRG non-equilibrium impurity solver (ImpuritySolverNeqTdmrg)
+		str += "string NeqSolver;\n";             // "tdmrg" to select tDMRG solver
+		str += "matrix FiniteLoopsTdmrg;\n";      // finite-loop spec for the tDMRG run
+
 		return str;
 	}
 
