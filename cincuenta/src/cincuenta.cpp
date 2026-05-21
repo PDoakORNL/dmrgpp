@@ -2,6 +2,7 @@
 #include "Dispersion.h"
 #include "DmftSolver.h"
 #include "ImpuritySolverNeqLanczos.h"
+#include "ImpuritySolverNeqTdmrg.h"
 #include "InputPath.hpp"
 #include "NeqDmftSolver.h"
 #include "ProgramGlobals.h"
@@ -188,10 +189,45 @@ int main(int argc, char** argv)
 			std::cout << "\n=== Non-equilibrium DMFT (interaction quench) ===\n";
 			ParamsNeqType neqParams(io);
 
-			using ExactNeqSolverType = Dmft::NeqDmftSolver<std::complex<RealType>>;
-			ExactNeqSolverType neqSolver(neqParams, io);
-			neqSolver.solve(dmftSolver.bathResult());
-			neqSolver.dumpGreenFunctions();
+			SizeType nStatesNeq = 0;
+			try {
+				io.readline(nStatesNeq, "NstatesNeq=");
+			} catch (std::exception&) { }
+
+			auto runNeq = [&](auto& neqSolver)
+			{
+				neqSolver.solve(dmftSolver.bathResult());
+				neqSolver.dumpGreenFunctions();
+			};
+
+			// Check for tDMRG solver selection
+			std::string neqSolverType;
+			try {
+				io.readline(neqSolverType, "NeqSolver=");
+			} catch (std::exception&) { }
+
+			if (neqSolverType == "tdmrg") {
+				std::cout << "  using ImpuritySolverNeqTdmrg (tDMRG)\n";
+				using TdmrgImpType
+				    = Dmft::ImpuritySolverNeqTdmrg<std::complex<RealType>>;
+				TdmrgImpType tdmrgSolver(neqParams, application, io);
+				tdmrgSolver.initialize(dmftSolver.bathResult());
+				tdmrgSolver.gimp().dump("green");
+			} else if (nStatesNeq > 0) {
+				std::cout << "  using ImpuritySolverNeqLanczos with NstatesNeq="
+				          << nStatesNeq << "\n";
+				using DmrgNeqSolverType
+				    = Dmft::NeqDmftSolver<std::complex<RealType>,
+				                          Dmft::ImpuritySolverNeqLanczos>;
+				DmrgNeqSolverType neqSolver(neqParams, io);
+				runNeq(neqSolver);
+			} else {
+				using ExactNeqSolverType
+				    = Dmft::NeqDmftSolver<std::complex<RealType>>;
+				ExactNeqSolverType neqSolver(neqParams, io);
+				neqSolver.solve(dmftSolver.bathResult());
+				neqSolver.dumpGreenFunctions();
+			}
 		}
 	}
 }
