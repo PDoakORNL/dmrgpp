@@ -58,7 +58,7 @@ NeqSolver="tdmrg";
 
 # tDMRG finite loops: must cover enough sweeps to accumulate NtNeq=50 time
 # advances.  With TSPAdvanceEach=1 on a 6-site star (~4 interior sites/half-
-# sweep): need ceil(50/4) = 13 half-sweeps → 7 forward+backward pairs here.
+# sweep): need ceil(50/4) = 13 half-sweeps -> 7 forward+backward pairs here.
 matrix FiniteLoopsTdmrg=[
     [@auto, 200, 0],[@auto, 200, -1],
     [@auto, 200, 0],[@auto, 200, -1],
