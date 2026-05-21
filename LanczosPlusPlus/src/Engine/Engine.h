@@ -116,7 +116,6 @@ public:
 	}
 
 	//! Calc Green function G(isite,jsite)  (still diagonal in spin)
-	void spectralFunction(ContinuedFractionCollectionType&          cfCollection,
 	void spectralFunction(CollectionContFractionType&               cfCollection,
 	                      VectorStringType&                         vstr,
 	                      const LabeledOperatorType&                lOperator,
@@ -137,13 +136,13 @@ public:
 	Here we document the spectral functions and Green function G(isite,jsite)
 	(still diagonal in spin)
 	*/
-	void spectralFunction(ContinuedFractionCollectionType& cfCollection,
-	                      VectorStringType&                vstr,
-	                      const LabeledOperatorType&       lOperator1,
-	                      int                              isite,
-	                      int                              jsite,
-	                      const PairType&                  spins,
-	                      const PairType&                  orbs) const
+	void spectralFunction(CollectionContFractionType& cfCollection,
+	                      VectorStringType&           vstr,
+	                      const LabeledOperatorType&  lOperator1,
+	                      int                         isite,
+	                      int                         jsite,
+	                      const PairType&             spins,
+	                      const PairType&             orbs) const
 	{
 		if (spins.first != spins.second) {
 			PsimagLite::String str(__FILE__);
@@ -464,7 +463,7 @@ public:
 		}
 	}
 
-	void calcSpectral(ContinuedFractionType&     cf,
+	void calcSpectral(ContFractionType&          cf,
 	                  const bool                 isFermionic,
 	                  const VectorType&          modifVector,
 	                  const InternalProductType& matrix,

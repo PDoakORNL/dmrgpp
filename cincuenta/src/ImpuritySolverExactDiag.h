@@ -40,7 +40,7 @@ public:
 	using ModelSelectorType
 	    = LanczosPlusPlus::ModelSelector<ComplexOrRealType, GeometryType, DmrgInputReadable>;
 	using ModelBaseType
-	    = LanczosPlusPlus::ModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	    = LanczosPlusPlus::LanczosModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
 	using LanzcosSymmetryType
 	    = LanczosPlusPlus::DefaultSymmetry<GeometryType, typename ModelBaseType::BasisBaseType>;
 	using InternalProductType
