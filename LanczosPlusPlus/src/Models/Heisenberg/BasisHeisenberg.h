@@ -4,7 +4,7 @@
 #ifndef LANCZOS_BASIS_HEISENBERG_H
 #define LANCZOS_BASIS_HEISENBERG_H
 
-#include "../../Engine/BasisBase.h"
+#include "BasisBase.h"
 #include "BitManip.h"
 #include "LanczosGlobals.h"
 

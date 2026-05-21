@@ -20,7 +20,7 @@ Please see full open source license included in file LICENSE.
 #define LANCZOS_IMMM_H
 
 #include "BasisImmm.h"
-#include "ModelBase.h"
+#include "LanczosModelBase.hpp"
 #include "ParametersImmm.h"
 #include "SparseRowCached.h"
 
@@ -28,11 +28,11 @@ namespace LanczosPlusPlus {
 
 template <typename ComplexOrRealType, typename GeometryType, typename InputType>
 
-class Immm : public ModelBase<ComplexOrRealType, GeometryType, InputType> {
+class Immm : public LanczosModelBase<ComplexOrRealType, GeometryType, InputType> {
 
-	typedef typename PsimagLite::Real<ComplexOrRealType>::Type    RealType;
-	typedef PsimagLite::Matrix<ComplexOrRealType>                 MatrixType;
-	typedef ModelBase<ComplexOrRealType, GeometryType, InputType> BaseType;
+	typedef typename PsimagLite::Real<ComplexOrRealType>::Type           RealType;
+	typedef PsimagLite::Matrix<ComplexOrRealType>                        MatrixType;
+	typedef LanczosModelBase<ComplexOrRealType, GeometryType, InputType> BaseType;
 
 	enum
 	{

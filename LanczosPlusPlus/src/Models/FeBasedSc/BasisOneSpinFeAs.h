@@ -20,11 +20,11 @@ Please see full open source license included in file LICENSE.
 
 #ifndef BASIS_ONE_SPIN_FE_AS_H
 #define BASIS_ONE_SPIN_FE_AS_H
-#include "../../Engine/LanczosGlobals.h"
-#include "../../Engine/Partitions.h"
 #include "BitManip.h"
 #include "LabeledOperator.h"
+#include "LanczosGlobals.h"
 #include "Matrix.h"
+#include "Partitions.h"
 
 namespace LanczosPlusPlus {
 
@@ -37,18 +37,14 @@ public:
 	typedef LanczosGlobals::WordType WordType;
 	typedef LabeledOperator          LabeledOperatorType;
 
-	static SizeType                     orbitals_;
-	static SizeType                     nsite_;
 	static PsimagLite::Matrix<SizeType> comb_;
 
 	BasisOneSpinFeAs(SizeType nsite, SizeType npart, SizeType orbitals)
-	    : npart_(npart)
+	    : orbitals_(orbitals)
+	    , nsite_(nsite)
+	    , npart_(npart)
 	{
-		if (nsite_ > 0 && nsite != nsite_)
-			throw std::runtime_error("All basis must have same number of sites\n");
-		orbitals_ = orbitals;
-		nsite_    = nsite;
-		doCombinatorial();
+		LanczosGlobals::doCombinatorial(orbitals_ * nsite_ + 1);
 		LanczosGlobals::doBitmask(nsite_ * orbitals_ * orbitals_ + 1);
 
 		/* compute size of basis */
@@ -64,7 +60,7 @@ public:
 			const PsimagLite::Vector<SizeType>::Type& na  = partitions(i);
 			SizeType                                  tmp = 1;
 			for (SizeType j = 0; j < na.size(); j++)
-				tmp *= comb_(nsite_, na[j]);
+				tmp *= LanczosGlobals::combinatorial(nsite_, na[j]);
 			size_ += tmp;
 		}
 		data_.resize(size_);
@@ -436,6 +432,8 @@ private:
 		return sum;
 	}
 
+	SizeType                           orbitals_;
+	SizeType                           nsite_;
 	SizeType                           size_;
 	SizeType                           npart_;
 	PsimagLite::Vector<WordType>::Type data_;

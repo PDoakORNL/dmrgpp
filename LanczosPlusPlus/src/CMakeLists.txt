@@ -8,7 +8,7 @@ add_executable(
   LanczosDriver4.cpp
   LanczosDriver5.cpp
   LanczosGlobals.cpp)
-target_include_directories(lanczos PRIVATE Engine)
+target_include_directories(lanczos PRIVATE Engine ${CMAKE_SOURCE_DIR})
 target_link_libraries(lanczos PUBLIC psimaglite::psimaglite)
 
 add_executable(thermal thermal.cpp)

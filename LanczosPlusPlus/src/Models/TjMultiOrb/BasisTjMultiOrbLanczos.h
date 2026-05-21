@@ -4,7 +4,7 @@
 #ifndef BASIS_TJ_MULTIORB_LANCZOS_H
 #define BASIS_TJ_MULTIORB_LANCZOS_H
 
-#include "../../Engine/BasisBase.h"
+#include "BasisBase.h"
 #include "BitManip.h"
 #include "LabeledOperator.h"
 #include "LanczosGlobals.h"

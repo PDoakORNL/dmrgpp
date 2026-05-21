@@ -35,21 +35,12 @@ public:
 	typedef LanczosGlobals::WordType WordType;
 	typedef LabeledOperator          LabeledOperatorType;
 
-	static SizeType                     nsite_;
-	static PsimagLite::Matrix<SizeType> comb_;
-
 	BasisOneSpinImmm(const PsimagLite::Vector<SizeType>::Type& orbsPerSite, SizeType npart)
 	    : orbsPerSite_(orbsPerSite)
+	    , nsite_(orbsPerSite.size())
 	    , npart_(npart)
 	{
-		if (nsite_ > 0 && orbsPerSite.size() != nsite_) {
-			PsimagLite::String s
-			    = "BasisOneSpinImmm: All basis must have same number of sites\n";
-			throw std::runtime_error(s.c_str());
-		}
-
-		nsite_ = orbsPerSite.size();
-		doCombinatorial();
+		LanczosGlobals::doCombinatorial(orbs() * nsite_ + 1);
 		LanczosGlobals::doBitmask(nsite_ * 4 + 1);
 
 		/* compute size of basis */
@@ -61,11 +52,11 @@ public:
 		SizeType levels = 0;
 		for (SizeType i = 0; i < orbsPerSite_.size(); i++)
 			levels += orbsPerSite_[i];
-		SizeType tmp = comb_(levels, npart);
+		SizeType tmp = LanczosGlobals::combinatorial(levels, npart);
 		data_.resize(tmp);
 
 		levels = orbsPerSite_.size() * orbs();
-		tmp    = comb_(levels, npart);
+		tmp    = LanczosGlobals::combinatorial(levels, npart);
 		reordering_.resize(tmp);
 
 		// compute basis:
@@ -78,8 +69,6 @@ public:
 			fillPartialBasis(basisB, nb);
 			collateBasis(counter, counter2, basisA, basisB);
 		}
-		// 			std::cerr<<" in ctor NPART="<<npart_<<"\n";
-		// 			print(std::cout);
 	}
 
 	SizeType size() const { return data_.size(); }
@@ -103,25 +92,6 @@ public:
 		print(std::cout, true);
 		assert(false);
 		return 0;
-		// 			WordType ketA=0,ketB=0;
-		// 			uncollateKet(ketA,ketB,ket);
-		// 			// p(ket) = \sum_{na'=0}^{na'<na} S_na' * S_nb'
-		// 			//			+ p_A(ket_A)*S_nb + p_B(ket_B)
-		// 			// where S_x = C^n_x
-		// 			SizeType na = PsimagLite::BitManip::count(ketA);
-		// 			// note nb = PsimagLite::BitManip::count(ketB)
-		// 			// or nb  = npart -na
-		// 			SizeType s = 0;
-		// 			for (SizeType nap=0;nap<na;nap++) {
-		// 				SizeType nbp = npart_ - nap;
-		// 				s += comb_(nsite_,nap) * comb_(nsite_,nbp);
-		// 			}
-		// 			SizeType nb = npart_ - na;
-		// 			s += perfectIndexPartial(ketA)*comb_(nsite_,nb);
-		// 			s += perfectIndexPartial(ketB);
-		// 			assert(s<reordering_.size());
-		// 			assert(reordering_[s]<data_.size());
-		// 			return reordering_[s];
 	}
 
 	SizeType getN(WordType ket, SizeType site, SizeType orb) const
@@ -145,14 +115,7 @@ public:
 		return PsimagLite::BitManip::count(ketB);
 	}
 
-	SizeType getN(SizeType) const
-	{
-		// 			SizeType c = 0;
-		// 			for (SizeType orb=0;orb<orbsPerSite_[i];orb++)
-		// 				c += getN(i,orb);
-		// 			return c;
-		throw std::runtime_error("getN\n");
-	}
+	SizeType getN(SizeType) const { throw std::runtime_error("getN\n"); }
 
 	static const WordType& bitmask(SizeType i) { return LanczosGlobals::bitmask(i); }
 
@@ -383,27 +346,12 @@ private:
 		return false;
 	}
 
-	void doCombinatorial()
-	{
-		/* look-up table for binomial coefficients */
-		comb_.resize(orbs() * nsite_ + 1, orbs() * nsite_ + 1, 0);
-
-		for (SizeType n = 0; n < comb_.n_row(); ++n) {
-			SizeType m   = 0;
-			int      j   = n;
-			SizeType i   = 1;
-			SizeType cnm = 1;
-			for (; m <= n / 2; m++, cnm = cnm * j / i, i++, j--)
-				comb_(n, m) = comb_(n, n - m) = cnm;
-		}
-	}
-
 	SizeType perfectIndexPartial(WordType state) const
 	{
 		SizeType n = 0;
 		for (SizeType b = 0, c = 1; state > 0; b++, state >>= 1)
 			if (state & 1)
-				n += comb_(b, c++);
+				n += LanczosGlobals::combinatorial(b, c++);
 
 		return n;
 	}
@@ -471,6 +419,7 @@ private:
 	}
 
 	const PsimagLite::Vector<SizeType>::Type& orbsPerSite_;
+	SizeType                                  nsite_;
 	SizeType                                  npart_;
 	PsimagLite::Vector<WordType>::Type        data_;
 	PsimagLite::Vector<WordType>::Type        reordering_;

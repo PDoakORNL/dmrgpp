@@ -21,6 +21,7 @@ Please see full open source license included in file LICENSE.
 #ifndef ENGINE_H_
 #define ENGINE_H_
 #include "BLAS.h"
+#include "ContinuedFractionCollection.h"
 #include "DefaultSymmetry.h"
 #include "GetBraOrKet.h"
 #include "LabeledOperator.h"
@@ -65,7 +66,6 @@ public:
 	typedef PsimagLite::LanczosSolver<InternalProductDefaultType>   LanczosSolverDefaultType;
 	typedef PsimagLite::Matrix<ComplexOrRealType>                   MatrixType;
 	typedef PsimagLite::Matrix<RealType>                            MatrixRealType;
-	typedef typename LanczosSolverType::TridiagonalMatrixType       TridiagonalMatrixType;
 	typedef typename PsimagLite::Vector<SizeType>::Type             VectorSizeType;
 	typedef std::pair<SizeType, SizeType>                           PairType;
 	typedef typename PsimagLite::Vector<RealType>::Type             VectorRealType;
@@ -74,6 +74,10 @@ public:
 	typedef PsimagLite::OneOperatorSpec                             OneOperatorSpecType;
 	typedef typename ModelType::RahulOperatorType                   RahulOperatorType;
 	typedef typename ModelType::VectorRahulOperatorType             VectorRahulOperatorType;
+	using TridiagonalMatrixType = PsimagLite::TridiagonalMatrix<RealType>;
+	using ContinuedFractionType = PsimagLite::ContinuedFraction<TridiagonalMatrixType>;
+	using ContinuedFractionCollectionType
+	    = PsimagLite::ContinuedFractionCollection<ContinuedFractionType>;
 
 	// ContF needs to support concurrency FIXME
 	static const SizeType parallelRank_   = 0;
@@ -114,7 +118,6 @@ public:
 	}
 
 	//! Calc Green function G(isite,jsite)  (still diagonal in spin)
-	template <typename ContinuedFractionCollectionType>
 	void spectralFunction(ContinuedFractionCollectionType&          cfCollection,
 	                      VectorStringType&                         vstr,
 	                      const LabeledOperatorType&                lOperator,
@@ -135,7 +138,6 @@ public:
 	Here we document the spectral functions and Green function G(isite,jsite)
 	(still diagonal in spin)
 	*/
-	template <typename ContinuedFractionCollectionType>
 	void spectralFunction(ContinuedFractionCollectionType& cfCollection,
 	                      VectorStringType&                vstr,
 	                      const LabeledOperatorType&       lOperator1,
@@ -152,11 +154,7 @@ public:
 		}
 
 		assert(0 < vectors_.size());
-		const VectorType& gsVector = vectors_[0];
-
-		typedef typename ContinuedFractionCollectionType::ContinuedFractionType
-		    ContinuedFractionType;
-
+		const VectorType&         gsVector   = vectors_[0];
 		const LabeledOperatorType lOperator2 = lOperator1.transposeConjugate();
 
 		const BasisType* basisNew   = 0;
@@ -467,7 +465,6 @@ public:
 		}
 	}
 
-	template <typename ContinuedFractionType>
 	void calcSpectral(ContinuedFractionType&     cf,
 	                  const bool                 isFermionic,
 	                  const VectorType&          modifVector,
@@ -476,13 +473,11 @@ public:
 	                  SizeType,
 	                  bool isDiagonal) const
 	{
-		typedef typename ContinuedFractionType::TridiagonalMatrixType TridiagonalMatrixType;
-
 		ParametersForSolverType params(io_, "Spectral");
 
 		LanczosSolverType lanczosSolver(matrix, params);
 
-		TridiagonalMatrixType ab;
+		PsimagLite::TridiagonalMatrix<RealType> ab;
 
 		lanczosSolver.decomposition(modifVector, ab);
 		typename VectorType::value_type weight = modifVector * modifVector;

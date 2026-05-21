@@ -7,11 +7,11 @@
 #include "../Models/FermionSpinless/FermionSpinless.hh"
 #include "../Models/Heisenberg/Heisenberg.h"
 #include "../Models/HubbardOneOrbital/HubbardOneOrbital.h"
-#include "../Models/HubbardOneOrbitalRashbaSOC/HubbardOneOrbitalRashbaSOC.h"
+#include "../Models/HubbardOneOrbital/HubbardOneOrbitalRashbaSOC.h"
 #include "../Models/Immm/Immm.h"
 #include "../Models/Kitaev/Kitaev.h"
 #include "../Models/TjMultiOrb/TjMultiOrb.h"
-#include "ModelBase.h"
+#include "LanczosModelBase.hpp"
 #include "Vector.h"
 
 namespace LanczosPlusPlus {
@@ -36,7 +36,7 @@ class ModelSelector {
 
 public:
 
-	typedef ModelBase<ComplexOrRealType, GeometryType, InputType> ModelBaseType;
+	typedef LanczosModelBase<ComplexOrRealType, GeometryType, InputType> ModelBaseType;
 
 	/** @class hide_modelselector
 	 - TargetElectronsUp=integer
