@@ -141,7 +141,7 @@ public:
 		{
 			Dmrg::CmdLineOptions opts;
 			opts.logfile              = tdmrgLog;
-			opts.in_situ_measurements = "<gs|nup|gs>,<gs|c|P1>";
+			opts.in_situ_measurements = "<gs|nup|gs>,<gs|c|P1>,<gs|P0>";
 			const std::string input = buildTdmrgInput(params_.uFinal, hoppings, potTdmrg,
 			                                           nup_, ndown_, nsites);
 			DmrgRunnerType runner(app_, input, opts);
@@ -154,7 +154,7 @@ public:
 		{
 			Dmrg::CmdLineOptions opts;
 			opts.logfile              = holeTdmrgLog;
-			opts.in_situ_measurements = "<P1|c|gs>";
+			opts.in_situ_measurements = "<P1|c|gs>,<gs|P0>";
 			const std::string input = buildHoleTdmrgInput(params_.uFinal, hoppings, potTdmrg,
 			                                               nup_, ndown_, nsites);
 			DmrgRunnerType runner(app_, input, opts);
@@ -308,7 +308,7 @@ private:
 
 	// ---- Log parsing -------------------------------------------------------
 
-	// Parse the particle-sector tDMRG log for <gs|nup|gs> and <gs|c|P1>.
+	// Parse the particle-sector tDMRG log for <gs|nup|gs>, <gs|c|P1>, and <gs|P0>.
 	// Log format: "<site> (<re>,<im>) <time> <label> (<norm_re>,<norm_im>)"
 	// Last measurement per (step, label) at site 0 wins (most converged sweep).
 	void parseTdmrgLog(const std::string&          logfile,
@@ -320,6 +320,8 @@ private:
 			err("ImpuritySolverNeqTdmrg: cannot open tDMRG log '" + logfile + "'\n");
 			return;
 		}
+
+		std::map<int, ComplexType> gauge_at_step; // <gs|P0> at each step
 
 		std::string line;
 		while (std::getline(fin, line)) {
@@ -345,6 +347,8 @@ private:
 				nup_at_step[n] = re;
 			else if (label == "<gs|c|P1>")
 				ggt0_at_step[n] = ComplexType(re, im);
+			else if (label == "<gs|P0>")
+				gauge_at_step[n] = ComplexType(re, im);
 		}
 
 		if (nup_at_step.empty() && ggt0_at_step.empty())
@@ -352,9 +356,21 @@ private:
 			             "found in '" << logfile << "'.  Check TSP parameters and "
 			             "finite-loop count.\n";
 
-		// Phase correction: at t=0, <gs|c|P1> = <GS|c c†|GS> = 1 - n_↑, which is
-		// real.  DMRG gauge fixing with complex arithmetic can introduce a small
-		// spurious phase.  Rotate the entire series by -arg(M(0)) to remove it.
+		// Per-step gauge correction: true_value = <gs|c|P1> / <gs|P0>.
+		// <gs|P0> = 1 physically; DMRG returns e^{i(φ_P0 - φ_gs)}.
+		// Dividing cancels the spurious TSP-vs-GS phase, including sign flips at
+		// sweep reversals, assuming all TSP targets share the same gauge phase.
+		// Note: in the product-TSP setup, P0 is consumed by the second operator
+		// and does not persist; gauge_at_step is empty so this loop is a no-op.
+		for (auto& kv : ggt0_at_step) {
+			auto it = gauge_at_step.find(kv.first);
+			if (it != gauge_at_step.end() && std::abs(it->second) > RealType(1e-10))
+				kv.second /= it->second;
+		}
+
+		// Fallback: t=0 anchor.  At t=0, <gs|c|P1> = 1 - n_↑ which is real.
+		// Rotating the series by -arg(M(0)) removes any residual global phase not
+		// handled by per-step correction above.
 		auto it0 = ggt0_at_step.find(0);
 		if (it0 != ggt0_at_step.end()) {
 			const ComplexType z0 = it0->second;
@@ -366,17 +382,13 @@ private:
 		}
 	}
 
-	// Parse the hole-sector tDMRG log for <P1|c|gs>.
+	// Parse the hole-sector tDMRG log for <P1|c|gs> and <gs|P0>.
 	// G^<(t,0) = +i * measured value.
 	//
-	// Two-stage gauge correction:
-	//   1. Sign-flip detection: the hole state lives in the N-1 sector, which is
-	//      gauge-fixed independently from the N-sector targets.  When the sweep
-	//      direction changes, the gauge can flip by ~180°.  We detect this by
-	//      checking |M(t)+M(t-dt)|² ≪ |M(t)-M(t-dt)|² and negate M(t).
-	//   2. Global phase correction: even at t=0, complex DMRG arithmetic can
-	//      give M(0) a small spurious phase.  Since M(0) = <n_↑> must be real,
-	//      we rotate the whole series by -arg(M(0)) after the sign-flip pass.
+	// Per-step gauge correction: <P1|c|gs> picks up a spurious phase e^{i(φ_gs-φ_P1)}
+	// from the DMRG gauge.  <gs|P0> = e^{i(φ_P0-φ_gs)} (physically 1).  Multiplying
+	// by <gs|P0> cancels the phase assuming φ_P0 = φ_P1 (all TSP targets share gauge).
+	// This also automatically removes sign flips at sweep reversals.
 	void parseHoleTdmrgLog(const std::string&          logfile,
 	                        std::map<int, ComplexType>& glt0_at_step)
 	{
@@ -386,6 +398,8 @@ private:
 			          << logfile << "'\n";
 			return;
 		}
+
+		std::map<int, ComplexType> gauge_at_step; // <gs|P0> at each step (hole run)
 
 		std::string line;
 		while (std::getline(fin, line)) {
@@ -409,6 +423,8 @@ private:
 
 			if (label == "<P1|c|gs>")
 				glt0_at_step[n] = ComplexType(re, im);
+			else if (label == "<gs|P0>")
+				gauge_at_step[n] = ComplexType(re, im);
 		}
 
 		if (glt0_at_step.empty()) {
@@ -418,6 +434,9 @@ private:
 		}
 
 		// Stage 1: sign-flip correction.
+		// The hole state (N-1 sector) is gauge-fixed independently from the N-sector
+		// targets.  At sweep direction changes the gauge can jump by ~180°; we detect
+		// this by checking |M(t)+M(t-dt)|² ≪ |M(t)-M(t-dt)|² and negate M(t).
 		{
 			auto it = glt0_at_step.begin();
 			auto prev = it;
@@ -431,7 +450,18 @@ private:
 			}
 		}
 
-		// Stage 2: global phase correction using the t=0 anchor.
+		// Stage 2 (per-step): true_value = <P1|c|gs> × <gs|P0>.
+		// <gs|P0> = e^{i(φ_P0 - φ_gs)}; multiplying cancels e^{i(φ_gs - φ_P1)}.
+		// Note: in the product-TSP setup P0 is consumed by the second operator,
+		// so gauge_at_step is empty and this loop is a no-op.
+		for (auto& kv : glt0_at_step) {
+			auto it = gauge_at_step.find(kv.first);
+			if (it != gauge_at_step.end() && std::abs(it->second) > RealType(1e-10))
+				kv.second *= it->second;
+		}
+
+		// Stage 3 (fallback): t=0 anchor.  After sign-flip correction, M(0) should
+		// be real (= <n_↑>).  Rotating by -arg(M(0)) removes the residual global phase.
 		{
 			auto it0 = glt0_at_step.find(0);
 			if (it0 != glt0_at_step.end()) {
