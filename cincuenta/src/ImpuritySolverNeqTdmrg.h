@@ -351,16 +351,32 @@ private:
 			std::cerr << "ImpuritySolverNeqTdmrg: WARNING: no in-situ measurements "
 			             "found in '" << logfile << "'.  Check TSP parameters and "
 			             "finite-loop count.\n";
+
+		// Phase correction: at t=0, <gs|c|P1> = <GS|c c†|GS> = 1 - n_↑, which is
+		// real.  DMRG gauge fixing with complex arithmetic can introduce a small
+		// spurious phase.  Rotate the entire series by -arg(M(0)) to remove it.
+		auto it0 = ggt0_at_step.find(0);
+		if (it0 != ggt0_at_step.end()) {
+			const ComplexType z0 = it0->second;
+			if (std::abs(z0) > RealType(1e-10)) {
+				const ComplexType phase_inv = ComplexType(std::abs(z0)) / z0;
+				for (auto& kv : ggt0_at_step)
+					kv.second *= phase_inv;
+			}
+		}
 	}
 
 	// Parse the hole-sector tDMRG log for <P1|c|gs>.
 	// G^<(t,0) = +i * measured value.
 	//
-	// Phase-flip correction: the hole state P1 can acquire a global sign from
-	// DMRG gauge fixing during sweeps.  We detect sign flips by checking whether
-	// consecutive measurements satisfy |M(t)+M(t-dt)|² ≪ |M(t)-M(t-dt)|²  (a
-	// sudden ~180° phase jump), and flip the sign back.  This is reliable when
-	// the physical time step is small compared to the evolution time scale.
+	// Two-stage gauge correction:
+	//   1. Sign-flip detection: the hole state lives in the N-1 sector, which is
+	//      gauge-fixed independently from the N-sector targets.  When the sweep
+	//      direction changes, the gauge can flip by ~180°.  We detect this by
+	//      checking |M(t)+M(t-dt)|² ≪ |M(t)-M(t-dt)|² and negate M(t).
+	//   2. Global phase correction: even at t=0, complex DMRG arithmetic can
+	//      give M(0) a small spurious phase.  Since M(0) = <n_↑> must be real,
+	//      we rotate the whole series by -arg(M(0)) after the sign-flip pass.
 	void parseHoleTdmrgLog(const std::string&          logfile,
 	                        std::map<int, ComplexType>& glt0_at_step)
 	{
@@ -401,17 +417,31 @@ private:
 			return;
 		}
 
-		// Correct sign flips: scan consecutive measurements and flip sign when
-		// |prev + curr|² < 0.1 * |prev - curr|² (i.e., nearly anti-parallel).
-		auto it = glt0_at_step.begin();
-		auto prev = it;
-		++it;
-		for (; it != glt0_at_step.end(); ++it, ++prev) {
-			const ComplexType& a = prev->second;
-			const RealType sum_norm  = std::norm(a + it->second);
-			const RealType diff_norm = std::norm(a - it->second);
-			if (sum_norm < RealType(0.1) * diff_norm)
-				it->second = -it->second;
+		// Stage 1: sign-flip correction.
+		{
+			auto it = glt0_at_step.begin();
+			auto prev = it;
+			++it;
+			for (; it != glt0_at_step.end(); ++it, ++prev) {
+				const ComplexType& a = prev->second;
+				const RealType sum_norm  = std::norm(a + it->second);
+				const RealType diff_norm = std::norm(a - it->second);
+				if (sum_norm < RealType(0.1) * diff_norm)
+					it->second = -it->second;
+			}
+		}
+
+		// Stage 2: global phase correction using the t=0 anchor.
+		{
+			auto it0 = glt0_at_step.find(0);
+			if (it0 != glt0_at_step.end()) {
+				const ComplexType z0 = it0->second;
+				if (std::abs(z0) > RealType(1e-10)) {
+					const ComplexType phase_inv = ComplexType(std::abs(z0)) / z0;
+					for (auto& kv : glt0_at_step)
+						kv.second *= phase_inv;
+				}
+			}
 		}
 	}
 
