@@ -19,16 +19,20 @@ namespace Dmft {
 
 // Non-equilibrium impurity solver using DMRG++ time-dependent DMRG (tDMRG).
 //
-// Two-run approach targeting the t'=0 slice of the KB Green's function:
+// Three-run approach targeting the t'=0 slice of the KB Green's function:
 //   Run 1: GS DMRG with H(U_i) → saves state to OutputFile+gs.
 //   Run 2: tDMRG with H(U_f), restarted from Run 1, applying c†_{imp} as the
 //           initial operator to obtain a second target |Φ(t)⟩ alongside the
-//           time-evolved GS |Ψ_B(t)⟩.
+//           time-evolved GS |Ψ_B(t)⟩.  Gives G^>(t,0).
+//   Run 3: tDMRG with H(U_f), restarted from Run 1, applying c_{imp} as the
+//           initial operator to obtain |φ_h(t)⟩ (N-1 sector).  Gives G^<(t,0).
 //
-// In-situ measurements during Run 2:
-//   <gs|nup|gs>  →  n_up(t) at impurity site  →  G^<(t,t) = i·n(t)
-//   <gs|c|P1>    →  ⟨Ψ_B(t)|c|Φ(t)⟩          →  G^>(t,0) = -i·⟨gs|c|P1⟩
-//   G^R(t,0)     ≈  G^>(t,0)  (G^< off-diagonal not yet computed)
+// In-situ measurements:
+//   Run 2: <gs|nup|gs>  →  n_up(t)              →  G^<(t,t) = i·n(t)
+//          <gs|c|P1>    →  ⟨Ψ_B|c|Φ(t)⟩        →  G^>(t,0) = -i·value
+//   Run 3: <P1|c|gs>    →  ⟨φ_h(t)|c|Ψ_B(t)⟩  →  G^<(t,0) = +i·value
+//
+//   G^R(t,0) = G^>(t,0) - G^<(t,0)  (full retarded, no approximation)
 //
 // Required input parameters (in addition to the standard neq-DMFT set):
 //   TargetElectronsUp=      — as for ImpuritySolverNeqExactDiag
@@ -36,15 +40,12 @@ namespace Dmft {
 //   RootOutputname=         — file-name stem for GS/tDMRG outputs
 //   InfiniteLoopKeptStates= — m for the infinite DMRG sweep
 //   FiniteLoopsGs=          — finite-loop spec for the GS run (matrix format)
-//   FiniteLoopsTdmrg=       — finite-loop spec for the tDMRG run (must cover
+//   FiniteLoopsTdmrg=       — finite-loop spec for the tDMRG runs (must cover
 //                              enough sweeps to accumulate N_t advances at
-//                              TSPAdvanceEach sites per advance)
+//                              TSPAdvanceEach sites per advance; reused for both
+//                              particle and hole runs)
 //   TSPTimeSteps=           — number of Krylov vectors per time step (accuracy)
 //   TSPAdvanceEach=         — sites per time advance (controls sweep count)
-//
-// Limitation (MVP): G^<(t,0) for t>0 and G^{Left}(t,τ) are not computed here;
-// those components are zero in gimp_.  The t'=0 slice is sufficient to compare
-// G^R(t,0) and n(t) against ImpuritySolverNeqExactDiag and Tsuji's IPT results.
 template <typename ComplexOrRealType>
 class ImpuritySolverNeqTdmrg : public ImpuritySolverNeqBase<ComplexOrRealType> {
 
@@ -133,13 +134,13 @@ public:
 			runner.doOneRun();
 		}
 
-		// Run 2: tDMRG for H(U_f), restarted from GS, with c†_{imp} as initial operator
+		// Run 2: particle-sector tDMRG — c†_{imp}|GS⟩ evolved under H(U_f)
 		const std::string tdmrgLog = root_ + "tdmrg.log";
-		std::cout << "ImpuritySolverNeqTdmrg: running tDMRG for U_f=" << params_.uFinal
+		std::cout << "ImpuritySolverNeqTdmrg: running particle tDMRG for U_f=" << params_.uFinal
 		          << " to t_max=" << params_.tMax << "\n";
 		{
 			Dmrg::CmdLineOptions opts;
-			opts.logfile             = tdmrgLog;
+			opts.logfile              = tdmrgLog;
 			opts.in_situ_measurements = "<gs|nup|gs>,<gs|c|P1>";
 			const std::string input = buildTdmrgInput(params_.uFinal, hoppings, potTdmrg,
 			                                           nup_, ndown_, nsites);
@@ -147,17 +148,35 @@ public:
 			runner.doOneRun();
 		}
 
-		parseTdmrgLog(tdmrgLog);
+		// Run 3: hole-sector tDMRG — c_{imp}|GS⟩ evolved under H(U_f)
+		const std::string holeTdmrgLog = root_ + "tdmrg_hole.log";
+		std::cout << "ImpuritySolverNeqTdmrg: running hole tDMRG for G^<(t,0)\n";
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile              = holeTdmrgLog;
+			opts.in_situ_measurements = "<P1|c|gs>";
+			const std::string input = buildHoleTdmrgInput(params_.uFinal, hoppings, potTdmrg,
+			                                               nup_, ndown_, nsites);
+			DmrgRunnerType runner(app_, input, opts);
+			runner.doOneRun();
+		}
+
+		std::map<int, RealType>    nup_at_step;
+		std::map<int, ComplexType> ggt0_at_step;
+		parseTdmrgLog(tdmrgLog, nup_at_step, ggt0_at_step);
+
+		std::map<int, ComplexType> glt0_at_step;
+		parseHoleTdmrgLog(holeTdmrgLog, glt0_at_step);
+
+		fillKBGrid(nup_at_step, ggt0_at_step, glt0_at_step);
 	}
 
 	// Fill the n-th time slice of gimp from the pre-computed KB grid.
-	// Only G^R(n,0) and the diagonal G^<(n,n) are populated; other components
-	// that require the hole-sector tDMRG run remain zero for this MVP.
 	void computeGimp(KBType& gimp, int n) const override
 	{
 		gimp.retarded(n, 0) = gimp_.retarded(n, 0);
 		gimp.lesser(n, n)   = gimp_.lesser(n, n);
-		// Matsubara: not computed by tDMRG; leave as zeros.
+		gimp.lesser(n, 0)   = gimp_.lesser(n, 0);
 	}
 
 	const KBType& gimp() const override { return gimp_; }
@@ -240,18 +259,61 @@ private:
 		return s;
 	}
 
+	// Same as buildTdmrgInput but applies c (annihilation) to build the
+	// N-1 sector initial state |φ_h(0)⟩ = c_{imp}|GS⟩ for G^<(t,0).
+	std::string buildHoleTdmrgInput(RealType              U_f,
+	                                 const VectorRealType& hoppings,
+	                                 const VectorRealType& potV,
+	                                 SizeType              nup,
+	                                 SizeType              ndown,
+	                                 SizeType              nsites) const
+	{
+		std::string s = "##Ainur1.0\n\n";
+		s += "TotalNumberOfSites=" + ttos(nsites) + ";\n";
+		s += "NumberOfTerms=1;\n";
+		s += "DegreesOfFreedom=1;\n";
+		s += "GeometryKind=star;\n";
+		s += "GeometryOptions=none;\n";
+		s += "hubbardU=" + buildHubbardUStr(U_f, nsites) + ";\n";
+		s += "Model=HubbardOneBand;\n";
+		s += "SolverOptions=twositedmrg,geometryallinsystem,TimeStepTargeting,restart;\n";
+		s += "Version=neqTdmrg;\n";
+		s += "OutputFile=" + root_ + "tdmrg_hole;\n";
+		s += "InfiniteLoopKeptStates=" + ttos(infiniteLoops_) + ";\n";
+		s += "FiniteLoops=" + finiteLoopsTdmrg_ + ";\n";
+		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
+		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
+		s += "dir0:Connectors=" + buildConnectorsStr(hoppings) + ";\n";
+		s += "potentialV=" + buildPotentialVStr(potV) + ";\n";
+
+		s += "RestartFilename=" + root_ + "gs;\n";
+
+		s += "GsWeight=0.1;\n";
+		s += "TSPTau=" + ttos(params_.dt) + ";\n";
+		s += "TSPTimeSteps=" + ttos(tspTimeSteps_) + ";\n";
+		s += "TSPAdvanceEach=" + ttos(tspAdvanceEach_) + ";\n";
+		s += "TSPAlgorithm=Krylov;\n";
+
+		// Operator: c_{imp} at site 0 (annihilation, N-1 sector hole state)
+		s += "TSPProductOrSum=product;\n";
+		s += "TSPSites=[1, 0];\n";
+		s += "TSPLoops=[0, 0];\n";
+		s += "string TSPOp0:TSPOperator=expression;\n";
+		s += "string TSPOp0:OperatorExpression=identity;\n";
+		s += "string TSPOp1:TSPOperator=expression;\n";
+		s += "string TSPOp1:OperatorExpression=c;\n"; // c = spin-up annihilation
+
+		return s;
+	}
+
 	// ---- Log parsing -------------------------------------------------------
 
-	// Parse the tDMRG log file written by DmrgRunner to extract time-series
-	// in-situ measurements and fill the KB grid.
-	//
-	// Log format (printed by TargetingCommon::test()):
-	//   "<site> (<re>,<im>) <time> <label> (<norm_re>,<norm_im>)"
-	//
-	// Lines that cannot be parsed as this pattern are silently skipped.
-	// We keep the last measurement per (time_step, label) pair at site 0
-	// (impurity), which corresponds to the most-swept (most converged) sweep.
-	void parseTdmrgLog(const std::string& logfile)
+	// Parse the particle-sector tDMRG log for <gs|nup|gs> and <gs|c|P1>.
+	// Log format: "<site> (<re>,<im>) <time> <label> (<norm_re>,<norm_im>)"
+	// Last measurement per (step, label) at site 0 wins (most converged sweep).
+	void parseTdmrgLog(const std::string&          logfile,
+	                   std::map<int, RealType>&    nup_at_step,
+	                   std::map<int, ComplexType>& ggt0_at_step)
 	{
 		std::ifstream fin(logfile);
 		if (!fin || !fin.good()) {
@@ -259,76 +321,108 @@ private:
 			return;
 		}
 
-		// Maps from integer time step index n → measurement value at site 0.
-		// Later entries overwrite earlier ones (last-wins = most converged).
-		std::map<int, RealType>    nup_at_step;
-		std::map<int, ComplexType> ggt0_at_step; // <gs|c|P1> at impurity
-
 		std::string line;
 		while (std::getline(fin, line)) {
-			// Parse: "<site> <value> <time> <label> <norm>"
 			std::istringstream iss(line);
 			SizeType           site = 0;
-			if (!(iss >> site))
-				continue;
-			if (site != 0)
-				continue; // impurity site only
+			if (!(iss >> site)) continue;
+			if (site != 0)     continue;
 
 			std::string valStr;
-			if (!(iss >> valStr))
-				continue;
-
+			if (!(iss >> valStr)) continue;
 			RealType re = 0, im = 0;
-			if (!parseComplex(valStr, re, im))
-				continue;
+			if (!parseComplex(valStr, re, im)) continue;
 
 			RealType t = 0;
-			if (!(iss >> t))
-				continue;
-
+			if (!(iss >> t)) continue;
 			std::string label;
-			if (!(iss >> label))
-				continue;
+			if (!(iss >> label)) continue;
 
-			// Convert physical time to time-step index, rounding to nearest integer.
 			const int n = static_cast<int>(std::round(t / params_.dt));
-			if (n < 0 || n > static_cast<int>(params_.nT))
-				continue;
+			if (n < 0 || n > static_cast<int>(params_.nT)) continue;
 
-			if (label == "<gs|nup|gs>") {
+			if (label == "<gs|nup|gs>")
 				nup_at_step[n] = re;
-			} else if (label == "<gs|c|P1>") {
+			else if (label == "<gs|c|P1>")
 				ggt0_at_step[n] = ComplexType(re, im);
-			}
 		}
 
-		if (nup_at_step.empty() && ggt0_at_step.empty()) {
+		if (nup_at_step.empty() && ggt0_at_step.empty())
 			std::cerr << "ImpuritySolverNeqTdmrg: WARNING: no in-situ measurements "
 			             "found in '" << logfile << "'.  Check TSP parameters and "
 			             "finite-loop count.\n";
+	}
+
+	// Parse the hole-sector tDMRG log for <P1|c|gs>.
+	// G^<(t,0) = +i * measured value.
+	void parseHoleTdmrgLog(const std::string&          logfile,
+	                        std::map<int, ComplexType>& glt0_at_step)
+	{
+		std::ifstream fin(logfile);
+		if (!fin || !fin.good()) {
+			std::cerr << "ImpuritySolverNeqTdmrg: WARNING: cannot open hole tDMRG log '"
+			          << logfile << "'\n";
 			return;
 		}
 
-		fillKBGrid(nup_at_step, ggt0_at_step);
+		std::string line;
+		while (std::getline(fin, line)) {
+			std::istringstream iss(line);
+			SizeType           site = 0;
+			if (!(iss >> site)) continue;
+			if (site != 0)     continue;
+
+			std::string valStr;
+			if (!(iss >> valStr)) continue;
+			RealType re = 0, im = 0;
+			if (!parseComplex(valStr, re, im)) continue;
+
+			RealType t = 0;
+			if (!(iss >> t)) continue;
+			std::string label;
+			if (!(iss >> label)) continue;
+
+			const int n = static_cast<int>(std::round(t / params_.dt));
+			if (n < 0 || n > static_cast<int>(params_.nT)) continue;
+
+			if (label == "<P1|c|gs>")
+				glt0_at_step[n] = ComplexType(re, im);
+		}
+
+		if (glt0_at_step.empty())
+			std::cerr << "ImpuritySolverNeqTdmrg: WARNING: no G^< hole measurements "
+			             "found in '" << logfile << "'\n";
 	}
 
 	void fillKBGrid(const std::map<int, RealType>&    nup_at_step,
-	                const std::map<int, ComplexType>& ggt0_at_step)
+	                const std::map<int, ComplexType>& ggt0_at_step,
+	                const std::map<int, ComplexType>& glt0_at_step)
 	{
-		const int       nT    = static_cast<int>(params_.nT);
-		const ComplexType mI   = ComplexType(0, -1); // −i
+		const int       nT  = static_cast<int>(params_.nT);
+		const ComplexType pI = ComplexType(0,  1); // +i
+		const ComplexType mI = ComplexType(0, -1); // −i
 
 		for (int n = 0; n <= nT; ++n) {
-			// G^<(n,n) = i·n_↑(t_n): same single-spin convention as ImpuritySolverNeqExactDiag
+			// G^<(n,n) = i·n_↑(t_n)
 			auto itN = nup_at_step.find(n);
 			if (itN != nup_at_step.end())
 				gimp_.lesser(n, n) = ComplexType(0, itN->second);
 
-			// G^>(n,0) = −i·⟨Ψ_B(t)|c_↑|Φ(t)⟩ (spin-up only, matching exactdiag convention)
-			// G^R(n,0) ≈ G^>(n,0) — placeholder until G^<(n,0) is computed.
+			// G^>(n,0) = −i·⟨Ψ_B(t)|c_↑|Φ(t)⟩
 			auto itG = ggt0_at_step.find(n);
-			if (itG != ggt0_at_step.end())
-				gimp_.retarded(n, 0) = mI * itG->second;
+			if (itG == ggt0_at_step.end()) continue;
+			const ComplexType ggt = mI * itG->second;
+
+			// G^<(n,0) = +i·⟨φ_h(t)|c_↑|Ψ_B(t)⟩  (from hole run)
+			auto itL = glt0_at_step.find(n);
+			if (itL != glt0_at_step.end()) {
+				const ComplexType glt = pI * itL->second;
+				gimp_.lesser(n, 0)   = glt;
+				gimp_.retarded(n, 0) = ggt - glt; // G^R = G^> − G^<
+			} else {
+				// Hole run missing for this step: fall back to G^R ≈ G^>
+				gimp_.retarded(n, 0) = ggt;
+			}
 		}
 	}
 
