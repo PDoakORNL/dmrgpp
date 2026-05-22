@@ -355,6 +355,12 @@ private:
 
 	// Parse the hole-sector tDMRG log for <P1|c|gs>.
 	// G^<(t,0) = +i * measured value.
+	//
+	// Phase-flip correction: the hole state P1 can acquire a global sign from
+	// DMRG gauge fixing during sweeps.  We detect sign flips by checking whether
+	// consecutive measurements satisfy |M(t)+M(t-dt)|² ≪ |M(t)-M(t-dt)|²  (a
+	// sudden ~180° phase jump), and flip the sign back.  This is reliable when
+	// the physical time step is small compared to the evolution time scale.
 	void parseHoleTdmrgLog(const std::string&          logfile,
 	                        std::map<int, ComplexType>& glt0_at_step)
 	{
@@ -389,9 +395,24 @@ private:
 				glt0_at_step[n] = ComplexType(re, im);
 		}
 
-		if (glt0_at_step.empty())
+		if (glt0_at_step.empty()) {
 			std::cerr << "ImpuritySolverNeqTdmrg: WARNING: no G^< hole measurements "
 			             "found in '" << logfile << "'\n";
+			return;
+		}
+
+		// Correct sign flips: scan consecutive measurements and flip sign when
+		// |prev + curr|² < 0.1 * |prev - curr|² (i.e., nearly anti-parallel).
+		auto it = glt0_at_step.begin();
+		auto prev = it;
+		++it;
+		for (; it != glt0_at_step.end(); ++it, ++prev) {
+			const ComplexType& a = prev->second;
+			const RealType sum_norm  = std::norm(a + it->second);
+			const RealType diff_norm = std::norm(a - it->second);
+			if (sum_norm < RealType(0.1) * diff_norm)
+				it->second = -it->second;
+		}
 	}
 
 	void fillKBGrid(const std::map<int, RealType>&    nup_at_step,
