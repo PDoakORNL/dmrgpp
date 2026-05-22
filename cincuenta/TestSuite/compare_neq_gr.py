@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Compare G^>(t,0) and G^R(t,0) between a tDMRG run and an exact-diag run.
+"""Compare G^<(t,0) and G^R(t,0) between a tDMRG run and an exact-diag run.
 
 Usage:
     python3 compare_neq_gr.py \\
         --tdmrg-retarded  green-retarded-tdmrg \\
+        --tdmrg-lesser    green-lesser-tdmrg \\
         --ed-retarded     green-retarded-ed \\
         --ed-lesser       green-lesser-ed
 
-The tDMRG stores G^R(t,0) ≈ G^>(t,0) (particle sector only, no hole
-correction).  The exact-diag stores the full G^R(t,0) = G^>-G^<.  This
-script compares both the particle sector (G^>) and the full retarded
-function, and prints per-time errors plus summary statistics.
+The tDMRG now computes the full G^R(t,0) = G^>(t,0) - G^<(t,0) directly and
+stores it in green-retarded.  G^<(t,0) is stored in green-lesser.
+The exact-diag stores G^R(t,0) and G^<(t,0) separately.
 
 File format (KadanoffBaym::dump output):
     t  t'  Re(G)  Im(G)
@@ -52,7 +52,6 @@ def print_table(header, rows, col_headers):
     print(header)
     widths = [max(len(h), 6) for h in col_headers]
     fmt_h = "  ".join(f"{{:>{w}}}" for w in widths)
-    fmt_r = "  ".join(f"{{:>{w}.5f}}" for w in widths[1:])
     print(fmt_h.format(*col_headers))
     print("-" * (sum(widths) + 2 * (len(widths) - 1)))
     for row in rows:
@@ -74,67 +73,74 @@ def summarise(label, errors_re, errors_im):
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--tdmrg-retarded", default="green-retarded-tdmrg",
-                   metavar="FILE", help="tDMRG green-retarded file (stores G^>)")
+    p.add_argument("--tdmrg-retarded", default="green-retarded",
+                   metavar="FILE", help="tDMRG green-retarded file (stores full G^R)")
+    p.add_argument("--tdmrg-lesser",   default="green-lesser",
+                   metavar="FILE", help="tDMRG green-lesser file (stores G^<)")
     p.add_argument("--ed-retarded",    default="green-retarded-ed",
                    metavar="FILE", help="Exact-diag green-retarded file (stores G^R)")
     p.add_argument("--ed-lesser",      default="green-lesser-ed",
                    metavar="FILE", help="Exact-diag green-lesser file (stores G^<)")
     args = p.parse_args()
 
-    td_ggt  = read_t0_slice(args.tdmrg_retarded)   # tDMRG: G^>(t,0)
-    ed_gr   = read_t0_slice(args.ed_retarded)       # ED:    G^R(t,0)
-    ed_gl   = read_t0_slice(args.ed_lesser)         # ED:    G^<(t,0)
+    td_gr  = read_t0_slice(args.tdmrg_retarded)   # tDMRG: G^R(t,0)
+    td_gl  = read_t0_slice(args.tdmrg_lesser)      # tDMRG: G^<(t,0)
+    ed_gr  = read_t0_slice(args.ed_retarded)       # ED:    G^R(t,0)
+    ed_gl  = read_t0_slice(args.ed_lesser)         # ED:    G^<(t,0)
 
-    # Reconstruct ED G^>(t,0) = G^R(t,0) + G^<(t,0)
-    ed_ggt = {t: add(ed_gr[t], ed_gl[t]) for t in ed_gr if t in ed_gl}
-
-    times = sorted(set(td_ggt) & set(ed_gr) & set(ed_ggt))
+    times = sorted(set(td_gr) & set(ed_gr))
     if not times:
         print("ERROR: no common time points found -- check file paths", file=sys.stderr)
         sys.exit(1)
 
-    # ---- G^>(t,0) comparison ------------------------------------------------
-    cols = ["t", "Re tDMRG", "Im tDMRG", "Re ED G^>", "Im ED G^>", "|dRe|", "|dIm|"]
-    rows_ggt, dre_ggt, dim_ggt = [], [], []
-    for t in times:
-        r_td, i_td = td_ggt[t]
-        r_ed, i_ed = ed_ggt[t]
-        dr, di = abs(r_td - r_ed), abs(i_td - i_ed)
-        dre_ggt.append(dr); dim_ggt.append(di)
-        rows_ggt.append((t, r_td, i_td, r_ed, i_ed, dr, di))
-
-    print_table("\nG^>(t,0): tDMRG vs exact-diag (particle sector, single-spin)",
-                rows_ggt, cols)
-    summarise("G^>(t,0) errors", dre_ggt, dim_ggt)
-
     # ---- G^R(t,0) comparison ------------------------------------------------
-    # tDMRG approximates G^R ≈ G^> (no hole-sector correction yet).
-    cols2 = ["t", "Re tDMRG", "Im tDMRG", "Re ED G^R", "Im ED G^R", "|dRe|", "|dIm|"]
+    cols = ["t", "Re tDMRG", "Im tDMRG", "Re ED G^R", "Im ED G^R", "|dRe|", "|dIm|"]
     rows_gr, dre_gr, dim_gr = [], [], []
     for t in times:
-        r_td, i_td = td_ggt[t]
+        r_td, i_td = td_gr[t]
         r_ed, i_ed = ed_gr[t]
         dr, di = abs(r_td - r_ed), abs(i_td - i_ed)
         dre_gr.append(dr); dim_gr.append(di)
         rows_gr.append((t, r_td, i_td, r_ed, i_ed, dr, di))
 
-    print_table("\nG^R(t,0): tDMRG (=G^>, no G^< correction) vs exact-diag",
-                rows_gr, cols2)
-    summarise("G^R(t,0) errors (includes missing G^< off-diagonal)", dre_gr, dim_gr)
+    print_table("\nG^R(t,0): tDMRG (full G^R = G^> - G^<) vs exact-diag",
+                rows_gr, cols)
+    summarise("G^R(t,0) errors", dre_gr, dim_gr)
 
-    # ---- G^< missing term ---------------------------------------------------
-    # Show G^<(t,0) from ED to quantify the hole-sector correction needed.
-    cols3 = ["t", "Re ED G^<", "Im ED G^<", "|G^<|"]
-    rows_gl = []
-    for t in times:
-        if t not in ed_gl:
-            continue
-        r, im = ed_gl[t]
-        rows_gl.append((t, r, im, math.hypot(r, im)))
+    # ---- G^<(t,0) comparison ------------------------------------------------
+    times_gl = sorted(set(td_gl) & set(ed_gl))
+    if times_gl:
+        cols2 = ["t", "Re tDMRG", "Im tDMRG", "Re ED G^<", "Im ED G^<", "|dRe|", "|dIm|"]
+        rows_gl, dre_gl, dim_gl = [], [], []
+        for t in times_gl:
+            r_td, i_td = td_gl[t]
+            r_ed, i_ed = ed_gl[t]
+            dr, di = abs(r_td - r_ed), abs(i_td - i_ed)
+            dre_gl.append(dr); dim_gl.append(di)
+            rows_gl.append((t, r_td, i_td, r_ed, i_ed, dr, di))
 
-    print_table("\nG^<(t,0) from exact-diag (hole-sector correction missing from tDMRG)",
-                rows_gl, cols3)
+        print_table("\nG^<(t,0): tDMRG vs exact-diag",
+                    rows_gl, cols2)
+        summarise("G^<(t,0) errors", dre_gl, dim_gl)
+
+    # ---- G^>(t,0) from tDMRG (reconstructed) --------------------------------
+    # G^>(t,0) = G^R(t,0) + G^<(t,0)
+    times_ggt = sorted(set(td_gr) & set(td_gl) & set(ed_gr) & set(ed_gl))
+    if times_ggt:
+        ed_ggt = {t: add(ed_gr[t], ed_gl[t]) for t in times_ggt}
+        td_ggt = {t: add(td_gr[t], td_gl[t]) for t in times_ggt}
+        cols3 = ["t", "Re tDMRG", "Im tDMRG", "Re ED G^>", "Im ED G^>", "|dRe|", "|dIm|"]
+        rows_ggt, dre_ggt, dim_ggt = [], [], []
+        for t in times_ggt:
+            r_td, i_td = td_ggt[t]
+            r_ed, i_ed = ed_ggt[t]
+            dr, di = abs(r_td - r_ed), abs(i_td - i_ed)
+            dre_ggt.append(dr); dim_ggt.append(di)
+            rows_ggt.append((t, r_td, i_td, r_ed, i_ed, dr, di))
+
+        print_table("\nG^>(t,0): tDMRG (reconstructed = G^R + G^<) vs exact-diag",
+                    rows_ggt, cols3)
+        summarise("G^>(t,0) errors", dre_ggt, dim_ggt)
 
 
 if __name__ == "__main__":
