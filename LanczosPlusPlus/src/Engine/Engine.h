@@ -74,10 +74,8 @@ public:
 	typedef PsimagLite::OneOperatorSpec                             OneOperatorSpecType;
 	typedef typename ModelType::RahulOperatorType                   RahulOperatorType;
 	typedef typename ModelType::VectorRahulOperatorType             VectorRahulOperatorType;
-	using TridiagonalMatrixType = PsimagLite::TridiagonalMatrix<RealType>;
-	using ContinuedFractionType = PsimagLite::ContinuedFraction<TridiagonalMatrixType>;
-	using ContinuedFractionCollectionType
-	    = PsimagLite::ContinuedFractionCollection<ContinuedFractionType>;
+	using ContFractionType           = PsimagLite::ContinuedFraction<RealType>;
+	using CollectionContFractionType = PsimagLite::ContinuedFractionCollection<RealType>;
 
 	// ContF needs to support concurrency FIXME
 	static const SizeType parallelRank_   = 0;
@@ -118,7 +116,7 @@ public:
 	}
 
 	//! Calc Green function G(isite,jsite)  (still diagonal in spin)
-	void spectralFunction(ContinuedFractionCollectionType&          cfCollection,
+	void spectralFunction(CollectionContFractionType&               cfCollection,
 	                      VectorStringType&                         vstr,
 	                      const LabeledOperatorType&                lOperator,
 	                      int                                       isite,
@@ -138,13 +136,13 @@ public:
 	Here we document the spectral functions and Green function G(isite,jsite)
 	(still diagonal in spin)
 	*/
-	void spectralFunction(ContinuedFractionCollectionType& cfCollection,
-	                      VectorStringType&                vstr,
-	                      const LabeledOperatorType&       lOperator1,
-	                      int                              isite,
-	                      int                              jsite,
-	                      const PairType&                  spins,
-	                      const PairType&                  orbs) const
+	void spectralFunction(CollectionContFractionType& cfCollection,
+	                      VectorStringType&           vstr,
+	                      const LabeledOperatorType&  lOperator1,
+	                      int                         isite,
+	                      int                         jsite,
+	                      const PairType&             spins,
+	                      const PairType&             orbs) const
 	{
 		if (spins.first != spins.second) {
 			PsimagLite::String str(__FILE__);
@@ -188,9 +186,9 @@ public:
 			                 spins.first,
 			                 orbs);
 
-			SpecialSymmetryType   symm(*basisNew, model_.geometry(), "");
-			InternalProductType   matrix(model_, *basisNew, symm);
-			ContinuedFractionType cf(cfCollection.freqType());
+			SpecialSymmetryType symm(*basisNew, model_.geometry(), "");
+			InternalProductType matrix(model_, *basisNew, symm);
+			ContFractionType    cf(cfCollection.freqType());
 
 			if (PsimagLite::norm(modifVector) < 1e-10) {
 				std::cerr << "spectralFunction: modifVector==0, type=" << type
@@ -465,7 +463,7 @@ public:
 		}
 	}
 
-	void calcSpectral(ContinuedFractionType&     cf,
+	void calcSpectral(ContFractionType&          cf,
 	                  const bool                 isFermionic,
 	                  const VectorType&          modifVector,
 	                  const InternalProductType& matrix,

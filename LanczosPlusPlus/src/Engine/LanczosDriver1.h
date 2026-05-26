@@ -58,11 +58,7 @@ void mainLoop3(const ModelType&                 model,
 	typedef typename GeometryType::ComplexOrRealType ComplexOrRealType;
 	typedef LanczosPlusPlus::Engine<ModelType, InternalProductTemplate, SpecialSymmetryType>
 	    EngineType;
-	using TridiagonalMatrixType = PsimagLite::TridiagonalMatrix<RealType>;
-	using ContFracType          = PsimagLite::ContinuedFraction<TridiagonalMatrixType>;
-	using ContinuedFractionCollectionType
-	    = PsimagLite::ContinuedFractionCollection<ContFracType>;
-
+	using ContinuedFractionCollectionType = PsimagLite::ContinuedFractionCollection<RealType>;
 	typedef PsimagLite::Vector<PsimagLite::String>::Type VectorStringType;
 
 	const GeometryType& geometry = model.geometry();
@@ -161,7 +157,7 @@ void mainLoop3(const ModelType&                 model,
 			if (hasCenter)
 				ioOut.write(centerSite, "TSPCenter");
 
-			ContinuedFractionCollectionType cfCollection(PsimagLite::FREQ_REAL);
+			ContinuedFractionCollectionType cfCollection(PsimagLite::FreqEnum::REAL);
 			SizeType                        norbitals = maxOrbitals(model);
 			for (SizeType orb1 = 0; orb1 < norbitals; orb1++) {
 				for (SizeType orb2 = orb1; orb2 < norbitals; orb2++) {

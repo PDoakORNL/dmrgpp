@@ -3,17 +3,17 @@
 #include "Vector.h"
 #include <cassert>
 
-namespace Dmft {
+namespace PsimagLite {
 
 template <typename RealType_> class Matsubaras {
-
 public:
 
 	using RealType       = RealType_;
 	using VectorRealType = typename PsimagLite::Vector<RealType>::Type;
 
-	Matsubaras(RealType fictBeta, SizeType nMatsubara)
+	Matsubaras(const RealType& fictBeta, SizeType nMatsubara, const RealType& delta)
 	    : fictBeta_(fictBeta)
+	    , delta_(delta)
 	    , nMatsubara_(nMatsubara)
 	    , matsubaras_(2 * nMatsubara)
 	{
@@ -34,13 +34,16 @@ public:
 
 	const RealType& fictitiousBeta() const { return fictBeta_; }
 
-	SizeType offset() const { return 0; }
-
 	SizeType total() const { return matsubaras_.size(); }
+
+	const RealType& delta() const { return delta_; }
+
+	RealType offset() const { return 0; }
 
 private:
 
 	RealType       fictBeta_; // ficticious beta
+	RealType       delta_;
 	SizeType       nMatsubara_; // half the number of matsubaras
 	VectorRealType matsubaras_; // wn starting at 0 with the most negative wn
 };

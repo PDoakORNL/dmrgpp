@@ -7,11 +7,8 @@
 #include "PsimagLite.h"
 #include <unistd.h>
 
-std::streambuf*                                        GlobalCoutBuffer = 0;
-std::ofstream                                          GlobalCoutStream;
-SizeType                                               Dmft::BasisOneSpin::nsite_ = 0;
-PsimagLite::Matrix<SizeType>                           Dmft::BasisOneSpin::comb_;
-PsimagLite::Vector<Dmft::BasisOneSpin::WordType>::Type Dmft::BasisOneSpin::bitmask_;
+std::streambuf* GlobalCoutBuffer = 0;
+std::ofstream   GlobalCoutStream;
 
 void restoreCoutBuffer()
 {
@@ -163,13 +160,10 @@ int main(int argc, char** argv)
 
 	params.echoInput = echoInput;
 
-	params.gsTemplate    = input_path.findFirst(params.gsTemplate);
-	params.omegaTemplate = input_path.findFirst(params.omegaTemplate);
-
 	// END adjust params
 	DmftSolverType::FitType::InitResults initResults(io);
 
-	DmftSolverType dmftSolver(params, initResults, application);
+	DmftSolverType dmftSolver(params, initResults, application, io);
 
 	dmftSolver.selfConsistencyLoop();
 

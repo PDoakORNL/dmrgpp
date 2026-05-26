@@ -15,79 +15,34 @@ public:
 
 	using FieldType = RealType;
 
-	AndersonFunction(SizeType nBath, const FunctionOfFrequencyType& gammaG)
+	AndersonFunction(SizeType nBath, const RealType& mu)
 	    : nBath_(nBath)
-	    , gammaG_(gammaG)
+	    , mu_(mu)
 	{ }
 
-	SizeType size() const { return 2 * nBath_; }
+	RealType mu() const { return mu_; }
 
-	// Returns \sum_n |Anderson(Valpha, eAlpha, iwn) - GammaG(iwn)|^2
-	// See the AndersonFunction below
-	RealType operator()(const VectorRealType& args) const
-	{
-		RealType       sum             = 0.0;
-		const SizeType totalMatsubaras = gammaG_.totalMatsubaras();
-		for (SizeType i = 0; i < totalMatsubaras; ++i) {
-			const ComplexOrRealType iwn(0, gammaG_.omega(i));
-			const ComplexOrRealType val = anderson(args, iwn) - gammaG_(i);
-			sum += PsimagLite::real(val * PsimagLite::conj(val));
-		}
-
-		return sum / totalMatsubaras;
-	}
-
-	// For each 0 <= j < 2*nBath, this function
-	// returns the derivative of the function above with respect
-	// to bath parameter j, evaluated at the bath parameters in src
-	// and stores the result in dest[j]
-	// for the order of bath parameters see AndersonFunction
-	void df(VectorRealType& dest, const VectorRealType& src) const
-	{
-		const SizeType totalMatsubaras = gammaG_.totalMatsubaras();
-
-		for (SizeType j = 0; j < 2 * nBath_; ++j) {
-			RealType sum = 0.0;
-			for (SizeType i = 0; i < totalMatsubaras; ++i) {
-				const ComplexOrRealType iwn(0, gammaG_.omega(i));
-				const ComplexOrRealType val = anderson(src, iwn) - gammaG_(i);
-
-				const ComplexOrRealType valPrime = andersonPrime(src, iwn, j);
-
-				sum += PsimagLite::real(val * PsimagLite::conj(valPrime)
-				                        + valPrime * PsimagLite::conj(val));
-			}
-
-			dest[j] = sum / totalMatsubaras;
-		}
-	}
-
-	ComplexOrRealType anderson(const VectorRealType& args, ComplexOrRealType iwn) const
-	{
-		return anderson(args, iwn, nBath_);
-	}
+	SizeType nBath() const { return nBath_; }
 
 	// Returns \sum_{0<=j<nBath} V_j^2/(iwn - epsilon_j),
 	// where the V_j are stored in the first half or args,
 	// and the epsilon_j are stored in the last half or args
-	static ComplexOrRealType
-	anderson(const VectorRealType& args, ComplexOrRealType iwn, SizeType nBath)
+	ComplexOrRealType anderson(const VectorRealType& args, ComplexOrRealType iwn) const
 	{
-		assert(args.size() == 2 * nBath);
 		assert(PsimagLite::real(iwn) == 0);
 		ComplexOrRealType sum = 0.0;
-		for (SizeType i = 0; i < nBath; ++i) {
-			const RealType valpha  = args[i];
-			const RealType epsilon = args[i + nBath];
-			sum += valpha * valpha / (iwn - epsilon);
+		for (SizeType i = 0; i < nBath_; ++i) {
+			const RealType valpha  = (args.size() == 2 * nBath_)
+			     ? args[i]
+			     : calcVsIfParticleHoleSymm(args, i, nBath_);
+			const RealType epsilon = (args.size() == 2 * nBath_)
+			    ? args[i + nBath_]
+			    : calcEpsilonIfParticleHoleSymm(args, i, nBath_);
+			sum += valpha * valpha / (iwn + mu_ - epsilon);
 		}
 
 		return sum;
 	}
-
-	static ComplexOrRealType squareOf(ComplexOrRealType x) { return x * x; }
-
-private:
 
 	// For any 0 <= jnd < 2*nBath, this function returns the derivative of
 	// the AndersonFunction above with respect to bath parameter jnd,
@@ -97,16 +52,64 @@ private:
 	ComplexOrRealType
 	andersonPrime(const VectorRealType& args, ComplexOrRealType iwn, SizeType jnd) const
 	{
-		assert(args.size() == 2 * nBath_);
-		assert(jnd < 2 * nBath_);
-		const RealType valpha  = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
-		const RealType epsilon = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
-		return (jnd < nBath_) ? 2.0 * valpha / (iwn - epsilon)
-		                      : squareOf(valpha / (iwn - epsilon));
+		assert(jnd < args.size());
+		RealType valpha      = 0;
+		RealType epsilon     = 0;
+		bool     diff_valpha = false;
+		if (args.size() == 2 * nBath_) {
+			valpha      = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
+			epsilon     = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
+			diff_valpha = (jnd < nBath_); // diff with respect to valpha
+		} else {
+			assert(args.size() == nBath_);
+			SizeType offset = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
+			SizeType knd    = (jnd < offset) ? jnd : jnd - offset;
+			valpha          = calcVsIfParticleHoleSymm(args, knd, nBath_);
+			epsilon         = calcEpsilonIfParticleHoleSymm(args, knd, nBath_);
+			diff_valpha     = (jnd < offset);
+		}
+
+		return (diff_valpha) ? 2.0 * valpha / (iwn + mu_ - epsilon)
+		                     : squareOf(valpha / (iwn + mu_ - epsilon));
 	}
 
-	SizeType                       nBath_; // Number of Bath sites
-	const FunctionOfFrequencyType& gammaG_; // Gamma Green Function to fit
+	static ComplexOrRealType squareOf(ComplexOrRealType x) { return x * x; }
+
+private:
+
+	static RealType
+	calcEpsilonIfParticleHoleSymm(const VectorRealType& args, SizeType ind, SizeType nBath)
+	{
+		assert(args.size() == nBath);
+		SizeType offset      = (nBath & 1) ? (nBath - 1) / 2 : nBath / 2;
+		SizeType one_or_zero = (nBath & 1);
+
+		if (ind < offset) {
+			return args[ind + offset + one_or_zero];
+		} else {
+			if (nBath & 1) {
+				return (ind == offset) ? 0 : -args[ind];
+			} else {
+				return -args[ind];
+			}
+		}
+	}
+
+	static RealType
+	calcVsIfParticleHoleSymm(const VectorRealType& args, SizeType ind, SizeType nBath)
+	{
+		assert(args.size() == nBath);
+		SizeType offset = (nBath & 1) ? (nBath + 1) / 2 : nBath / 2;
+
+		if (ind < offset) {
+			return args[ind];
+		} else {
+			return args[ind - offset];
+		}
+	}
+
+	SizeType nBath_; // Number of Bath sites
+	RealType mu_; // the Chemical potential
 };
 
 }

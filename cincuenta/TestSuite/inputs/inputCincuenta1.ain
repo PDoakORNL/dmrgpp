@@ -1,10 +1,9 @@
 ##Ainur1.0
 
 FicticiousBeta=50;
-# Because we're using U nup ndown
-# the mu should be -0.5*U
-ChemicalPotential=0.;
-Matsubaras=400;
+ChemicalPotential=.0;
+
+Matsubaras=6;
 # LatticeGf: 50 is the number of K points
 #LatticeGf="momentum,1D,50";
 # Here 4 is the bandwidth W
@@ -12,14 +11,13 @@ LatticeGf="energy,semicircular,4";
 NumberOfBathPoints=5;
 DmftNumberOfIterations=1;
 DmftTolerance=0.001;
-ImpuritySolver="exactdiag";
+ImpuritySolver="dmrg";
 
-#FitMethod=simplex;
-FitOptions=particleholesymmetric;
-MinParamsDelta=0.1;
+#FitOptions=setonsitestozero;
+MinParamsDelta=0.01;
 MinParamsMaxIter=10000;
 MinParamsDelta2=0.01;
-MinParamsTolerance=1e-3;
+MinParamsTolerance=1e-4;
 MinParamsVerbose=1;
 
 # Location of the impurity (must be 0 for now)
@@ -29,8 +27,8 @@ int ImpuritySite=0;
 real HubbardU=8.0;
 
 # These solver options will be appended to the one that cincuenta uses
-#SolverOptions="";
-RootOutputname="MyCincuentaExactDiag";
+SolverOptions=doNotCheckDmEigs;
+RootOutputname="MyCincuentaDmrg";
 InfiniteLoopKeptStates=100;
 matrix FiniteLoopsGs=[[@auto, 300, 0],[@auto, 300, 0]];
 matrix FiniteLoopsOmega=[[@auto, 300, 2],[@auto, 300, 2]];

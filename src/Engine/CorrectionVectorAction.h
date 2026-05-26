@@ -29,7 +29,7 @@ public:
 	    , E0_(E0)
 	    , eigs_(eigs)
 	{
-		if (tstStruct_.omega().first == PsimagLite::FREQ_REAL)
+		if (tstStruct_.omega().first == PsimagLite::FreqEnum::REAL)
 			return; // <--- EARLY EXIT
 		std::cout << PsimagLite::AnsiColor::red;
 		std::cout << "CorrectionVectorActionBase:: Running matsubara\n";
@@ -81,7 +81,7 @@ public:
 
 	ComplexOrRealType operator()(SizeType k) const
 	{
-		return (BaseType::tstStruct_.omega().first == PsimagLite::FREQ_REAL)
+		return (BaseType::tstStruct_.omega().first == PsimagLite::FreqEnum::REAL)
 		    ? actionWhenFreqReal(k)
 		    : BaseType::actionWhenMatsubara(k);
 	}
@@ -146,7 +146,7 @@ public:
 
 	ComplexOrRealType operator()(SizeType k) const
 	{
-		return (BaseType::tstStruct_.omega().first == PsimagLite::FREQ_REAL)
+		return (BaseType::tstStruct_.omega().first == PsimagLite::FreqEnum::REAL)
 		    ? actionWhenFreqReal(k)
 		    : BaseType::actionWhenMatsubara(k);
 	}

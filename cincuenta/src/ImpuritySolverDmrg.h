@@ -6,7 +6,6 @@
 #include "Geometry/Star.h"
 #include "ImpuritySolverBase.h"
 #include "InputCheck.h"
-#include "InputNg.h"
 #include "LanczosSolver.h"
 #include "ManyOmegas.h"
 #include "Matsubaras.h"
@@ -30,39 +29,39 @@ class ImpuritySolverDmrg : public ImpuritySolverBase<ComplexOrRealType> {
 
 public:
 
-	using InputNgType          = PsimagLite::InputNg<Dmrg::InputCheck>;
-	using ParamsDmftSolverType = ParamsDmftSolver<ComplexOrRealType>;
-	using RealType             = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using ComplexType          = std::complex<RealType>;
-	using VectorRealType       = typename PsimagLite::Vector<RealType>::Type;
-	using VectorComplexType    = typename PsimagLite::Vector<ComplexType>::Type;
-	using DmrgRunnerType       = Dmrg::DmrgRunner<RealType>;
-	using ApplicationType      = PsimagLite::PsiApp;
-	using MatsubarasType       = Matsubaras<RealType>;
-	using ManyOmegasType       = Dmrg::ManyOmegas<RealType, MatsubarasType>;
-	using ProcOmegasType       = Dmrg::ProcOmegas<RealType, MatsubarasType>;
-	using ModelParamsType      = ModelParams<RealType>;
+	using BaseType               = ImpuritySolverBase<ComplexOrRealType>;
+	using ParamsDmftSolverType   = ParamsDmftSolver<ComplexOrRealType>;
+	using RealType               = typename PsimagLite::Real<ComplexOrRealType>::Type;
+	using ComplexType            = std::complex<RealType>;
+	using VectorRealType         = typename PsimagLite::Vector<RealType>::Type;
+	using VectorComplexType      = typename PsimagLite::Vector<ComplexType>::Type;
+	using DmrgRunnerType         = Dmrg::DmrgRunner<RealType>;
+	using ApplicationType        = PsimagLite::PsiApp;
+	using MatsubarasType         = PsimagLite::Matsubaras<RealType>;
+	using RealFrequencyRangeType = PsimagLite::RealFrequencyRange<RealType>;
+	using ModelParamsType        = typename BaseType::ModelParamsType;
+	using InputNgType            = typename BaseType::InputNgType;
 
-	ImpuritySolverDmrg(const ParamsDmftSolverType& params,
-	                   const ApplicationType&      app,
-	                   InputNgType::Readable&      io)
-	    : params_(params)
+	ImpuritySolverDmrg(const ParamsDmftSolverType&     params,
+	                   const ApplicationType&          app,
+	                   typename InputNgType::Readable& io)
+	    : BaseType(params.ficticiousBeta, params.nMatsubaras, io)
+	    , params_(params)
 	    , app_(app)
 	    , io_(io)
+	    , freq_enum_(PsimagLite::FreqEnum::MATSUBARA)
 	{ }
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
 	// bathParams[nBath-...] ==> energies on each bath site
-	void solve(const VectorRealType& bathParams)
+	void solve(const VectorRealType& bathParams, PsimagLite::FreqEnum freq_enum, SizeType iter)
 	{
 		ModelParamsType model_params(bathParams, io_);
 		SizeType        mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
 
 		if (mpiRank == 0) {
-			PsimagLite::String data;
-			InputNgType::Writeable::readFile(data, params_.gsTemplate);
-			PsimagLite::String data2  = addBathParams(data, model_params);
-			PsimagLite::String insitu = "<gs|nup|gs>";
+			PsimagLite::String data2 = BaseType::createGsInput(model_params, io_);
+			// PsimagLite::String insitu = "<gs|nup|gs>";
 
 			Dmrg::CmdLineOptions cmdline_options;
 			cmdline_options.in_situ_measurements = "<gs|nup|gs>";
@@ -74,105 +73,220 @@ public:
 
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
 
-		PsimagLite::String data3;
-		InputNgType::Writeable::readFile(data3, params_.omegaTemplate);
-		PsimagLite::String data4 = addBathParams(data3, model_params);
+		PsimagLite::String data3 = createOmegaInput(model_params, freq_enum);
 
-		doType(DmrgType::TYPE_0, data4, mpiRank);
+		SizeType impurity_site = model_params.impuritySite();
 
-		doType(DmrgType::TYPE_1, data4, mpiRank);
+		doType(DmrgType::TYPE_0, data3, impurity_site, freq_enum);
 
-		if (mpiRank == 0) {
-			scaleGimp();
+		doType(DmrgType::TYPE_1, data3, impurity_site, freq_enum);
 
-			std::cerr << "Sum of Gimp=" << density() << "\n";
-			writeGimpForDebugOnly();
-		}
+		// scaleGimp();
+
+		freq_enum_ = freq_enum;
 
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
 	}
 
 	const VectorComplexType& gimp() const { return gimp_; }
 
+	PsimagLite::FreqEnum freqEnum() const { return freq_enum_; }
+
 private:
 
-	PsimagLite::String addBathParams(PsimagLite::String     data,
-	                                 const ModelParamsType& model_params)
+	std::string createOmegaInput(const ModelParamsType& model_params,
+	                             PsimagLite::FreqEnum   freq_enum) const
 	{
-		const PsimagLite::String connectors = vectorToString(model_params.hoppings(), ",");
-		const PsimagLite::String label      = "dir0:Connectors=[" + connectors + "];\n";
-		const PsimagLite::String potentialV
-		    = vectorToString(model_params.potentialV(), ",");
-		const PsimagLite::String label2
-		    = "potentialV=[" + potentialV + "," + potentialV + "];\n";
+		std::string s = BaseType::commonInputString(
+		    model_params, io_, BaseType::GsOrOmegaEnum::OMEGA);
 
-		return data + label + label2;
-	}
+		std::string root;
+		io_.readline(root, "RootOutputname=");
+		s += "RestartFilename=" + root + "gs;\n";
 
-	static PsimagLite::String vectorToString(const VectorRealType& v,
-	                                         const std::string&    separator)
-	{
-		PsimagLite::String buffer;
-		SizeType           n = v.size();
-		for (SizeType i = 0; i < n; ++i) {
-			buffer += ttos(v[i]);
-			if (i + 1 < n) {
-				buffer += ",";
-			}
+		try {
+			SizeType tsteps = 0;
+			io_.readline(tsteps, "TridiagSteps=");
+			s += "int TridiagSteps=" + ttos(tsteps) + ";\n";
+		} catch (std::exception&) { }
+
+		try {
+			RealType teps = 0;
+			io_.readline(teps, "TridiagEps=");
+			s += "real TridiagEps=" + ttos(teps) + ";\n";
+		} catch (std::exception&) { }
+
+		try {
+			std::string tt;
+			io_.readline(tt, "TruncationTolerance=");
+			s += "TruncationTolerance=" + tt + ";\n";
+		} catch (std::exception&) { }
+
+		s += "CorrectionA=0;\n";
+
+		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
+			s += "CorrectionVectorFreqType=Matsubara;\n";
+		} else {
+			s += "CorrectionVectorFreqType=Real;\n";
 		}
 
-		return buffer;
+		RealType eta = 0;
+		if (freq_enum == PsimagLite::FreqEnum::REAL) {
+			io_.readline(eta, "OmegaDelta=");
+		} else {
+			io_.readline(eta, "CorrectionVectorEta=");
+		}
+
+		s += "CorrectionVectorEta=" + ttos(eta) + ";\n";
+
+		s += "CorrectionVectorAlgorithm=Krylov;\n";
+		s += "Orbitals=1;\nGsWeight=0.1;\n";
+
+		try {
+			RealType gsw = 0;
+			io_.readline(gsw, "GsWeight=");
+			s += "GsWeight=" + ttos(gsw) + ";\n";
+		} catch (std::exception&) { }
+
+		std::string data = BaseType::addBathParams(s, model_params);
+
+		std::ofstream tout("testout.ain");
+		tout << data;
+		tout.close();
+		return data;
 	}
 
-	static PsimagLite::String addTypeAndObs(DmrgType t, PsimagLite::String data)
+	/*
+	 * This business of communicating by strings is far from ideal,
+	 * but DMRG++ doesn't have an internal API right now
+	 */
+	static std::string
+	addTypeAndObs(DmrgType t, SizeType impurity_site, PsimagLite::String data)
 	{
-		const PsimagLite::String obsTc = (t == DmrgType::TYPE_0) ? "c'" : "c";
-		const SizeType           tt    = (t == DmrgType::TYPE_0) ? 0 : 1;
-		return data + "DynamicDmrgType=" + ttos(tt) + ";\n"
-		    + "string TSPOp0:OperatorExpression=\"" + obsTc + "\";\n";
+		const std::string obsTc = (t == DmrgType::TYPE_0) ? "c'" : "c";
+		return data + addType(t) + addObs(impurity_site, obsTc);
 	}
 
-	void doType(DmrgType t, PsimagLite::String data, SizeType mpiRank)
+	/* The type added is because there are two terms that need to be computed
+	 * by separate runs and the terms differ by a sign
+	 */
+	static std::string addType(DmrgType t)
 	{
-		PsimagLite::String data2 = addTypeAndObs(t, data);
 
-		Matsubaras<RealType> matsubaras(params_.ficticiousBeta, params_.nMatsubaras);
+		const SizeType tt = (t == DmrgType::TYPE_0) ? 0 : 1;
+		return "DynamicDmrgType=" + ttos(tt) + ";\n";
+	}
 
-		ManyOmegasType manyOmegas(data2, matsubaras, app_);
+	/*
+	 * The observable is just one for the Green function: c (the destruction operator)
+	 * and we apply at the impurity. Now, if the impurity is site 0 (a border site)
+	 * we need to add a trigger at site 1, that is, and operator at site 1: the identity,
+	 * that is we multiply by the identity in this case.
+	 */
+	static std::string addObs(SizeType impurity_site, const std::string& obs)
+	{
+		std::string str = "TSPProductOrSum=product;\n";
+		SizeType    ind = 0;
+		if (impurity_site > 0) {
+			str += "TSPSites=[" + ttos(impurity_site)
+			    + "];\n"
+			      " TSPLoops=[0]\n";
+			ind = 0;
+		} else {
+			str += "TSPSites=[1, 0];\n"
+			       "TSPLoops=[0, 0];\n"
+			       "string TSPOp0:TSPOperator=expression;\n"
+			       "string TSPOp0:OperatorExpression=identity;\n"
+			       "string TSPOp1:TSPOperator=expression;\n";
+			ind = 1;
+		}
 
-		const bool               dryrun   = false;
-		const PsimagLite::String rootname = "dmftDynamics";
-		Dmrg::CmdLineOptions     cmdline_options;
-		PsimagLite::String       obs         = (t == DmrgType::TYPE_0) ? "c" : "c'";
-		cmdline_options.in_situ_measurements = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
-		manyOmegas.run(dryrun, rootname, cmdline_options);
+		str += "string TSPOp" + ttos(ind) + ":OperatorExpression=" + obs + ";\n";
+		return str;
+	}
+
+	void doType(DmrgType             t,
+	            PsimagLite::String   data,
+	            SizeType             impurity_site,
+	            PsimagLite::FreqEnum freq_enum)
+	{
+		std::string obs   = (t == DmrgType::TYPE_0) ? "c" : "c'";
+		std::string data2 = addTypeAndObs(t, impurity_site, data);
+
+		runOmegas(data2, obs, freq_enum);
+
+		procOmegas(data2, t, freq_enum);
+	}
+
+	void procOmegas(const std::string& data2, DmrgType t, PsimagLite::FreqEnum freq_enum)
+	{
+		SizeType mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
 
 		if (mpiRank != 0)
 			return;
 
-		const PsimagLite::String rootIname   = "input";
-		const PsimagLite::String rootOname   = "OUTPUT";
-		const bool               skipFourier = true;
+		const std::string rootIname   = "input";
+		const std::string rootOname   = "OUTPUT";
+		const bool        skipFourier = true;
 
-		Dmrg::InputCheck                inputCheck;
-		typename InputNgType::Writeable ioW(inputCheck, data2);
-		typename InputNgType::Readable  io(ioW);
-		ProcOmegasType                  procOmegas(
-                    io, params_.precision, skipFourier, rootIname, rootOname, matsubaras);
+		Dmrg::InputCheck                                          inputCheck;
+		typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioW(inputCheck, data2);
+		typename PsimagLite::InputNg<Dmrg::InputCheck>::Readable  io(ioW);
 
-		procOmegas.run();
+		SizeType total = 0;
+		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
+			total = this->matsubaras().total();
+			Dmrg::ProcOmegas<RealType, MatsubarasType> procOmegas(io,
+			                                                      params_.precision,
+			                                                      skipFourier,
+			                                                      rootIname,
+			                                                      rootOname,
+			                                                      this->matsubaras());
 
-		readGimp(rootOname, matsubaras, t);
+			procOmegas.run();
+		} else {
+			total = this->realFreqRange().total();
+			Dmrg::ProcOmegas<RealType, RealFrequencyRangeType> procOmegas(
+			    io,
+			    params_.precision,
+			    skipFourier,
+			    rootIname,
+			    rootOname,
+			    this->realFreqRange());
+
+			procOmegas.run();
+		}
+
+		readGimp(rootOname, total, t);
 	}
 
-	void readGimp(PsimagLite::String filename, const MatsubarasType& matsubaras, DmrgType t)
+	void runOmegas(const std::string&   data2,
+	               const std::string&   obs,
+	               PsimagLite::FreqEnum freq_enum) const
+	{
+		const bool               dryrun   = false;
+		const PsimagLite::String rootname = "dmftDynamics";
+		Dmrg::CmdLineOptions     cmdline_options;
+		cmdline_options.in_situ_measurements = "<gs|" + obs + "|P2>,<gs|" + obs + "|P3>";
+
+		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
+			Dmrg::ManyOmegas<RealType, MatsubarasType> manyOmegas(
+			    data2, this->matsubaras(), app_);
+			manyOmegas.run(dryrun, rootname, cmdline_options);
+		} else {
+			Dmrg::ManyOmegas<RealType, RealFrequencyRangeType> manyOmegas(
+			    data2, this->realFreqRange(), app_);
+			manyOmegas.run(dryrun, rootname, cmdline_options);
+		}
+	}
+
+	void readGimp(PsimagLite::String filename, SizeType total, DmrgType t)
 	{
 		std::ifstream fin(filename);
 		if (!fin || !fin.good() || fin.bad())
 			err("readGimp: Could not open " + filename + "\n");
 
-		if (gimp_.size() == 0)
-			gimp_.resize(matsubaras.total());
+		gimp_.resize(total);
 
 		SizeType ind = 0;
 		while (!fin.eof()) {
@@ -203,10 +317,12 @@ private:
 				err("Internal error: center " + ttos(params_.center_site)
 				    + " not seen, freq id = " + ttos(ind) + "\n");
 
-			if (t == DmrgType::TYPE_0)
-				gimp_[ind] = ComplexType(val1, -val2);
-			else
-				gimp_[ind] += ComplexType(val1, -val2);
+			assert(ind < gimp_.size());
+			if (t == DmrgType::TYPE_0) {
+				gimp_[ind] = ComplexType(-val1, -val2);
+			} else {
+				gimp_[ind] += ComplexType(-val1, -val2);
+			}
 
 			++ind;
 
@@ -229,43 +345,19 @@ private:
 
 	void scaleGimp()
 	{
-		const SizeType n      = gimp_.size();
-		const RealType factor = -M_PI;
-		for (SizeType i = 0; i < n; ++i)
-			gimp_[i] *= factor;
-	}
-
-	ComplexType density() const
-	{
-		const SizeType n   = gimp_.size();
-		ComplexType    sum = 0;
-		for (SizeType i = 0; i < n; ++i)
-			sum += gimp_[i];
-
-		return sum;
-	}
-
-	void writeGimpForDebugOnly() const
-	{
-		const SizeType n = gimp_.size();
-		std::ofstream  fout("gimp.debug");
-		if (!fout || !fout.good())
-			err("Could not write to gimp.debug\n");
-
-		Matsubaras<RealType> matsubaras(params_.ficticiousBeta, params_.nMatsubaras);
-
+		const SizeType n           = gimp_.size();
+		ComplexType    pre_density = BaseType::density(gimp_);
+		const RealType factor      = -M_PI / std::real(pre_density);
 		for (SizeType i = 0; i < n; ++i) {
-			const ComplexType value = gimp_[i];
-			const RealType    omega = matsubaras.omega(i);
-			fout << omega << " " << PsimagLite::real(value) << " "
-			     << PsimagLite::imag(value) << "\n";
+			gimp_[i] *= factor;
 		}
 	}
 
-	const ParamsDmftSolverType& params_;
-	const ApplicationType&      app_;
-	VectorComplexType           gimp_;
-	InputNgType::Readable&      io_;
+	const ParamsDmftSolverType&     params_;
+	const ApplicationType&          app_;
+	typename InputNgType::Readable& io_;
+	VectorComplexType               gimp_;
+	PsimagLite::FreqEnum            freq_enum_;
 };
 }
 #endif // IMPURITYSOLVER_DMRG_H
