@@ -19,6 +19,13 @@ if(BUILD_TESTING)
   include(Catch)
 endif()
 
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND)
+  message(STATUS "Python3 found: ${Python3_EXECUTABLE} (${Python3_VERSION})")
+else()
+  message(STATUS "Python3 not found -- Python-based tests will be skipped")
+endif()
+
 include(GNUInstallDirs)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 if(APPLE)

@@ -80,3 +80,39 @@ add_check(neqTsuji0_n1
 add_check(neqTsuji0_n5
   "5\\.0000000000 5\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "0.507376"  "1e-4"
   ${CMAKE_CURRENT_BINARY_DIR}/green-lesser  neqTsuji0)
+
+# tDMRG non-equilibrium test: U_i=0 -> U_f=2 quench, compare G^R and G^< against
+# exact-diag reference.  Requires Python 3; skipped silently if not available.
+if(Python3_FOUND)
+  set(PATH_TO_TESTSUITE ${CMAKE_CURRENT_SOURCE_DIR}/../TestSuite)
+
+  # Each run writes green-retarded / green-lesser to its own subdirectory so
+  # they don't overwrite each other or the neqTsuji0 outputs above.
+  set(TDMRG_DIR ${CMAKE_CURRENT_BINARY_DIR}/neqTsujiTdmrg)
+  set(ED_DIR    ${CMAKE_CURRENT_BINARY_DIR}/neqTsujiExactDiag)
+  file(MAKE_DIRECTORY ${TDMRG_DIR} ${ED_DIR})
+
+  # Run 1: particle + hole tDMRG, produces green-retarded and green-lesser
+  add_test(NAME neqTsujiTdmrg0
+    COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputNeqTsujiTdmrg.ain
+    WORKING_DIRECTORY ${TDMRG_DIR})
+
+  # Run 2: exact-diag reference (single-step, no DMFT loop)
+  add_test(NAME neqTsujiExactDiag0
+    COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputNeqTsujiExactDiag.ain
+    WORKING_DIRECTORY ${ED_DIR})
+
+  # Run 3: compare tDMRG vs ED; tolerances set with ~2x headroom over current results
+  # (G^R mean |dRe|~0.009, mean |dIm|~0.007 for U_i=0->U_f=2, m=200, dt=0.1, 6 sites)
+  add_test(NAME neqTsujiTdmrg0_compare
+    COMMAND ${Python3_EXECUTABLE}
+      ${PATH_TO_TESTSUITE}/compare_neq_gr.py
+      --tdmrg-retarded ${TDMRG_DIR}/green-retarded
+      --tdmrg-lesser   ${TDMRG_DIR}/green-lesser
+      --ed-retarded    ${ED_DIR}/green-retarded
+      --ed-lesser      ${ED_DIR}/green-lesser
+      --tolerance-re   0.02
+      --tolerance-im   0.02)
+  set_tests_properties(neqTsujiTdmrg0_compare PROPERTIES
+    DEPENDS "neqTsujiTdmrg0;neqTsujiExactDiag0")
+endif()
