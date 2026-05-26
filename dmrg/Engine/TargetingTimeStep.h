@@ -258,6 +258,7 @@ private:
 		if (direction == ProgramGlobals::DirectionEnum::INFINITE)
 			return;
 		VectorWithOffsetType phiNew;
+		VectorWithOffsetType phiPenultimate; // intermediate before last TSP operator
 		assert(block1.size() > 0);
 		SizeType site = block1[0];
 
@@ -282,7 +283,7 @@ private:
 		}
 
 		this->common().aoeNonConst().getPhi(
-		    &phiNew, Eg, direction, site, loopNumber, tstStruct_);
+		    &phiNew, Eg, direction, site, loopNumber, tstStruct_, &phiPenultimate);
 
 		PairType startEnd(0, tstStruct_.times().size());
 		bool     allOperatorsApplied
@@ -303,6 +304,22 @@ private:
 		    false, // don't wft or advance indices[0]
 		    block1,
 		    isLastCall);
+
+		// If a penultimate intermediate was captured (product TSP with >1 operators),
+		// emit the N-sector gauge overlap between the current and previous capture.
+		// phiPenultimate = identity|GS> — the N-sector state just before the last
+		// operator in the product chain.  The overlap <prev|curr> tracks the gauge
+		// phase drift of the N-sector GS between consecutive advances at this site.
+		if (phiPenultimate.size() > 0) {
+			if (phiPenultimate_.size() > 0
+			    && phiPenultimate_.size() == phiPenultimate.size()) {
+				const ComplexOrRealType gaugeOverlap = phiPenultimate_ * phiPenultimate;
+				const RealType          t            = this->common().aoe().timeVectors().time();
+				std::cout << block1[0] << " " << gaugeOverlap << " " << t
+				          << " <gs|penultimate> " << gaugeOverlap << "\n";
+			}
+			phiPenultimate_ = phiPenultimate;
+		}
 
 		this->common().cocoon(block1, direction, false);
 
@@ -377,6 +394,7 @@ private:
 	VectorRealType                weight_;
 	mutable VectorRealType        tvEnergy_;
 	RealType                      gsWeight_;
+	VectorWithOffsetType          phiPenultimate_; // N-sector ref for gauge tracking
 }; // class TargetingTimeStep
 } // namespace Dmrg
 
