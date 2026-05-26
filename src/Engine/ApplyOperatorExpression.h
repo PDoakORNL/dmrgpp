@@ -221,7 +221,8 @@ public:
 	                ProgramGlobals::DirectionEnum direction,
 	                SizeType                      site,
 	                SizeType                      loopNumber,
-	                const TargetParamsType&       tstStruct)
+	                const TargetParamsType&       tstStruct,
+	                VectorWithOffsetType*         phiPenultimate = nullptr)
 	{
 		SizeType       count       = 0;
 		const SizeType nsectors    = psi_.size();
@@ -259,6 +260,16 @@ public:
 
 			if (count2 == 0)
 				continue;
+
+			// Before the last operator in a product chain, capture the state
+			// that was input to the final operator as a gauge-phase reference.
+			// At initial firing (max>1) this is the N-sector GS before c†/c.
+			// At subsequent advances (max=1) phiOld = psi_[0][0] = current GS.
+			// In both cases the captured state is the N-sector gauge reference.
+			if (phiNew && phiPenultimate
+			    && tstStruct.concatenation() == TargetParamsType::ConcatEnum::PRODUCT
+			    && i + 1 == max)
+				*phiPenultimate = phiOld;
 
 			// phi = A|psi>
 			if (phiNew)

@@ -141,7 +141,7 @@ public:
 		{
 			Dmrg::CmdLineOptions opts;
 			opts.logfile              = tdmrgLog;
-			opts.in_situ_measurements = "<gs|nup|gs>,<gs|c|P1>,<gs|P0>";
+			opts.in_situ_measurements = "<gs|nup|gs>,<gs|c|P1>";
 			const std::string input = buildTdmrgInput(params_.uFinal, hoppings, potTdmrg,
 			                                           nup_, ndown_, nsites);
 			DmrgRunnerType runner(app_, input, opts);
@@ -154,7 +154,7 @@ public:
 		{
 			Dmrg::CmdLineOptions opts;
 			opts.logfile              = holeTdmrgLog;
-			opts.in_situ_measurements = "<P1|c|gs>,<gs|P0>";
+			opts.in_situ_measurements = "<P1|c|gs>";
 			const std::string input = buildHoleTdmrgInput(params_.uFinal, hoppings, potTdmrg,
 			                                               nup_, ndown_, nsites);
 			DmrgRunnerType runner(app_, input, opts);
@@ -308,7 +308,8 @@ private:
 
 	// ---- Log parsing -------------------------------------------------------
 
-	// Parse the particle-sector tDMRG log for <gs|nup|gs>, <gs|c|P1>, and <gs|P0>.
+	// Parse the particle-sector tDMRG log for <gs|nup|gs>, <gs|c|P1>, and
+	// <gs|penultimate> (overlap of consecutive N-sector GS captures for gauge tracking).
 	// Log format: "<site> (<re>,<im>) <time> <label> (<norm_re>,<norm_im>)"
 	// Last measurement per (step, label) at site 0 wins (most converged sweep).
 	void parseTdmrgLog(const std::string&          logfile,
@@ -321,7 +322,9 @@ private:
 			return;
 		}
 
-		std::map<int, ComplexType> gauge_at_step; // <gs|P0> at each step
+		// <gs|penultimate> = <psi_prev|psi_curr> for consecutive N-sector GS captures.
+		// This is the accumulated N-sector gauge phase drift between advances.
+		std::map<int, ComplexType> gauge_at_step;
 
 		std::string line;
 		while (std::getline(fin, line)) {
@@ -347,7 +350,7 @@ private:
 				nup_at_step[n] = re;
 			else if (label == "<gs|c|P1>")
 				ggt0_at_step[n] = ComplexType(re, im);
-			else if (label == "<gs|P0>")
+			else if (label == "<gs|penultimate>")
 				gauge_at_step[n] = ComplexType(re, im);
 		}
 
@@ -356,12 +359,10 @@ private:
 			             "found in '" << logfile << "'.  Check TSP parameters and "
 			             "finite-loop count.\n";
 
-		// Per-step gauge correction: true_value = <gs|c|P1> / <gs|P0>.
-		// <gs|P0> = 1 physically; DMRG returns e^{i(φ_P0 - φ_gs)}.
-		// Dividing cancels the spurious TSP-vs-GS phase, including sign flips at
-		// sweep reversals, assuming all TSP targets share the same gauge phase.
-		// Note: in the product-TSP setup, P0 is consumed by the second operator
-		// and does not persist; gauge_at_step is empty so this loop is a no-op.
+		// Per-step gauge correction: true_value = <gs|c|P1> / <gs|penultimate>.
+		// <gs|penultimate> = <psi_prev|psi_curr> tracks the N-sector gauge drift.
+		// Dividing cancels the spurious N-sector phase accumulated since the previous
+		// advance, assuming the N+1-sector (P1) gauge drifts proportionally.
 		for (auto& kv : ggt0_at_step) {
 			auto it = gauge_at_step.find(kv.first);
 			if (it != gauge_at_step.end() && std::abs(it->second) > RealType(1e-10))
@@ -382,13 +383,12 @@ private:
 		}
 	}
 
-	// Parse the hole-sector tDMRG log for <P1|c|gs> and <gs|P0>.
+	// Parse the hole-sector tDMRG log for <P1|c|gs> and <gs|penultimate>.
 	// G^<(t,0) = +i * measured value.
 	//
 	// Per-step gauge correction: <P1|c|gs> picks up a spurious phase e^{i(φ_gs-φ_P1)}
-	// from the DMRG gauge.  <gs|P0> = e^{i(φ_P0-φ_gs)} (physically 1).  Multiplying
-	// by <gs|P0> cancels the phase assuming φ_P0 = φ_P1 (all TSP targets share gauge).
-	// This also automatically removes sign flips at sweep reversals.
+	// from the DMRG gauge.  <gs|penultimate> tracks the N-sector drift between
+	// consecutive advances.  Multiplying corrects the N-sector component of the phase.
 	void parseHoleTdmrgLog(const std::string&          logfile,
 	                        std::map<int, ComplexType>& glt0_at_step)
 	{
@@ -399,7 +399,7 @@ private:
 			return;
 		}
 
-		std::map<int, ComplexType> gauge_at_step; // <gs|P0> at each step (hole run)
+		std::map<int, ComplexType> gauge_at_step; // <gs|penultimate> at each step
 
 		std::string line;
 		while (std::getline(fin, line)) {
@@ -423,7 +423,7 @@ private:
 
 			if (label == "<P1|c|gs>")
 				glt0_at_step[n] = ComplexType(re, im);
-			else if (label == "<gs|P0>")
+			else if (label == "<gs|penultimate>")
 				gauge_at_step[n] = ComplexType(re, im);
 		}
 
@@ -450,10 +450,8 @@ private:
 			}
 		}
 
-		// Stage 2 (per-step): true_value = <P1|c|gs> × <gs|P0>.
-		// <gs|P0> = e^{i(φ_P0 - φ_gs)}; multiplying cancels e^{i(φ_gs - φ_P1)}.
-		// Note: in the product-TSP setup P0 is consumed by the second operator,
-		// so gauge_at_step is empty and this loop is a no-op.
+		// Stage 2 (per-step): true_value = <P1|c|gs> × <gs|penultimate>.
+		// <gs|penultimate> tracks the N-sector drift; multiplying corrects it.
 		for (auto& kv : glt0_at_step) {
 			auto it = gauge_at_step.find(kv.first);
 			if (it != gauge_at_step.end() && std::abs(it->second) > RealType(1e-10))
