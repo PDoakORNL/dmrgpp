@@ -81,6 +81,10 @@ def main():
                    metavar="FILE", help="Exact-diag green-retarded file (stores G^R)")
     p.add_argument("--ed-lesser",      default="green-lesser-ed",
                    metavar="FILE", help="Exact-diag green-lesser file (stores G^<)")
+    p.add_argument("--tolerance-re",   default=None, type=float, metavar="TOL",
+                   help="If set, exit 1 when G^R mean |dRe| exceeds TOL")
+    p.add_argument("--tolerance-im",   default=None, type=float, metavar="TOL",
+                   help="If set, exit 1 when G^R mean |dIm| exceeds TOL")
     args = p.parse_args()
 
     td_gr  = read_t0_slice(args.tdmrg_retarded)   # tDMRG: G^R(t,0)
@@ -141,6 +145,22 @@ def main():
         print_table("\nG^>(t,0): tDMRG (reconstructed = G^R + G^<) vs exact-diag",
                     rows_ggt, cols3)
         summarise("G^>(t,0) errors", dre_ggt, dim_ggt)
+
+
+    if args.tolerance_re is not None or args.tolerance_im is not None:
+        mean_re = sum(dre_gr) / len(dre_gr)
+        mean_im = sum(dim_gr) / len(dim_gr)
+        failed = False
+        if args.tolerance_re is not None and mean_re > args.tolerance_re:
+            print(f"\nFAIL: G^R mean |dRe|={mean_re:.5f} exceeds tolerance {args.tolerance_re}",
+                  file=sys.stderr)
+            failed = True
+        if args.tolerance_im is not None and mean_im > args.tolerance_im:
+            print(f"\nFAIL: G^R mean |dIm|={mean_im:.5f} exceeds tolerance {args.tolerance_im}",
+                  file=sys.stderr)
+            failed = True
+        if failed:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
