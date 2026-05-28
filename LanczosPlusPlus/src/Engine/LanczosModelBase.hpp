@@ -29,7 +29,7 @@ namespace LanczosPlusPlus {
 
 template <typename ComplexOrRealType_, typename GeometryType_, typename InputType_>
 
-class ModelBase {
+class LanczosModelBase {
 
 public:
 
@@ -45,7 +45,7 @@ public:
 	typedef typename PsimagLite::Vector<RahulOperatorType>::Type VectorRahulOperatorType;
 	typedef typename BasisBaseType::WordType                     WordType;
 
-	virtual ~ModelBase() { }
+	virtual ~LanczosModelBase() { }
 
 	virtual SizeType size() const = 0;
 
@@ -188,8 +188,8 @@ private:
 }; // class ModelBase
 
 template <typename RealType, typename GeometryType, typename InputType>
-std::ostream& operator<<(std::ostream&                                       os,
-                         const ModelBase<RealType, GeometryType, InputType>& model)
+std::ostream& operator<<(std::ostream&                                              os,
+                         const LanczosModelBase<RealType, GeometryType, InputType>& model)
 {
 	model.print(os);
 	return os;

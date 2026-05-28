@@ -80,6 +80,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef LANCZOS_PROGRAM_LIMITS_H
 #define LANCZOS_PROGRAM_LIMITS_H
 #include "BitManip.h"
+#include "Combinatorial.hh"
 #include "CrsMatrix.h"
 #include "TypeToString.h"
 #include "Vector.h"
@@ -166,13 +167,26 @@ struct LanczosGlobals {
 		os << "--------------\n";
 	}
 
-	template <typename VectorWordType>
-	static typename PsimagLite::EnableIf<PsimagLite::IsVectorLike<VectorWordType>::True,
-	                                     void>::Type
-	printBasisDecimal(std::ostream& os, SizeType n, const VectorWordType& data)
+	template <typename WordType>
+	static void
+	printBasisDecimal(std::ostream& os, SizeType n, const std::vector<WordType>& data)
 	{
 		for (SizeType i = 0; i < data.size(); i++) {
 			os << data[i] << " ";
+			if (i > 0 && i % n == 0)
+				std::cout << "\n";
+		}
+
+		os << "\n--------------\n";
+	}
+
+	template <typename WordType>
+	static void printBasisDecimal(std::ostream&                                     os,
+	                              SizeType                                          n,
+	                              const std::vector<std::pair<WordType, WordType>>& data)
+	{
+		for (SizeType i = 0; i < data.size(); i++) {
+			os << data[i].first << " " << data[i].second;
 			if (i > 0 && i % n == 0)
 				std::cout << "\n";
 		}
@@ -228,9 +242,21 @@ struct LanczosGlobals {
 		return bitmask_[i];
 	}
 
+	static void doCombinatorial(SizeType total)
+	{
+		if (total == comb_.size()) {
+			return;
+		}
+
+		comb_.resize(total);
+	}
+
+	static const SizeType& combinatorial(SizeType i, SizeType j) { return comb_(i, j); }
+
 private:
 
 	static PsimagLite::Vector<WordType>::Type bitmask_;
+	static Combinatorial                      comb_;
 }; // LanczosGlobals
 
 } // namespace LanczosPlusPlus

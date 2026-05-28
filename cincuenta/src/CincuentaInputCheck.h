@@ -5,6 +5,7 @@
 #ifndef CINCUENTA_INPUT_CHECK_H
 #define CINCUENTA_INPUT_CHECK_H
 #include "../../PsimagLite/src/Options.h"
+#include "../src/Engine/InputCheck.h"
 #include "Geometry/Geometry.h"
 #include <stdexcept>
 #include <vector>
@@ -34,7 +35,7 @@ public:
 	PsimagLite::String import() const
 	{
 		// PsimagLite::String str = PsimagLite::Geometry<int,int,ProgramGlobals>::import();
-		PsimagLite::String str;
+		PsimagLite::String str = Dmrg::InputCheck().import();
 
 		str += "integer FicticiousBeta;\n";
 		str += "real ChemicalPotential;\n";
@@ -54,6 +55,8 @@ public:
 		str += "real InitBathRa;\n";
 		str += "real InitBathRb;\n";
 		str += "string FitMethod;\n";
+		str += "string RootOutputname;\n";
+		str += "string FitOptions;\n";
 
 		return str;
 	}

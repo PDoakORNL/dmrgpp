@@ -20,6 +20,7 @@ Please see full open source license included in file LICENSE.
 
 #include "ChebyshevSerializer.h"
 #include "Io/IoSimple.h"
+#include "RealFrequencyRange.hh"
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -40,15 +41,15 @@ int main(int argc, char* argv[])
 	typedef PsimagLite::Vector<RealType>::Type VectorType;
 
 	RealType                                              wbegin = 0;
-	RealType                                              wend   = 0;
 	RealType                                              wstep  = 0;
+	SizeType                                              total  = 0;
 	typedef PsimagLite::ChebyshevSerializer<VectorType>   ChebyshevSerializerType;
 	typedef ChebyshevSerializerType::KernelParametersType KernelParametersType;
 	SizeType                                              type = KernelParametersType::JACKSON;
 	RealType                                              lambda   = 0.0;
 	bool                                                  makeZero = false;
 	SizeType                                              cutoff   = 0;
-	while ((opt = getopt(argc, argv, "f:b:e:s:c:l:zd")) != -1) {
+	while ((opt = getopt(argc, argv, "f:b:t:s:c:l:zd")) != -1) {
 		switch (opt) {
 		case 'f':
 			file = optarg;
@@ -56,8 +57,8 @@ int main(int argc, char* argv[])
 		case 'b':
 			wbegin = atof(optarg);
 			break;
-		case 'e':
-			wend = atof(optarg);
+		case 't':
+			total = atoi(optarg);
 			break;
 		case 's':
 			wstep = atof(optarg);
@@ -81,7 +82,7 @@ int main(int argc, char* argv[])
 		}
 	}
 	// sanity checks:
-	if (file == "" || wbegin >= wend || wstep <= 0) {
+	if (file == "" || total <= 0 || wstep <= 0) {
 		usage(argv[0]);
 		return 1;
 	}
@@ -95,9 +96,9 @@ int main(int argc, char* argv[])
 
 	ChebyshevSerializerType chebyshevSerializer(io);
 
-	ChebyshevSerializerType::PlotParamsType params(wbegin, wend, wstep, 0.0, 0.0, 0);
-	ChebyshevSerializerType::PlotDataType   v;
-	KernelParametersType                    kernelParams(type, cutoff, lambda);
+	PsimagLite::RealFrequencyRange<RealType> params(wbegin, wstep, total, 0);
+	ChebyshevSerializerType::PlotDataType    v;
+	KernelParametersType                     kernelParams(type, cutoff, lambda);
 	chebyshevSerializer.plot(v, params, kernelParams);
 	for (SizeType x = 0; x < v.size(); x++) {
 		RealType tmp = v[x].second;

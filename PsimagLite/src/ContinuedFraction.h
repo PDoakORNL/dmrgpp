@@ -31,32 +31,30 @@ Please see full open source license included in file LICENSE.
 #include "Complex.h"
 #include "FreqEnum.h"
 #include "Io/IoSimple.h"
+#include "Matsubaras.h"
 #include "ParametersForSolver.h"
-#include "PlotParams.h"
 #include "ProgressIndicator.h"
 #include "Random48.h"
+#include "RealFrequencyRange.hh"
+#include "TridiagonalMatrix.h"
 #include "TypeToString.h"
 #include <iostream>
 #include <typeinfo>
 
 namespace PsimagLite {
-template <typename TridiagonalMatrixType_> class ContinuedFraction {
+template <typename RealType> class ContinuedFraction {
 public:
 
-	using TridiagonalMatrixType = TridiagonalMatrixType_;
-	using MatrixElementType     = typename TridiagonalMatrixType::value_type;
-	using RealType              = typename Real<MatrixElementType>::Type;
+	using TridiagonalMatrixType = TridiagonalMatrix<RealType>;
 	using ComplexType           = typename std::complex<RealType>;
-	using FieldType             = typename TridiagonalMatrixType::value_type;
-	using MatrixType            = Matrix<FieldType>;
+	using MatrixType            = Matrix<RealType>;
 	using MatrixRealType        = Matrix<RealType>;
-	using PlotDataType          = typename Vector<std::pair<RealType, ComplexType>>::Type;
-	using PlotParamsType        = PlotParams<RealType>;
+	using PlotDataType          = std::vector<std::pair<RealType, ComplexType>>;
 	using ParametersType        = ParametersForSolver<RealType>;
 
 	ContinuedFraction(const TridiagonalMatrixType& ab, const ParametersType& params)
 	    : progress_("ContinuedFraction")
-	    , freqEnum_(FREQ_REAL)
+	    , freqEnum_(FreqEnum::REAL)
 	    , ab_(ab)
 	    , Eg_(params.Eg)
 	    , weight_(params.weight)
@@ -65,7 +63,7 @@ public:
 		diagonalize();
 	}
 
-	ContinuedFraction(FreqEnum freqEnum = FREQ_REAL)
+	ContinuedFraction(FreqEnum freqEnum = FreqEnum::REAL)
 	    : progress_("ContinuedFraction")
 	    , freqEnum_(freqEnum)
 	    , ab_()
@@ -76,7 +74,7 @@ public:
 
 	ContinuedFraction(IoSimple::In& io)
 	    : progress_("ContinuedFraction")
-	    , freqEnum_(FREQ_REAL)
+	    , freqEnum_(FreqEnum::REAL)
 	    , ab_(io)
 	{
 		String f;
@@ -89,7 +87,7 @@ public:
 		}
 
 		if (f == "Matsubara")
-			freqEnum_ = FREQ_MATSUBARA;
+			freqEnum_ = FreqEnum::MATSUBARA;
 
 		io.readline(weight_, "#CFWeight=");
 		io.readline(Eg_, "#CFEnergy=");
@@ -111,7 +109,7 @@ public:
 		io.setPrecision(12);
 		ab_.write(io);
 
-		String f = (freqEnum_ == FREQ_MATSUBARA) ? "Matsubara" : "Real";
+		String f = (freqEnum_ == FreqEnum::MATSUBARA) ? "Matsubara" : "Real";
 		io.write(" ", "#FreqEnum=" + f);
 
 		io.write(weight_, "#CFWeight");
@@ -134,51 +132,49 @@ public:
 		diagonalize();
 	}
 
-	void plot(PlotDataType& result, const PlotParamsType& params) const
+	void plot(PlotDataType& result, const RealFrequencyRange<RealType>& params) const
 	{
-		if (freqEnum_ == FREQ_MATSUBARA || params.numberOfMatsubaras > 0) {
-			plotMatsubara(result, params);
+		SizeType total = params.total();
+		if (total == 0) {
 			return;
 		}
 
-		if (freqEnum_ == FREQ_REAL || params.numberOfMatsubaras == 0) {
-			plotReal(result, params);
+		if (freqEnum_ != FreqEnum::REAL) {
+			throw std::runtime_error("ContinuedFraction::plot() matsubaras/realfreq. "
+			                         "mismatch: Real expected\n");
 		}
-	}
 
-	void plotReal(PlotDataType& result, const PlotParamsType& params) const
-	{
-		SizeType counter = 0;
-		SizeType n       = SizeType((params.omega2 - params.omega1) / params.deltaOmega);
-		if (result.size() == 0)
-			result.resize(n);
-		for (RealType omega = params.omega1; omega < params.omega2;
-		     omega += params.deltaOmega) {
-			ComplexType                      z(omega, params.delta);
+		result.resize(total);
+		for (SizeType i = 0; i < total; ++i) {
+			RealType                         omega = params.omega(i);
+			ComplexType                      z(omega, params.delta());
 			ComplexType                      res = iOfOmega(z, Eg_, isign_);
 			std::pair<RealType, ComplexType> p(omega, res);
-			result[counter++] = p;
-			if (counter >= result.size())
-				break;
+			result[i] = p;
 		}
 	}
 
-	void plotMatsubara(PlotDataType& result, const PlotParamsType& params) const
+	void plot(PlotDataType& result, const Matsubaras<RealType>& matsubaras) const
 	{
-		SizeType counter = 0;
-		SizeType n       = params.numberOfMatsubaras;
-		if (result.size() == 0)
-			result.resize(n);
-		for (SizeType omegaIndex = 0; omegaIndex < params.numberOfMatsubaras;
-		     ++omegaIndex) {
-			ComplexType z(params.delta, matsubara(omegaIndex, params));
+		SizeType n = matsubaras.total();
+		if (n == 0) {
+			return;
+		}
+
+		if (freqEnum_ != FreqEnum::MATSUBARA) {
+			throw std::runtime_error("ContinuedFraction::plot() matsubaras/realfreq. "
+			                         "mismatch: Matsubaras expected\n");
+		}
+
+		result.resize(n);
+		for (SizeType omegaIndex = 0; omegaIndex < n; ++omegaIndex) {
+			ComplexType z(matsubaras.delta(), matsubaras.omega(omegaIndex));
 			ComplexType res = iOfOmega(z, Eg_, isign_);
 			std::pair<RealType, ComplexType> p(PsimagLite::imag(z), res);
-			result[counter++] = p;
-			if (counter >= result.size())
-				break;
+			result[omegaIndex] = p;
 		}
 	}
+
 	//! Cases:
 	//! (1) < phi0|A (z+(E0-e_k))^{-1}|A^\dagger|phi0> and
 	//! (2) < phi0|A^\dagger (z-(E0-e_k))^{-1}|A|phi0>
@@ -218,11 +214,6 @@ private:
 		for (SizeType i = 0; i < T.rows(); i++) {
 			intensity_[i] = T(0, i) * T(0, i);
 		}
-	}
-
-	RealType matsubara(int ind, const PlotParamsType& params) const
-	{
-		return (2.0 * ind + 1.0) * M_PI / params.beta;
 	}
 
 	ProgressIndicator               progress_;

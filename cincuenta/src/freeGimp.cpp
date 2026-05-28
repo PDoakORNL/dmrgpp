@@ -63,8 +63,7 @@ int main(int argc, char* argv[])
 	InputNgType::Writeable    ioWriteable(inputfile, inputCheck);
 	InputNgType::Readable     io(ioWriteable);
 
-	ParamsDmftSolverType       params(io);
-	Dmft::Matsubaras<RealType> matsubaras(params.ficticiousBeta, params.nMatsubaras);
+	ParamsDmftSolverType params(io);
 
 	PsimagLite::Vector<RealType>::Type bath;
 	io.read(bath, "Bath");

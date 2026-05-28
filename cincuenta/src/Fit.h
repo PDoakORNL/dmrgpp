@@ -1,6 +1,7 @@
 #ifndef FIT_H
 #define FIT_H
 #include "AndersonFunction.h"
+#include "FitFunction.hpp"
 #include "MersenneTwister.h"
 #include "MinParams.h"
 #include "Minimizer.h"
@@ -13,11 +14,13 @@ template <typename ComplexOrRealType> class Fit {
 public:
 
 	using RealType                = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using VectorRealType          = typename PsimagLite::Vector<RealType>::Type;
+	using VectorRealType          = std::vector<RealType>;
 	using MinParamsType           = MinParams<RealType>;
 	using AndersonFunctionType    = AndersonFunction<ComplexOrRealType>;
+	using FitFunctionType         = FitFunction<ComplexOrRealType>;
 	using FunctionOfFrequencyType = typename AndersonFunctionType::FunctionOfFrequencyType;
 	using RngType                 = PsimagLite::MersenneTwister;
+	using Options                 = typename FitFunctionType::Options;
 
 	struct InitResults {
 
@@ -71,43 +74,91 @@ public:
 	Fit(SizeType nBath, const MinParamsType& minParams, const InitResults& initResults)
 	    : nBath_(nBath)
 	    , minParams_(minParams)
-	    , results_(2 * nBath)
+	    , results_(2 * nBath_)
 	    , rng_(1234)
 	    , initResults_(initResults)
-	{
-		setResults();
-	}
+	{ }
 
-	// Compute the optimized bath parameters and store them in vector gammaG
+	// Compute the optimized bath parameters and store them in vector g0
 	// See AndersonFunction.h documentation for the fit function, and
 	// for the order of storage of bath parameters
-	void fit(const FunctionOfFrequencyType& gammaG)
+	void fit(const FunctionOfFrequencyType& g0, const RealType& mu, Options options)
 	{
-		if (initResults_.reset)
-			setResults();
+		FitFunctionType f(nBath_, g0, mu, options);
 
-		AndersonFunctionType                                  f(nBath_, gammaG);
-		PsimagLite::Minimizer<RealType, AndersonFunctionType> min(
+		VectorRealType results(f.size());
+		setResults(results);
+
+		PsimagLite::Minimizer<RealType, FitFunctionType> min(
 		    f, minParams_.maxIter, minParams_.verbose);
 		int iter = 0;
 		if (minParams_.method == MinParamsType::Method::CONJUGATE_GRADIENT) {
 			iter = min.conjugateGradient(
-			    results_, minParams_.delta, minParams_.delta2, minParams_.tolerance);
+			    results, minParams_.delta, minParams_.delta2, minParams_.tolerance);
 		} else {
-			iter = min.simplex(results_, minParams_.delta, minParams_.tolerance);
+			iter = min.simplex(results, minParams_.delta, minParams_.tolerance);
 		}
 
 		if (iter < 0)
 			std::cerr << "No minimum found\n";
+
+		assert(results.size() == nBath_ || results.size() == 2 * nBath_);
+		if (results.size() == 2 * nBath_) {
+			for (SizeType i = 0; i < 2 * nBath_; ++i) {
+				results_[i] = results[i];
+			}
+		} else {
+			// particle-hole symmetric case
+
+			// The energy zero bath site is the middle one (nBath odd case only)
+
+			// copy Vs first, starting with the fitted ones...
+			SizeType number_of_fitted_Vs = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
+			for (SizeType i = 0; i < number_of_fitted_Vs; ++i) {
+				results_[i] = results[i];
+			}
+
+			// ...and then the rest of the Vs are a mirror
+			// Works also for Nbath_ odd
+			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
+				results_[i] = results[i - number_of_fitted_Vs];
+			}
+
+			// copy onsite energies, first the fitted ones...
+			SizeType offset1 = nBath_ - number_of_fitted_Vs;
+			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
+				results_[i + offset1] = results[i];
+			}
+
+			// .. then the center bath site (if nbath is odd)...
+			SizeType one_or_zero = (nBath_ & 1);
+			if (nBath_ & 1) {
+				results_[nBath_ + offset1] = 0;
+			}
+
+			// ...and the rest are the opposites
+			// Works also for Nbath_ odd
+			SizeType offset2 = 2 * (nBath_ - number_of_fitted_Vs);
+			for (SizeType i = number_of_fitted_Vs; i < nBath_; ++i) {
+				results_[i + offset2 + one_or_zero] = -results[i];
+			}
+
+			assert(nBath_ + offset2 + one_or_zero == 2 * nBath_);
+		}
 	}
 
 	const VectorRealType& result() const { return results_; }
 
 	SizeType nBath() const { return nBath_; }
 
+	static Options computeOptions(const std::string& options)
+	{
+		return FitFunctionType::computeOptions(options);
+	}
+
 private:
 
-	void setResults()
+	void setResults(VectorRealType& results)
 	{
 		bool nonConstant = (initResults_.result.size() > 0);
 		bool isConstant  = (initResults_.ra != 0 || initResults_.rb != 0);
@@ -115,15 +166,15 @@ private:
 			err("InitResults: Cannot have ra or rb and also a vector of init "
 			    "results\n");
 
-		if (nonConstant && initResults_.result.size() != results_.size())
+		if (nonConstant && initResults_.result.size() != results.size())
 			err(PsimagLite::String(
 			        "InitResults: vector of init results has wrong size: ")
-			    + "expected " + ttos(results_.size()) + ", but found "
+			    + "expected " + ttos(results.size()) + ", but found "
 			    + ttos(initResults_.result.size()) + "\n");
 
-		for (SizeType i = 0; i < results_.size(); ++i)
-			results_[i] = (isConstant) ? initResults_.ra * rng_() + initResults_.rb
-			                           : initResults_.result[i];
+		for (SizeType i = 0; i < results.size(); ++i)
+			results[i] = (isConstant) ? initResults_.ra * rng_() + initResults_.rb
+			                          : initResults_.result[i];
 	}
 
 	const SizeType       nBath_; // number of bath sites

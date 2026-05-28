@@ -116,10 +116,10 @@ public:
 		io.readline(type_, "DynamicDmrgType=");
 		PsimagLite::String tmp;
 		io.readline(tmp, "CorrectionVectorFreqType=");
-		PsimagLite::FreqEnum freqEnum = PsimagLite::FREQ_REAL;
+		PsimagLite::FreqEnum freqEnum = PsimagLite::FreqEnum::REAL;
 
 		if (tmp == "Matsubara") {
-			freqEnum = PsimagLite::FREQ_MATSUBARA;
+			freqEnum = PsimagLite::FreqEnum::MATSUBARA;
 		} else if (tmp != "Real") {
 			PsimagLite::String msg("CorrectionVectorFreqType");
 			throw PsimagLite::RuntimeError(msg += "must be either Real or Matsubara\n");
@@ -171,7 +171,7 @@ public:
 		if (nForFraction_ > 1)
 			io.readline(advanceEach_, "TSPAdvanceEach=");
 
-		if (freqEnum == PsimagLite::FREQ_MATSUBARA && firstRitz_ != 0)
+		if (freqEnum == PsimagLite::FreqEnum::MATSUBARA && firstRitz_ != 0)
 			err("FirstRitz must be 0 for Matsubara\n");
 	}
 

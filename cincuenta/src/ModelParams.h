@@ -1,7 +1,7 @@
 #ifndef CINC_MODELPARAMS_H
 #define CINC_MODELPARAMS_H
+#include "CincuentaInputCheck.h"
 #include "Geometry/Star.h"
-#include "InputCheck.h"
 #include "Matrix.h"
 #include "Vector.h"
 
@@ -24,7 +24,7 @@ template <typename ComplexOrRealType> struct ModelParams {
 
 	using RealType       = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using VectorRealType = typename PsimagLite::Vector<RealType>::Type;
-	using InputNgType    = PsimagLite::InputNg<Dmrg::InputCheck>;
+	using InputNgType    = PsimagLite::InputNg<CincuentaInputCheck>;
 	using StarType       = PsimagLite::Star<ComplexOrRealType, InputNgType::Readable>;
 
 	//---------------------------------------------------------------------------//
@@ -45,18 +45,19 @@ template <typename ComplexOrRealType> struct ModelParams {
 	 */
 	ModelParams(const VectorRealType& bathParams, InputNgType::Readable& io)
 	{
-		io.readline(nsites_, "TotalNumberOfSites=");
-		star_ = StarType(nsites_, io);
-
 		SizeType bath = bathParams.size() / 2;
 		assert((bathParams.size() & 1) == 0);
-		assert(nsites_ == bath + 1);
+		nsites_ = bath + 1;
+		star_   = StarType(nsites_, io);
 		potentialV_.resize(nsites_, 0);
+
+		RealType U = 0;
+		io.readline(U, "HubbardU=");
 
 		// hoppings from the center to any other site
 		hoppings_.resize(nsites_ - 1);
 		SizeType center     = star_.CENTER;
-		potentialV_[center] = 0; // potential at the impurity is set to zero
+		potentialV_[center] = -0.5 * U; // potential at the impurity
 		for (SizeType i = 0; i < nsites_; ++i) {
 			if (i == center) {
 				continue;
