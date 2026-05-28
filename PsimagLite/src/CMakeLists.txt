@@ -42,7 +42,6 @@ endif()
 target_link_libraries(psimaglite PUBLIC HDF5::HDF5)
 
 find_package(Boost REQUIRED)
-target_compile_definitions(psimaglite PUBLIC USE_BOOST)
 target_link_libraries(psimaglite PUBLIC Boost::boost)
 
 find_package(Threads)
