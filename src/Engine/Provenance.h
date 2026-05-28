@@ -36,9 +36,6 @@ public:
 #ifdef USE_FLOAT
 		ctOpts += "FLOAT ";
 #endif
-#ifdef USE_BOOST
-		ctOpts += "BOOST ";
-#endif
 #ifndef NDEBUG
 		ctOpts += "DEBUG ";
 #endif
