@@ -49,6 +49,7 @@ The examples for package dmrg are incorrect:
 #include "MyFile.hpp"
 #include "Engine/MyOtherFile.hpp"
 #include "../LanczosPlusPlus/MyFile.hpp"
+#include <LanczosPlusPlus/YetAnotherFile.hpp>
 ```
 
 ## Exceptions
