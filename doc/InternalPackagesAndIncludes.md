@@ -5,8 +5,8 @@ This memo specifies how internal dependencies are managed.
 It does not address third party libraries (TPLs)
 
 ## General Rules
-Do not use the special directory "..", and do not use angle brackets
-expect for standard library includes, or perhaps system-wide includes.
+Do not use the special directory "..", and do not use angle brackets,
+which are reserved for standard library includes or system-wide includes.
 
 ## Packages
 DMRG++ is composed of the following packages: PsimagLite, LanczosPlusPlus,
@@ -43,7 +43,7 @@ These examples for package dmrg are correct:
 #include "LanczosPlusPlus/Engine/MyOtherFile.hpp"
 ```
 
-The examples for package dmrg are incorrect:
+These examples for package dmrg are incorrect:
 
 ```cpp
 #include "MyFile.hpp"
