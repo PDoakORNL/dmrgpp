@@ -5,8 +5,8 @@ This memo specifies how internal dependencies are managed.
 It does not address third party libraries (TPLs)
 
 ## General Rules
-Do not use the special directory "..", and do not use angle brackets,
-which are reserved for standard library includes or system-wide includes.
+Do not use the special directory "..", and follow
+https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#rs-incform
 
 ## Packages
 DMRG++ is composed of the following packages: PsimagLite, LanczosPlusPlus,
@@ -35,21 +35,21 @@ These examples for package LanczosPlusPlus are all incorrect:
 
 ### Package includes a file from another Package
 If a package wants to include a file from another package it must
-prepend the include with package's name and inner location. But see the exception rule at the end.
+prepend the include with package's name and inner location **in angle brackets**. But see the exception rule at the end.
 These examples for package dmrg are correct:
 
 ```cpp
-#include "LanczosPlusPlus/MyFile.hpp"
-#include "LanczosPlusPlus/Engine/MyOtherFile.hpp"
+#include <LanczosPlusPlus/MyFile.hpp>
+#include <LanczosPlusPlus/Engine/MyOtherFile.hpp>
 ```
 
-These examples for package dmrg are incorrect:
+These examples for package dmrg are all incorrect:
 
 ```cpp
 #include "MyFile.hpp"
 #include "Engine/MyOtherFile.hpp"
 #include "../LanczosPlusPlus/MyFile.hpp"
-#include <LanczosPlusPlus/YetAnotherFile.hpp>
+#include "LanczosPlusPlus/YetAnotherFile.hpp"
 ```
 
 ## Exceptions
@@ -59,8 +59,8 @@ The name PsimagLite can be dropped, and maybe Utilities can be dropped also.
 These includes are allowed:
 
 ```cpp
-#include "Utilities/Matrix.h"
-#include "Matrix.h"
-#include "IoNg.h"
+#include <Utilities/Matrix.h>
+#include <Matrix.h>
+#include <IoNg.h>
 ```
 
