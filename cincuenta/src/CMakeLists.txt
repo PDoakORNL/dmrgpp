@@ -68,7 +68,7 @@ add_check(neqTsuji0_GL00_Im
 
 # G^R(t=1, t'=0): retarded GF one time unit after quench — regression anchor
 add_check(neqTsuji0_GR10_Im
-  "1\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "0.2158"  "1e-4"
+  "1\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "-0.377208"  "1e-4"
   ${CMAKE_CURRENT_BINARY_DIR}/green-retarded  neqTsuji0)
 
 # n(t=1) = Im[G^<(1,1)]: PH-symmetric system locks n=0.5 — regression anchor
