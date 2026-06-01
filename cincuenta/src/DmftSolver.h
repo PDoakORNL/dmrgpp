@@ -204,9 +204,25 @@ private:
 
 		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
 			writeGimpForDebugOnly(root + ".txt");
+			writeLatticeGForDebug("latticeG_" + params_.impuritySolver + ".txt");
 		} else {
 			writeGimpForDebugOnly(root + "_real.txt");
 		}
+	}
+
+	// Write the local lattice GF G_cluster_0(iw_n) to a file for comparison against gimp.
+	// Format: one line per Matsubara frequency  "omega Re Im"  (no header count).
+	// For U=0 (no interactions, Sigma=0), this must equal gimp to within bath fitting error.
+	void writeLatticeGForDebug(const std::string& filename) const
+	{
+		std::ofstream fout(filename);
+		if (!fout || !fout.good())
+			err(std::string("Could not write to ") + filename + "\n");
+		const FunctionOfFrequencyType& g = latticeG_();
+		const SizeType n = g.totalMatsubaras();
+		for (SizeType i = 0; i < n; ++i)
+			fout << g.omega(i) << " " << PsimagLite::real(g(i)) << " "
+			     << PsimagLite::imag(g(i)) << "\n";
 	}
 
 	RealType computeNewSelfEnergy(const VectorRealType& bathParams)
