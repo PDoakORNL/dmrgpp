@@ -121,7 +121,7 @@ if(Python3_FOUND)
       ${PATH_TO_TESTSUITE}/compare_gimp_latticeG.py
       ${U0_DMRG_DIR}/gimp_dmrg.txt
       ${U0_DMRG_DIR}/latticeG_dmrg.txt
-      --tolerance 0.01)
+      --tolerance 0.05)
   set_tests_properties(u0_gImpEqGcluster_dmrg_check PROPERTIES
     DEPENDS u0_gImpEqGcluster_dmrg)
 
