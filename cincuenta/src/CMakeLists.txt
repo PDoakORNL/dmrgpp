@@ -236,16 +236,24 @@ if(Python3_FOUND)
 
 endif()
 
-# 9-bath correction-vector DMRG equilibrium test: compare n_imp to Tsuji's
-# exact n=0.5 (IPT is exact at U_i=0).  Tolerance 0.025 is tighter than the
-# 5-bath ED deviation (0.027) so this test distinguishes DMRG quality.
-set(DMRG9_DIR ${CMAKE_CURRENT_BINARY_DIR}/neqTsujiDmrg9bath)
+# 9-bath DMRG equilibrium self-consistency: G_imp(iw_n) must equal G_cluster_0(iw_n)
+# at U=0 (Sigma=0 exactly). Uses m=100 states / 200 sweeps for meaningful accuracy.
+# Labelled "Nightly" — too slow (~10 min) for fast CI. Run with:
+#   ctest -L Nightly          # nightly suite only
+#   ctest -LE Nightly         # fast CI (excludes nightly)
+# TODO: add proper nightly-test infrastructure (separate cmake preset or CI job).
+#
+# Note: ImpuritySolverNeqLanczos was removed — with NstatesNeq=20 for a 10-site
+# system (sector dim ~63k) only ~20% of spectral weight is captured, making the
+# boundary condition G^R(t,t)=-i unachievable and all neq checks meaningless.
+set(DMRG9_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0Dmrg9bath)
 file(MAKE_DIRECTORY ${DMRG9_DIR})
 
 add_test(
   NAME neqTsujiDmrg9bath0
   COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputNeqTsujiDmrg9bathFast.ain
   WORKING_DIRECTORY ${DMRG9_DIR})
+set_tests_properties(neqTsujiDmrg9bath0 PROPERTIES LABELS "Nightly")
 
 # G^R(0,0) = -i: exact boundary condition [Tsuji: -1.0000]
 add_check(neqTsujiDmrg9bath0_GR00_Im "0\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)" "-1.0" "1e-8"
