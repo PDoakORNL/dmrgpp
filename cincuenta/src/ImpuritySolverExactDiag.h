@@ -6,6 +6,7 @@
 #include "ImpuritySolverBase.h"
 #include "InputCheck.h"
 #include "InputNg.h"
+#include "LanczosPlusPlus/src/Engine/Engine.h"
 #include "LanczosSolver.h"
 #include "Matsubaras.h"
 #include "MersenneTwister.h"
@@ -150,14 +151,6 @@ private:
 		for (SizeType i = 0; i < gimp_.size(); ++i)
 		        gimp_[i] *= factor;
 		*/
-	}
-
-	void computeGreenFunction(const CollectionContFractionType& cf_collection)
-	{
-		typename CollectionContFractionType::PlotDataType   results;
-		typename CollectionContFractionType::PlotParamsType params;
-
-		cf_collection.plot(results, params);
 	}
 
 	const ParamsDmftSolverType&     params_;

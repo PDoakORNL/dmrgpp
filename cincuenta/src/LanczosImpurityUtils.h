@@ -6,7 +6,7 @@
 #include "LanczosPlusPlus/src/Engine/InternalProductOnTheFly.h"
 #include "LanczosPlusPlus/src/Engine/InternalProductStored.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
-#include "LanczosPlusPlus/src/Engine/ModelBase.h"
+#include "LanczosPlusPlus/src/Engine/LanczosModelBase.hpp"
 #include "LanczosSolver.h"
 #include "Matrix.h"
 #include "ParametersForSolver.h"
@@ -28,7 +28,7 @@ struct LanczosImpurityUtils {
 	using GeometryType =
 	    PsimagLite::Geometry<ComplexOrRealType, DmrgInputReadable, LanczosPlusPlus::LanczosGlobals>;
 	using ModelBaseType =
-	    LanczosPlusPlus::ModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	    LanczosPlusPlus::LanczosModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
 	using BasisBaseType       = typename ModelBaseType::BasisBaseType;
 	using DefaultSymmetryType = LanczosPlusPlus::DefaultSymmetry<GeometryType, BasisBaseType>;
 	using InternalProductOnTheFlyType =

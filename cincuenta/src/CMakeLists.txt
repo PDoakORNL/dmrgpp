@@ -35,14 +35,14 @@ add_test(NAME cincuenta0 COMMAND ./cincuenta -I ${PATH_TO_INPUTS} -f inputCincue
 # dmrg impurity solver
 add_test(NAME cincuenta1 COMMAND ./cincuenta -I ${PATH_TO_INPUTS} -f inputCincuenta1.ain) # energy 0.456977
 # equilibrium Lanczos solver, NstatesEq=0 (full diag), 1 iteration
-# G_imp(iw_0=0.0628) = (0.00551, -2.482) -- 1st-iteration values from zero sigma start
+# G_imp(iw_0=0.0628) -- 1st-iteration values from zero sigma start, PH-symmetric bath fit
 add_test(NAME eqLanczos0 COMMAND ./cincuenta -I ${PATH_TO_INPUTS} -f inputEqLanczosRef.ain)
-# Re[G_imp(+iw_0)]: last match = positive-frequency line
+# Re[G_imp(+iw_0)]: zero by particle-hole symmetry
 add_gimp_check(eqLanczos0_Re
-  "0\\.0628319\\s+([-0-9.eE+]+)\\s+[-0-9.eE+]+"  "0.00551" "1e-4" eqLanczos0)
-# Im[G_imp(+iw_0)]: causal (negative), magnitude confirms both sectors contribute
+  "0\\.0628319\\s+([-0-9.eE+]+)\\s+[-0-9.eE+]+"  "0.0" "1e-10" eqLanczos0)
+# Im[G_imp(+iw_0)]: causal (negative)
 add_gimp_check(eqLanczos0_Im
-  "0\\.0628319\\s+[-0-9.eE+]+\\s+([-0-9.eE+]+)"  "-2.48174" "1e-4" eqLanczos0)
+  "0\\.0628319\\s+[-0-9.eE+]+\\s+([-0-9.eE+]+)"  "-0.274681" "1e-4" eqLanczos0)
 
 # Non-equilibrium DMFT: interaction quench U_i=0 -> U_f=2, 5-bath exact diag,
 # beta=16, t_max=5 (N_t=200).  Reference: Tsuji et al. noneq-dmft (IPT, infinite bath).
@@ -55,30 +55,30 @@ add_check(neqTsuji0_GR00_Im
   "0\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "-1.0"  "1e-8"
   ${CMAKE_CURRENT_BINARY_DIR}/green-retarded  neqTsuji0)
 
-# G^M(tau=0) = -n_imp: 5-bath approximation to half-filling  [Tsuji: -0.5000]
+# G^M(tau=0) = -n_imp: PH-symmetric bath gives exact half-filling  [Tsuji: -0.5000]
 # ^ anchor required: "0.0000000000" appears as substring inside "10.0000000000".
 add_check(neqTsuji0_GM0_Re
-  "^0\\.0000000000 ([-0-9.eE+]+) [-0-9.eE+]+"  "-0.472861"  "1e-4"
+  "^0\\.0000000000 ([-0-9.eE+]+) [-0-9.eE+]+"  "-0.5"  "1e-8"
   ${CMAKE_CURRENT_BINARY_DIR}/green-matsubara-t  neqTsuji0)
 
-# G^<(t=0, t'=0): initial occupation Im[G^<(0,0)] = n(0)  [Tsuji: 0.5000]
+# G^<(t=0, t'=0): initial occupation Im[G^<(0,0)] = n(0) = 0.5 for U_i=0 PH-symmetric
 add_check(neqTsuji0_GL00_Im
-  "0\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "0.527139"  "1e-4"
+  "0\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "0.5"  "1e-8"
   ${CMAKE_CURRENT_BINARY_DIR}/green-lesser  neqTsuji0)
 
 # G^R(t=1, t'=0): retarded GF one time unit after quench — regression anchor
 add_check(neqTsuji0_GR10_Im
-  "1\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "-0.294763"  "1e-4"
+  "1\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "0.2158"  "1e-4"
   ${CMAKE_CURRENT_BINARY_DIR}/green-retarded  neqTsuji0)
 
-# n(t=1) = Im[G^<(1,1)]: occupation after quench — regression anchor
+# n(t=1) = Im[G^<(1,1)]: PH-symmetric system locks n=0.5 — regression anchor
 add_check(neqTsuji0_n1
-  "1\\.0000000000 1\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "0.506618"  "1e-4"
+  "1\\.0000000000 1\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "0.5"  "1e-8"
   ${CMAKE_CURRENT_BINARY_DIR}/green-lesser  neqTsuji0)
 
-# n(t=5) = Im[G^<(5,5)]: final occupation — catches drift in time propagation
+# n(t=5) = Im[G^<(5,5)]: PH-symmetric system locks n=0.5 — regression anchor
 add_check(neqTsuji0_n5
-  "5\\.0000000000 5\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "0.507376"  "1e-4"
+  "5\\.0000000000 5\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "0.5"  "1e-8"
   ${CMAKE_CURRENT_BINARY_DIR}/green-lesser  neqTsuji0)
 
 # ---- U=0 self-consistency tests: G_imp must equal G_cluster_0 ----------------
