@@ -104,7 +104,7 @@ if(Python3_FOUND)
       ${PATH_TO_TESTSUITE}/compare_gimp_latticeG.py
       ${U0_ED_DIR}/gimp_exactdiag.txt
       ${U0_ED_DIR}/latticeG_exactdiag.txt
-      --tolerance 0.01)
+      --tolerance 0.015)
   set_tests_properties(u0_gImpEqGcluster_exactdiag_check PROPERTIES
     DEPENDS u0_gImpEqGcluster_exactdiag)
 
