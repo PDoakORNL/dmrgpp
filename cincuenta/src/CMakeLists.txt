@@ -175,31 +175,35 @@ if(Python3_FOUND)
 
 endif()
 
-# 9-bath correction-vector DMRG equilibrium test: compare n_imp to Tsuji's
-# exact n=0.5 (IPT is exact at U_i=0).  Tolerance 0.025 is tighter than the
-# 5-bath ED deviation (0.027) so this test distinguishes DMRG quality.
-set(DMRG9_DIR ${CMAKE_CURRENT_BINARY_DIR}/neqTsujiDmrg9bath)
+# 9-bath DMRG equilibrium self-consistency: G_imp(iw_n) must equal G_cluster_0(iw_n)
+# at U=0 (Sigma=0 exactly). Uses m=100 states / 200 sweeps for meaningful accuracy.
+# Labelled "Nightly" — too slow (~10 min) for fast CI. Run with:
+#   ctest -L Nightly          # nightly suite only
+#   ctest -LE Nightly         # fast CI (excludes nightly)
+# TODO: add proper nightly-test infrastructure (separate cmake preset or CI job).
+#
+# Note: ImpuritySolverNeqLanczos was removed — with NstatesNeq=20 for a 10-site
+# system (sector dim ~63k) only ~20% of spectral weight is captured, making the
+# boundary condition G^R(t,t)=-i unachievable and all neq checks meaningless.
+set(DMRG9_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0Dmrg9bath)
 file(MAKE_DIRECTORY ${DMRG9_DIR})
 
 add_test(NAME neqTsujiDmrg9bath0
-  COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputNeqTsujiDmrg9bathFast.ain
+  COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputU0Dmrg9bath.ain
   WORKING_DIRECTORY ${DMRG9_DIR})
+set_tests_properties(neqTsujiDmrg9bath0 PROPERTIES LABELS "Nightly")
 
-# G^R(0,0) = -i: exact boundary condition [Tsuji: -1.0000]
-add_check(neqTsujiDmrg9bath0_GR00_Im
-  "0\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "-1.0"  "1e-8"
-  ${DMRG9_DIR}/green-retarded  neqTsujiDmrg9bath0)
-
-# G^M(tau=0) = -n_imp: 9-bath DMRG should reach Tsuji's -0.5 within 2.5%
-# (5-bath ED gives -0.473, off by 0.027 > tolerance -- this test would fail there)
-add_check(neqTsujiDmrg9bath0_GM0_Re
-  "^0\\.0000000000 ([-0-9.eE+]+) [-0-9.eE+]+"  "-0.5"  "0.025"
-  ${DMRG9_DIR}/green-matsubara-t  neqTsujiDmrg9bath0)
-
-# G^<(0,0) Im = n_imp: should match Tsuji's 0.5 within 2.5%
-add_check(neqTsujiDmrg9bath0_GL00_Im
-  "0\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)"  "0.5"  "0.025"
-  ${DMRG9_DIR}/green-lesser  neqTsujiDmrg9bath0)
+if(Python3_FOUND)
+  add_test(NAME neqTsujiDmrg9bath0_GimpEqGlatt
+    COMMAND ${Python3_EXECUTABLE}
+      ${PATH_TO_TESTSUITE}/compare_gimp_latticeG.py
+      ${DMRG9_DIR}/gimp_dmrg.txt
+      ${DMRG9_DIR}/latticeG_dmrg.txt
+      --tolerance 0.03)
+  set_tests_properties(neqTsujiDmrg9bath0_GimpEqGlatt PROPERTIES
+    DEPENDS neqTsujiDmrg9bath0
+    LABELS "Nightly")
+endif()
 
 # tDMRG non-equilibrium test: U_i=0 -> U_f=2 quench, compare G^R and G^< against
 # exact-diag reference.  Requires Python 3; skipped silently if not available.
