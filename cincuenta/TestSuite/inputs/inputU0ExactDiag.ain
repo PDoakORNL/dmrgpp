@@ -1,0 +1,49 @@
+##Ainur1.0
+
+# U=0 equilibrium test: G_imp(iw_n) must equal G_cluster_0(iw_n).
+# With no interactions Sigma=0 exactly, so the DMFT self-consistency condition
+# G_imp = G_lattice holds up to bath-discretization error (~1% for 5 bath sites).
+# Both G_imp and G_cluster_0 are written by cincuenta (gimp_exactdiag.txt and
+# latticeG_exactdiag.txt) and compared by compare_gimp_latticeG.py.
+
+FicticiousBeta=20;
+ChemicalPotential=0.;
+Matsubaras=200;
+LatticeGf="energy,semicircular,4";
+NumberOfBathPoints=5;
+DmftNumberOfIterations=1;
+DmftTolerance=1e-6;
+ImpuritySolver="exactdiag";
+
+FitOptions=particleholesymmetric;
+MinParamsDelta=0.01;
+MinParamsMaxIter=10000;
+MinParamsDelta2=0.01;
+MinParamsTolerance=1e-4;
+MinParamsVerbose=0;
+# Provide a physically motivated starting point for CG.
+# PH-symmetric layout for nBath=5: [V0, V1, V2, eps0, eps1] (5 params).
+# V=1/sqrt(5) so sum(V^2)=1; bath energies [1.0, 1.8] span the Bethe lattice band.
+vector InitBathVector=[0.447, 0.447, 0.447, 1.0, 1.8];
+
+int ImpuritySite=0;
+real HubbardU=0.;
+
+TargetElectronsUp=3;
+TargetElectronsDown=3;
+
+RootOutputname="U0ExactDiag";
+InfiniteLoopKeptStates=20;
+matrix FiniteLoopsGs=[[@auto, 100, 0],[@auto, 100, 0]];
+matrix FiniteLoopsOmega=[[@auto, 100, 2],[@auto, 100, 2]];
+
+real OmegaBegin=-6.;
+integer OmegaTotal=20;
+real OmegaStep=0.3;
+real OmegaDelta=0.1;
+
+integer TridiagSteps=200;
+real TridiagEps=1e-9;
+TruncationTolerance="1e-10,100";
+CorrectionVectorEta=0.;
+GsWeight=0.1;
