@@ -655,54 +655,63 @@ private:
 		return ComplexType(0, 1) * s;
 	}
 
+<<<<<<< variant A
 	/*!
 	 * \brief Compute G^{Left}(t_n, tau_j) = +i sum_k chi_k[j] * conj(Phi_k[n])
 	 *
 	 * Sign is +i (not -i) because chi uses exp(-OmegaL*(beta-tau)); together
 	 * they satisfy G^{Left}(0,tau) = -i G^M(beta-tau).
 	 */
-	ComplexType gLeft(int n, SizeType j) const
-	{
-		const SizeType dimN1 = chi_.rows();
-		ComplexType    s     = 0;
-		for (SizeType k = 0; k < dimN1; ++k)
-			s += chi_(k, j) * std::conj(Phi_(k, static_cast<SizeType>(n)));
-		return ComplexType(0, 1) * s;
-	}
+>>>>>>> variant B
+	// G^{Left}(t_n, tau_j) = +i sum_k chi_k[j] * conj(Phi_k[n])
+	// Sign is +i (not -i) because chi uses exp(-OmegaL*(beta-tau)); together
+	// they satisfy G^{Left}(0,tau) = -i G^M(beta-tau).
+	###### #Ancestor
+	// G^{Left}(t_n, tau_j) = -i sum_k chi_k[j] * conj(Phi_k[n])
+======= end
+ComplexType gLeft(int n, SizeType j) const
+{
+	const SizeType dimN1 = chi_.rows();
+	ComplexType    s     = 0;
+	for (SizeType k = 0; k < dimN1; ++k)
+		s += chi_(k, j) * std::conj(Phi_(k, static_cast<SizeType>(n)));
+	return ComplexType(0, 1) * s;
+}
 
-	/// Member variables
-	const ParamsNeqType&            params_;
-	typename InputNgType::Readable& io_;
-	SizeType                        nup_;
-	SizeType                        ndown_;
-	SizeType                        nT_;
-	SizeType                        nTau_;
-	RealType                        dtau_;
-	KBType                          gimp_;
+/// Member variables
+const ParamsNeqType&            params_;
+typename InputNgType::Readable& io_;
+SizeType                        nup_;
+SizeType                        ndown_;
+SizeType                        nT_;
+SizeType                        nTau_;
+RealType                        dtau_;
+KBType                          gimp_;
 
-	/// Pre-quench N+1 spectrum and operator amplitudes
-	VectorRealType    energiesN1_pre_;
-	RealType          E0_pre_;
-	VectorComplexType f_; ///< f_l = <l^{N+1}_pre | c†_imp | GS_pre>
+/// Pre-quench N+1 spectrum and operator amplitudes
+VectorRealType    energiesN1_pre_;
+RealType          E0_pre_;
+VectorComplexType f_; ///< f_l = <l^{N+1}_pre | c†_imp | GS_pre>
 
-	/// Pre-quench N-1 spectrum and hole amplitudes (for complete G^M)
-	VectorRealType    energiesNm1_pre_;
-	VectorComplexType h_pre_; ///< h_k = <k^{N-1}_pre | c_imp | GS_pre>
+/// Pre-quench N-1 spectrum and hole amplitudes (for complete G^M)
+VectorRealType    energiesNm1_pre_;
+VectorComplexType h_pre_; ///< h_k = <k^{N-1}_pre | c_imp | GS_pre>
 
-	/// Post-quench spectra
-	VectorRealType energiesN_post_, energiesN1_post_, energiesNm1_post_;
+/// Post-quench spectra
+VectorRealType energiesN_post_, energiesN1_post_, energiesNm1_post_;
 
-	/// Quench overlaps: b_n = <n^N_post | GS_pre>
-	VectorComplexType b_;
+/// Quench overlaps: b_n = <n^N_post | GS_pre>
+VectorComplexType b_;
 
-	/// Overlap matrix between pre and post N+1 sectors
-	MatrixComplexType O_N1_;
+/// Overlap matrix between pre and post N+1 sectors
+MatrixComplexType O_N1_;
 
-	/// Precomputed time-dependent amplitudes (rows=sector states, cols=time steps)
-	MatrixComplexType Phi_; ///< particle channel
-	MatrixComplexType Psi_; ///< hole channel
-	MatrixComplexType chi_; ///< imaginary-time factor for G^{Left}
-};
+/// Precomputed time-dependent amplitudes (rows=sector states, cols=time steps)
+MatrixComplexType Phi_; ///< particle channel
+MatrixComplexType Psi_; ///< hole channel
+MatrixComplexType chi_; ///< imaginary-time factor for G^{Left}
+}
+;
 
 } // namespace Dmft
 #endif // IMPURITYSOLVER_NEQ_EXACTDIAG_H
