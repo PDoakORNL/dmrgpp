@@ -64,11 +64,6 @@ public:
 		gimp_.matsubara_t = impSolver_.gimp().matsubara_t;
 		gimp_.matsubara_w = impSolver_.gimp().matsubara_w;
 
-		// Copy equilibrium Matsubara components from the solver's internal gimp —
-		// computeGimp() only fills real-time (retarded/lesser/left-mixing) slices.
-		gimp_.matsubara_t = impSolver_.gimp().matsubara_t;
-		gimp_.matsubara_w = impSolver_.gimp().matsubara_w;
-
 		// Populate t=0 (equilibrium) boundary conditions.
 		impSolver_.computeGimp(gimp_, 0);
 		latticeGf_.initialize(gimp_);

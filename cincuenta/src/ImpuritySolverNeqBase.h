@@ -28,14 +28,10 @@ public:
 
 	virtual ~ImpuritySolverNeqBase() { }
 
-	/*!
-	 * \brief solve
-	 * Run the impurity solver for the given bath parameters.
-	 * Diagonalizes H(U_i) and H(U_f) so that subsequent computeGimp(n)
-	 * calls can fill time slices on demand.
-	 *
-	 * \param[in] bathParams Bath parameters passed to the solver.
-	 */
+	// Run the impurity solver for the given bath parameters.
+	// For step-by-step solvers (ExactDiag, Lanczos): diagonalizes H(U_i)/H(U_f) so that
+	// subsequent computeGimp(n) calls can fill time slices on demand.
+	// For one-shot solvers (tDMRG): runs the full real-time propagation here.
 	virtual void solve(const VectorRealType& bathParams) = 0;
 
 	/*!

@@ -693,6 +693,10 @@ VectorRealType    energiesN1_pre_;
 RealType          E0_pre_;
 VectorComplexType f_; ///< f_l = <l^{N+1}_pre | c†_imp | GS_pre>
 
+// Pre-quench N-1 spectrum and hole amplitudes (for complete G^M)
+VectorRealType    energiesNm1_pre_;
+VectorComplexType h_pre_; // h_k = <k^{N-1}_pre | c_imp | GS_pre>
+
 /// Pre-quench N-1 spectrum and hole amplitudes (for complete G^M)
 VectorRealType    energiesNm1_pre_;
 VectorComplexType h_pre_; ///< h_k = <k^{N-1}_pre | c_imp | GS_pre>

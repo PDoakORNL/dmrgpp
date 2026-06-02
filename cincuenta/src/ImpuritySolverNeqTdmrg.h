@@ -102,7 +102,7 @@ public:
 	}
 
 	// One-time setup: runs GS DMRG and tDMRG, pre-fills the KB grid.
-	void initialize(const VectorRealType& bathParams) override
+	void solve(const VectorRealType& bathParams) override
 	{
 		const SizeType nBath  = bathParams.size() / 2;
 		const SizeType nsites = nBath + 1;
@@ -358,6 +358,21 @@ private:
 			std::cerr << "ImpuritySolverNeqTdmrg: WARNING: no in-situ measurements "
 			             "found in '" << logfile << "'.  Check TSP parameters and "
 			             "finite-loop count.\n";
+
+		// Sign-flip correction: the N+1-sector (P1) gauge can flip by π at sweep
+		// direction changes.  Detect by |a+b|² ≪ |a-b|² and negate.
+		{
+			auto it = ggt0_at_step.begin();
+			auto prev = it;
+			++it;
+			for (; it != ggt0_at_step.end(); ++it, ++prev) {
+				const ComplexType& a = prev->second;
+				const RealType sum_norm  = std::norm(a + it->second);
+				const RealType diff_norm = std::norm(a - it->second);
+				if (sum_norm < RealType(0.1) * diff_norm)
+					it->second = -it->second;
+			}
+		}
 
 		// Per-step gauge correction: true_value = <gs|c|P1> / <gs|penultimate>.
 		// <gs|penultimate> = <psi_prev|psi_curr> tracks the N-sector gauge drift.
