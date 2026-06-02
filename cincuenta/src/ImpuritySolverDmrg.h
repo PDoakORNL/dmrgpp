@@ -341,15 +341,15 @@ private:
 			err("readGimp: Not all values computed\n");
 	}
 
-	void scaleGimp()
+	void scaleGimp(RealType factor) override
 	{
-		const SizeType n           = gimp_.size();
-		ComplexType    pre_density = BaseType::density(gimp_);
-		const RealType factor      = -M_PI / std::real(pre_density);
-		for (SizeType i = 0; i < n; ++i) {
+		for (SizeType i = 0; i < gimp_.size(); ++i)
 			gimp_[i] *= factor;
-		}
 	}
+
+	// DMRG uses O(10) Matsubara points; the high-frequency tail has not converged
+	// at those frequencies, so the spectral weight estimate is unreliable.
+	bool useSpectralSumRule() const override { return false; }
 
 	const ParamsDmftSolverType&     params_;
 	const ApplicationType&          app_;

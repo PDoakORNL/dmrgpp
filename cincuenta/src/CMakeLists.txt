@@ -40,9 +40,9 @@ add_test(NAME eqLanczos0 COMMAND ./cincuenta -I ${PATH_TO_INPUTS} -f inputEqLanc
 # Re[G_imp(+iw_0)]: zero by particle-hole symmetry
 add_gimp_check(eqLanczos0_Re
   "0\\.0628319\\s+([-0-9.eE+]+)\\s+[-0-9.eE+]+"  "0.0" "1e-10" eqLanczos0)
-# Im[G_imp(+iw_0)]: causal (negative)
+# Im[G_imp(+iw_0)]: causal (negative); normalized by spectral sum rule
 add_gimp_check(eqLanczos0_Im
-  "0\\.0628319\\s+[-0-9.eE+]+\\s+([-0-9.eE+]+)"  "-2.43747" "1e-4" eqLanczos0)
+  "0\\.0628319\\s+[-0-9.eE+]+\\s+([-0-9.eE+]+)"  "-0.613448" "1e-4" eqLanczos0)
 
 # Non-equilibrium DMFT: interaction quench U_i=0 -> U_f=2, 5-bath exact diag,
 # beta=16, t_max=5 (N_t=200).  Reference: Tsuji et al. noneq-dmft (IPT, infinite bath).

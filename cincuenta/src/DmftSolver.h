@@ -84,6 +84,8 @@ public:
 			impuritySolver_->solve(
 			    fit_.result(), PsimagLite::FreqEnum::MATSUBARA, iter);
 
+			impuritySolver_->enforceSpectralSumRule();
+
 			this->logDebug();
 
 			error = computeNewSelfEnergy(fit_.result());
