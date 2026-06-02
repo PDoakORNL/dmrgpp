@@ -82,9 +82,9 @@ public:
 		io.readline(ndown_, "TargetElectronsDown=");
 	}
 
-	// One-time setup: diagonalize H_pre and H_post for the given bath,
+	// Diagonalize H_pre and H_post for the given bath,
 	// precompute all time-dependent spectral amplitudes.
-	void initialize(const VectorRealType& bathParams) override
+	void solve(const VectorRealType& bathParams) override
 	{
 		const SizeType nBath   = bathParams.size() / 2;
 		const SizeType nsites  = nBath + 1;
@@ -127,6 +127,12 @@ public:
 			diagWithBasis(model, *bN1pre, geom, energiesN1_pre_, eigvecsPreN1);
 
 			buildF(model.basis(), *bN1pre, eigvecsPreN, eigvecsPreN1, impSite);
+
+			// N-1 sector: hole contributions to G^M
+			std::unique_ptr<BasisBaseType> bNm1pre(model.createBasis(nup_ - 1, ndown_));
+			MatrixType eigvecsNm1_pre;
+			diagWithBasis(model, *bNm1pre, geom, energiesNm1_pre_, eigvecsNm1_pre);
+			buildHPre(model.basis(), *bNm1pre, eigvecsPreN, eigvecsNm1_pre, impSite);
 		}
 
 		// ---- Post-quench: N, N+1, and N-1 sectors -------------------------
@@ -309,6 +315,41 @@ private:
 				f_[l] += std::conj(ComplexType(eigvecsN1(k, l))) * tmp[k];
 	}
 
+	// h_pre_[k] = <k^{N-1}_pre | c_imp_up | GS^N_pre>  (pre-quench hole amplitudes)
+	void buildHPre(const BasisBaseType& basisN,
+	               const BasisBaseType& basisNm1,
+	               const MatrixType&    eigvecsN,
+	               const MatrixType&    eigvecsNm1,
+	               SizeType             impSite)
+	{
+		const SizeType dimN   = basisN.size();
+		const SizeType dimNm1 = basisNm1.size();
+		const SizeType spinUp = LanczosPlusPlus::LanczosGlobals::SPIN_UP;
+		const SizeType spinDn = LanczosPlusPlus::LanczosGlobals::SPIN_DOWN;
+		const LabeledOperatorType opC(LabeledOperatorType::Label::OPERATOR_C);
+
+		MatrixType cFock(dimNm1, dimN);
+		for (SizeType m = 0; m < dimN; ++m) {
+			WordType    ket1 = basisN(m, spinUp);
+			WordType    ket2 = basisN(m, spinDn);
+			PairIntType bra  = basisNm1.getBraIndex(ket1, ket2, opC, impSite, spinUp, 0);
+			if (bra.first < 0)
+				continue;
+			int sign = basisN.doSignGf(ket1, ket2, impSite, spinUp, 0);
+			cFock(static_cast<SizeType>(bra.first), m) = ComplexOrRealType(sign);
+		}
+
+		VectorComplexType tmp(dimNm1, ComplexType(0));
+		for (SizeType k = 0; k < dimNm1; ++k)
+			for (SizeType m = 0; m < dimN; ++m)
+				tmp[k] += ComplexType(cFock(k, m)) * ComplexType(eigvecsN(m, 0));
+
+		h_pre_.resize(dimNm1, ComplexType(0));
+		for (SizeType l = 0; l < dimNm1; ++l)
+			for (SizeType k = 0; k < dimNm1; ++k)
+				h_pre_[l] += std::conj(ComplexType(eigvecsNm1(k, l))) * tmp[k];
+	}
+
 	// Build Phi_(k, n) and Psi_(k, n):
 	//   Phi_(k,n) = sum_m Mcdag(k,m) b_m exp(i(E^{N+1}_k - E^N_m) t_n)
 	//   Psi_(k,n) = sum_m Mc(k,m)   b_m exp(i(E^{N-1}_k - E^N_m) t_n)
@@ -431,8 +472,9 @@ private:
 			}
 	}
 
-	// chi_(k, j) = sum_l O_N1(k,l) * f_l * exp(Omega_l * tau_j)
-	// where Omega_l = E^{N+1}_{l,pre} - E^N_{0,pre}
+	// chi_(k, j) = sum_l O_N1(k,l) * f_l * exp(-Omega_l * (beta - tau_j))
+	// G^{Left} involves only the particle sector; no hole term needed.
+	// Omega_l = E^{N+1}_{l,pre} - E^N_{0,pre}
 	void buildChi()
 	{
 		const SizeType dimN1post = O_N1_.rows();
@@ -457,13 +499,18 @@ private:
 	}
 
 	// Populate gimp_.matsubara_t and gimp_.matsubara_w from the pre-quench
-	// N+1 sector Lehmann representation.
+	// Lehmann representation including both particle (N+1) and hole (N-1) sectors.
 	//
-	// G^M(tau) = -sum_l |f_l|^2 exp(-Omega_l tau)  (particle sector, T=0)
-	// G^M(i*omega_k) = sum_l |f_l|^2 / (i*omega_k - Omega_l)
+	// G^M(tau) = -sum_l |f_l|^2 exp(-Omega_l^p tau)         [particle, T=0]
+	//            -sum_k |h_k|^2 exp(-Omega_k^h (beta - tau)) [hole, finite beta]
+	// G^M(iw)  =  sum_l |f_l|^2 / (iw - Omega_l^p)
+	//           + sum_k |h_k|^2 / (iw + Omega_k^h)
+	// where Omega^p = E^{N+1} - E^N_0 > 0 and Omega^h = E^N_0 - E^{N-1} > 0.
+	// Both sectors are needed for a PH-symmetric purely imaginary G^M at mu=0.
 	void buildMatsubara()
 	{
 		const SizeType dimN1pre  = energiesN1_pre_.size();
+		const SizeType dimNm1pre = energiesNm1_pre_.size();
 		const SizeType nTauSteps = nTau_ + 1;
 		const SizeType nFreqs    = nTau_;
 		const RealType beta      = params_.eqParams.ficticiousBeta;
@@ -474,6 +521,12 @@ private:
 			for (SizeType l = 0; l < dimN1pre; ++l) {
 				const RealType OmegaL = energiesN1_pre_[l] - E0_pre_;
 				gm -= std::norm(f_[l]) * std::exp(-OmegaL * tau);
+			}
+			for (SizeType l = 0; l < dimNm1pre; ++l) {
+				const RealType OmegaH = E0_pre_ - energiesNm1_pre_[l];
+				if (OmegaH <= RealType(0))
+					continue; // E_k^{N-1} >= E_0^N: unreachable from GS, skip
+				gm -= std::norm(h_pre_[l]) * std::exp(-OmegaH * (beta - tau));
 			}
 			gimp_.matsubara_t[j] = gm;
 		}
@@ -488,6 +541,13 @@ private:
 				const RealType OmegaL = energiesN1_pre_[l] - E0_pre_;
 				gw += RealType(std::norm(f_[l]))
 				    / (ComplexType(0, omegaK) - OmegaL);
+			}
+			for (SizeType l = 0; l < dimNm1pre; ++l) {
+				const RealType OmegaH = E0_pre_ - energiesNm1_pre_[l];
+				if (OmegaH <= RealType(0))
+					continue; // E_k^{N-1} >= E_0^N: unreachable from GS, skip
+				gw += RealType(std::norm(h_pre_[l]))
+				    / (ComplexType(0, omegaK) + OmegaH);
 			}
 			gimp_.matsubara_w[k] = gw;
 		}
@@ -540,7 +600,11 @@ private:
 	// Pre-quench N+1 spectrum and operator amplitudes
 	VectorRealType    energiesN1_pre_;
 	RealType          E0_pre_;
-	VectorComplexType f_; // f_l = <l^{N+1}_pre | c†_imp | GS_pre>
+	VectorComplexType f_;      // f_l = <l^{N+1}_pre | c†_imp | GS_pre>
+
+	// Pre-quench N-1 spectrum and hole amplitudes (for complete G^M)
+	VectorRealType    energiesNm1_pre_;
+	VectorComplexType h_pre_;  // h_k = <k^{N-1}_pre | c_imp | GS_pre>
 
 	// Post-quench spectra
 	VectorRealType energiesN_post_, energiesN1_post_, energiesNm1_post_;

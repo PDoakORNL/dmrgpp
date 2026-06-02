@@ -155,10 +155,18 @@ if(Python3_FOUND)
     DEPENDS u0_neq_gImpEqG0_exactdiag)
 
   # -- Neq tDMRG ---------------------------------------------------------------
-  # The tDMRG path does not produce a Weiss-field output (it bypasses NeqDmftSolver).
-  # Instead compare tDMRG at U=0 against the exact-diag reference: since ExactDiag
-  # verifies G_imp=G_cluster_0 above, agreement here transitively establishes that
-  # the tDMRG G_imp also equals G_cluster_0 at U=0.
+  # The tDMRG path bypasses NeqDmftSolver and writes no weiss-green-* output, so
+  # there is no direct comparison of tDMRG G_imp against the Weiss field G_0.
+  # Instead the check is transitive:
+  #   (1) u0_neq_gImpEqG0_exactdiag_check proved  ExactDiag G_imp = G_0  at U=0
+  #   (2) u0_neq_gImpEqGcluster_tdmrg_check proves tDMRG G_imp = ExactDiag G_imp
+  #   => tDMRG G_imp = G_0 = G_cluster_0 at U=0 by transitivity.
+  # Run covers t = 0..2 (NtNeq=20, TmaxNeq=2), no quench (U_i = U_f = 0).
+  # NOTE: this is a pipeline/plumbing check, not an accuracy test. U=0 produces
+  # no entanglement growth, so tDMRG is essentially exact and the check is trivially
+  # satisfied. The meaningful tDMRG accuracy test is neqTsujiTdmrg0_compare
+  # (U=0->2 quench). Additionally, only the G^R(t,0) column is compared — the
+  # full two-time structure G^R(t,t') for t'>0 is not exercised here.
   set(U0_NEQ_TDMRG_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0NeqTdmrg)
   file(MAKE_DIRECTORY ${U0_NEQ_TDMRG_DIR})
 

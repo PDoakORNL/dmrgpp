@@ -98,9 +98,9 @@ public:
 			err("ImpuritySolverNeqLanczos: NstatesNeq must be > 0\n");
 	}
 
-	// One-time setup: truncated Lanczos diagonalization of H_pre and H_post,
+	// Truncated Lanczos diagonalization of H_pre and H_post,
 	// then build the approximate Lehmann representation.
-	void initialize(const VectorRealType& bathParams) override
+	void solve(const VectorRealType& bathParams) override
 	{
 		const SizeType nBath   = bathParams.size() / 2;
 		const SizeType nsites  = nBath + 1;

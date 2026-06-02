@@ -26,8 +26,11 @@ public:
 
 	virtual ~ImpuritySolverNeqBase() {}
 
-	// One-time setup: full diagonalization of H(U_i) and H(U_f) for the given bath.
-	virtual void initialize(const VectorRealType& bathParams) = 0;
+	// Run the impurity solver for the given bath parameters.
+	// For step-by-step solvers (ExactDiag, Lanczos): diagonalizes H(U_i)/H(U_f) so that
+	// subsequent computeGimp(n) calls can fill time slices on demand.
+	// For one-shot solvers (tDMRG): runs the full real-time propagation here.
+	virtual void solve(const VectorRealType& bathParams) = 0;
 
 	// Fill G_imp KB components for all (t_n, t_j) with j <= n, and G^{Left}(t_n, tau_j).
 	// Called once per time step inside the neq self-consistency loop.

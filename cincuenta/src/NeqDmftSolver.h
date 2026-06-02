@@ -55,9 +55,8 @@ public:
 	//               obtained from the preceding equilibrium DMFT run.
 	void solve(const VectorRealType& bathParams)
 	{
-		// One-time setup: full diagonalization of H(U_i) and H(U_f).
-		std::cout << "NeqDmftSolver: initializing impurity solver\n";
-		impSolver_.initialize(bathParams);
+		std::cout << "NeqDmftSolver: running impurity solver setup\n";
+		impSolver_.solve(bathParams);
 
 		// Copy equilibrium Matsubara components from the solver's internal gimp —
 		// computeGimp() only fills real-time (retarded/lesser/left-mixing) slices.

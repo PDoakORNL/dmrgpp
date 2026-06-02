@@ -210,7 +210,7 @@ int main(int argc, char** argv)
 				std::cout << "  using ImpuritySolverNeqTdmrg (tDMRG)\n";
 				using TdmrgImpType = Dmft::ImpuritySolverNeqTdmrg<std::complex<RealType>>;
 				TdmrgImpType tdmrgSolver(neqParams, application, io);
-				tdmrgSolver.initialize(dmftSolver.bathResult());
+				tdmrgSolver.solve(dmftSolver.bathResult());
 				tdmrgSolver.gimp().dump("green");
 			} else if (nStatesNeq > 0) {
 				std::cout << "  using ImpuritySolverNeqLanczos with NstatesNeq="
