@@ -112,8 +112,20 @@ public:
 		g0_.retarded(0, 0)    = ComplexType(0, -1);
 		delta_.retarded(0, 0) = tStarSq_ * gimp.retarded(0, 0);
 
-		// t=0 lesser: G_0^<(0,0) = G_0^{Left}(0, τ=0) = -i G_0^M(β)
-		g0_.lesser(0, 0)    = g0_.left_mixing(0, 0);
+		// t=0 lesser: G_0^<(0,0) = i * n  where n is the equilibrium occupancy.
+		// The Matsubara sum at tau=beta suffers high-frequency tail truncation and
+		// gives the wrong value; use the positive-frequency sum instead, which
+		// converges correctly: n = 1/2 + (1/beta) Re[sum_{omega>0} G_0^M(i*omega)].
+		{
+			const RealType betaVal  = params_.eqParams.ficticiousBeta;
+			const SizeType halfN    = nTau_ / 2; // first positive-frequency index
+			ComplexType    posSum   = 0;
+			for (SizeType k = halfN; k < nTau_; ++k)
+				posSum += g0_.matsubara_w[k];
+			const RealType n_weiss  = RealType(0.5) + PsimagLite::real(posSum) / betaVal;
+			g0_.lesser(0, 0)        = ComplexType(0, 1) * n_weiss;
+			g0_.left_mixing(0, 0)   = g0_.lesser(0, 0); // left_mixing(0, tau=0) = lesser(0,0)
+		}
 		delta_.lesser(0, 0) = tStarSq_ * gimp.lesser(0, 0);
 
 		// Initial RK derivatives d/dt G_0(0, ·) needed for the n=1 predictor

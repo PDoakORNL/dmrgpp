@@ -438,6 +438,7 @@ private:
 		const SizeType dimN1post = O_N1_.rows();
 		const SizeType dimN1pre  = energiesN1_pre_.size();
 		const SizeType nTauSteps = nTau_ + 1;
+		const RealType beta      = nTau_ * dtau_;
 
 		chi_.resize(dimN1post, nTauSteps);
 		for (SizeType k = 0; k < dimN1post; ++k) {
@@ -446,7 +447,9 @@ private:
 				ComplexType    s   = 0;
 				for (SizeType l = 0; l < dimN1pre; ++l) {
 					const RealType OmegaL = energiesN1_pre_[l] - E0_pre_;
-					s += O_N1_(k, l) * f_[l] * std::exp(OmegaL * tau);
+					// Use exp(-OmegaL*(beta-tau)) so chi decays from tau=beta
+					// toward tau=0, matching G^{Left}(0,tau) = -i G^M(beta-tau).
+					s += O_N1_(k, l) * f_[l] * std::exp(-OmegaL * (beta - tau));
 				}
 				chi_(k, j) = s;
 			}
@@ -512,14 +515,16 @@ private:
 		return ComplexType(0, 1) * s;
 	}
 
-	// G^{Left}(t_n, tau_j) = -i sum_k chi_k[j] * conj(Phi_k[n])
+	// G^{Left}(t_n, tau_j) = +i sum_k chi_k[j] * conj(Phi_k[n])
+	// Sign is +i (not -i) because chi uses exp(-OmegaL*(beta-tau)); together
+	// they satisfy G^{Left}(0,tau) = -i G^M(beta-tau).
 	ComplexType gLeft(int n, SizeType j) const
 	{
 		const SizeType dimN1 = chi_.rows();
 		ComplexType    s     = 0;
 		for (SizeType k = 0; k < dimN1; ++k)
 			s += chi_(k, j) * std::conj(Phi_(k, static_cast<SizeType>(n)));
-		return ComplexType(0, -1) * s;
+		return ComplexType(0, 1) * s;
 	}
 
 	// ---- Member variables --------------------------------------------------
