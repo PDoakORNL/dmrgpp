@@ -83,10 +83,9 @@ public:
 
 			impuritySolver_->solve(
 			    fit_.result(), PsimagLite::FreqEnum::MATSUBARA, iter);
-
 			// For now this is a dependable way to
 			// make sure the we get normalized results
-			// forom the impuritySolver. This could be
+			// from the impuritySolver. This could be
 			// removed if all impurity solvers gave G with
 			// the expected weighting.
 			impuritySolver_->enforceSpectralSumRule();

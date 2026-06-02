@@ -142,6 +142,12 @@ public:
 	const VectorComplexType& gimp()     const override { return gimp_; }
 	PsimagLite::FreqEnum     freqEnum() const override { return freq_enum_; }
 
+	void scaleGimp(RealType factor) override
+	{
+		for (SizeType i = 0; i < gimp_.size(); ++i)
+			gimp_[i] *= factor;
+	}
+
 private:
 
 	// f[l] = <l^{N+1} | c†_{imp,up} | GS_N>
@@ -222,18 +228,12 @@ private:
 				h[l] += std::conj(ComplexType(eigvecsNm1(k, l))) * tmp[k];
 	}
 
-	// Fill gimp_ from the Lehmann representation, scaled to match LanczosPlusPlus convention.
+	// Fill gimp_ from the Lehmann representation.
 	//
-	// Physical formula:
 	//   G(z) = sum_l |f_l|^2 / (z - Omega_l^p)   [particle, N+1 sector]
 	//        + sum_k |h_k|^2 / (z - Omega_k^h)   [hole,     N-1 sector]
-	// where Omega_l^p = E_{N+1,l} - E0 > 0 (UHB) and Omega_k^h = E0 - E_{N-1,k} < 0 (LHB).
-	//
-	// The 4x prefactor matches the LanczosPlusPlus diagonal-GF convention used by
-	// ImpuritySolverExactDiag: getModifiedState accumulates c†_isite + c†_jsite for
-	// isite==jsite, doubling the vector and giving weight = ||2c†|GS>||^2 = 4*||c†|GS>||^2
-	// per sector instead of the physical ||c†|GS>||^2.  Both the DMFT Weiss-field fit and
-	// the self-energy update 1/G_imp are calibrated for this 4x-scaled convention.
+	// where Omega_l^p = E_{N+1,l} - E0 > 0 and Omega_k^h = E0 - E_{N-1,k} < 0.
+	// Normalization is enforced externally via enforceSpectralSumRule().
 	void fillGimp(const VectorComplexType& f,
 	              const VectorRealType&    energiesN1,
 	              const VectorComplexType& h,
@@ -243,7 +243,6 @@ private:
 	{
 		const SizeType nParticle = f.size();
 		const SizeType nHole     = h.size();
-		const RealType scale     = 4.0;
 
 		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
 			const SizeType n = this->matsubaras().total();
@@ -259,7 +258,7 @@ private:
 					const RealType OmegaH = E0 - energiesNm1[k];
 					gw += RealType(std::norm(h[k])) / (ComplexType(0, wn) - OmegaH);
 				}
-				gimp_[i] = scale * gw;
+				gimp_[i] = gw;
 			}
 		} else {
 			const SizeType n = this->realFreqRange().total();
@@ -275,7 +274,7 @@ private:
 					const RealType OmegaH = E0 - energiesNm1[k];
 					gw += RealType(std::norm(h[k])) / (ComplexType(omega, eta_) - OmegaH);
 				}
-				gimp_[i] = scale * gw;
+				gimp_[i] = gw;
 			}
 		}
 	}

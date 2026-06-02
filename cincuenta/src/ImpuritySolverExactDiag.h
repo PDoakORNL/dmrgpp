@@ -109,8 +109,6 @@ public:
 
 		// compute gimp
 		computeGreenFunction(cfCollection);
-		for (SizeType i = 0; i < gimp_.size(); ++i)
-			gimp_[i] *= RealType(0.25); // TODO: remove when LanczosPlusPlus 4x fix lands
 
 		freq_enum_ = freq_enum;
 	}
@@ -118,6 +116,12 @@ public:
 	const VectorComplexType& gimp() const override { return gimp_; }
 
 	PsimagLite::FreqEnum freqEnum() const override { return freq_enum_; }
+
+	void scaleGimp(RealType factor) override
+	{
+		for (SizeType i = 0; i < gimp_.size(); ++i)
+			gimp_[i] *= factor;
+	}
 
 	void scaleGimp(RealType factor) override
 	{

@@ -6,7 +6,7 @@
 #
 # With NstatesEq=0 (full diagonalization) the Lehmann G_imp matches
 # ImpuritySolverExactDiag to >= 5 significant figures.
-# G_imp(iw_0 = 0.0628) = (0.0623, -0.3554)  -- same as exactdiag.
+# G_imp(iw_0 = 0.0628) = (0.0, -0.6134)  -- normalized by spectral sum rule.
 
 FicticiousBeta=50;
 ChemicalPotential=0.;
