@@ -44,51 +44,44 @@ public:
 		return sum;
 	}
 
-	// For any 0 <= jnd < args.size(), this function returns the derivative of
+	// For any 0 <= jnd < 2*nBath, this function returns the derivative of
 	// the AndersonFunction above with respect to bath parameter jnd,
-	// evaluated at the bath parameters args.
+	// evaluated at the bath parameters args
 	// The order in which bath parameters are stored is described
-	// under AndersonFunction.
+	// under AndersonFunction
 	ComplexOrRealType
 	andersonPrime(const VectorRealType& args, ComplexOrRealType iwn, SizeType jnd) const
 	{
 		assert(jnd < args.size());
+		RealType valpha      = 0;
+		RealType epsilon     = 0;
+		bool     diff_valpha = false;
 		if (args.size() == 2 * nBath_) {
-			// Full parameterization: each args[jnd] appears in exactly one bath site.
-			const RealType va  = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
-			const RealType ep  = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
-			return (jnd < nBath_) ? ComplexOrRealType(2.0) * va / (iwn + mu_ - ep)
-			                      : squareOf(va / (iwn + mu_ - ep));
-		}
-
-		// PH-symmetric parameterization: args.size() == nBath_.
-		// Layout: args[0..Voffset-1] = unique Vs, args[Voffset..nBath-1] = unique +εs.
-		// Each V or ε parameter is shared by two mirror bath sites, so the gradient
-		// must sum both contributions.
-		assert(args.size() == nBath_);
-		const SizeType Voffset = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
-		const SizeType Eoffset = (nBath_ & 1) ? (nBath_ - 1) / 2 : nBath_ / 2;
-
-		if (jnd < Voffset) {
-			// Derivative w.r.t. V parameter args[jnd].
-			const RealType va = args[jnd];
-			if (jnd < Eoffset) {
-				// Two paired baths: bath jnd (ε = +ep) and bath jnd+Voffset (ε = -ep).
-				const RealType ep = args[Voffset + jnd];
-				return ComplexOrRealType(2.0) * va / (iwn + mu_ - ep)
-				     + ComplexOrRealType(2.0) * va / (iwn + mu_ + ep);
-			} else {
-				// Middle bath (odd nBath only), ε = 0.
-				return ComplexOrRealType(2.0) * va / (iwn + mu_);
-			}
+			valpha      = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
+			epsilon     = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
+			diff_valpha = (jnd < nBath_); // diff with respect to valpha
 		} else {
-			// Derivative w.r.t. ε parameter args[jnd].
-			// Bath k uses +ep, bath k+Voffset uses -ep; chain rule gives opposite signs.
-			const SizeType k  = jnd - Voffset;
-			const RealType va = args[k];
-			const RealType ep = args[jnd];
-			return squareOf(va / (iwn + mu_ - ep)) - squareOf(va / (iwn + mu_ + ep));
+			assert(args.size() == nBath_);
+			SizeType offset  = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
+			SizeType Eoffset = (nBath_ & 1) ? (nBath_ - 1) / 2 : nBath_ / 2;
+			SizeType knd     = (jnd < offset) ? jnd : jnd - offset;
+			valpha           = calcVsIfParticleHoleSymm(args, knd, nBath_);
+			epsilon          = calcEpsilonIfParticleHoleSymm(args, knd, nBath_);
+			diff_valpha      = (jnd < offset);
+			// Each V or epsilon parameter is shared by two mirror bath sites;
+			// both contributions must be summed.
+			if (diff_valpha) {
+				if (knd < Eoffset) // paired baths: epsilon and -epsilon
+					return ComplexOrRealType(2.0) * valpha / (iwn + mu_ - epsilon)
+					     + ComplexOrRealType(2.0) * valpha / (iwn + mu_ + epsilon);
+				return ComplexOrRealType(2.0) * valpha / (iwn + mu_); // middle bath, epsilon=0
+			}
+			return squareOf(valpha / (iwn + mu_ - epsilon)) // epsilon derivative:
+			     - squareOf(valpha / (iwn + mu_ + epsilon)); // opposite sign for mirror bath
 		}
+
+		return (diff_valpha) ? 2.0 * valpha / (iwn + mu_ - epsilon)
+		                     : squareOf(valpha / (iwn + mu_ - epsilon));
 	}
 
 	static ComplexOrRealType squareOf(ComplexOrRealType x) { return x * x; }
