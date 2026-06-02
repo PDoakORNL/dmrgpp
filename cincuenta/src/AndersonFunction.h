@@ -44,15 +44,18 @@ public:
 		return sum;
 	}
 
-	// For any 0 <= jnd < args.size(), this function returns the derivative of
+	// For any 0 <= jnd < 2*nBath, this function returns the derivative of
 	// the AndersonFunction above with respect to bath parameter jnd,
-	// evaluated at the bath parameters args.
+	// evaluated at the bath parameters args
 	// The order in which bath parameters are stored is described
-	// under AndersonFunction.
+	// under AndersonFunction
 	ComplexOrRealType
 	andersonPrime(const VectorRealType& args, ComplexOrRealType iwn, SizeType jnd) const
 	{
 		assert(jnd < args.size());
+		RealType valpha      = 0;
+		RealType epsilon     = 0;
+		bool     diff_valpha = false;
 		if (args.size() == 2 * nBath_) {
 			valpha      = (jnd < nBath_) ? args[jnd] : args[jnd - nBath_];
 			epsilon     = (jnd < nBath_) ? args[jnd + nBath_] : args[jnd];
@@ -111,6 +114,9 @@ public:
 			const RealType ep = args[jnd];
 			return squareOf(va / (iwn + mu_ - ep)) - squareOf(va / (iwn + mu_ + ep));
 		}
+
+		return (diff_valpha) ? 2.0 * valpha / (iwn + mu_ - epsilon)
+		                     : squareOf(valpha / (iwn + mu_ - epsilon));
 	}
 
 	static ComplexOrRealType squareOf(ComplexOrRealType x) { return x * x; }
