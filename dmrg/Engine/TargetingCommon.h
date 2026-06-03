@@ -96,6 +96,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "TimeSerializer.h"
 #include "VectorWithOffsets.h"
 #include <cassert>
+#include <limits>
 
 namespace Dmrg {
 
@@ -345,6 +346,12 @@ public:
 
 	RealType time() const { return aoe_.timeVectors().time(); }
 
+	// Register an extra targetVectors slot that holds the Krylov-time-evolved GS.
+	// Called by TargetingTimeStep when TSPEvolveGroundState=1.  The "gsT" label in
+	// dressed in-situ measurement strings is rewritten to "P<idx>" before braket
+	// parsing so that getVector resolves it via the normal P-vector path.
+	void setEvolvedGsIndex(SizeType idx) { evolvedGsIdx_ = idx; }
+
 	// START Cocoons
 
 	template <typename SomeLambdaType = int>
@@ -380,7 +387,7 @@ public:
 
 		for (SizeType i = 0; i < n; ++i) {
 			PsimagLite::String opLabel = meas_[i];
-
+			resolveGsT(opLabel);
 			BraketType braket(targetHelper_.model(), opLabel);
 
 			if (braket.points() != 1) {
@@ -873,6 +880,17 @@ private:
 			return testRealWork(src2, src1, systemOrEnviron, site, A, border);
 	}
 
+	// Replace every occurrence of "gsT" in a dressed measurement label with the
+	// P-vector form "P<evolvedGsIdx_>".  Called before BraketType construction so
+	// that the GetBraOrKet parser (which doesn't know about "gsT") never sees it.
+	// No-op when no evolved GS slot has been registered.
+	void resolveGsT(PsimagLite::String& label) const
+	{
+		if (evolvedGsIdx_ == std::numeric_limits<SizeType>::max())
+			return;
+		PsimagLite::replaceAll(label, "gsT", "P" + ttos(evolvedGsIdx_));
+	}
+
 	TargetingCommon(const TargetingCommon&) = delete;
 
 	TargetingCommon& operator=(const TargetingCommon&) = delete;
@@ -884,6 +902,7 @@ private:
 	TargetHelperType              targetHelper_;
 	ApplyOperatorExpressionType   aoe_;
 	mutable VectorType            inSitu_;
+	SizeType                      evolvedGsIdx_ = std::numeric_limits<SizeType>::max();
 }; // class TargetingCommon
 
 template <typename TargetHelperType, typename VectorWithOffsetType, typename LanczosSolverType>

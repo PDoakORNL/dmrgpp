@@ -139,6 +139,8 @@ public:
 	    , weight_(tstStruct_.times().size())
 	    , tvEnergy_(tstStruct_.times().size(), 0.0)
 	    , gsWeight_(tstStruct_.gsWeight())
+	    , evolveGs_(tstStruct_.evolveGroundState())
+	    , gsEvolvedIdx_(tstStruct_.times().size())
 	{
 		if (!wft.isEnabled())
 			err("TST needs an enabled wft\n");
@@ -167,15 +169,27 @@ public:
 		assert(fabs(sum - 1.0) < 1e-5);
 
 		this->common().aoeNonConst().initTimeVectors(tstStruct_, ioIn);
+
+		if (evolveGs_) {
+			// Register the extra slot index with TargetingCommon so that
+			// "gsT" in dressed measurement labels resolves to this P-vector.
+			// The slot itself is allocated by postCtor() → targetVectorsResize(targets()),
+			// which picks up the +1 from the overridden targets() above.
+			this->common().setEvolvedGsIndex(gsEvolvedIdx_);
+		}
 	}
 
 	SizeType sites() const { return tstStruct_.sites(); }
 
-	SizeType targets() const { return tstStruct_.times().size(); }
+	SizeType targets() const { return tstStruct_.times().size() + (evolveGs_ ? 1 : 0); }
 
 	RealType weight(SizeType i) const
 	{
 		assert(!this->common().aoe().allStages(StageEnumType::DISABLED));
+		// The evolved-GS slot carries zero truncation weight: it is kept for
+		// measurement only, not for optimising the DMRG basis.
+		if (evolveGs_ && i == gsEvolvedIdx_)
+			return 0.0;
 		return weight_[i];
 	}
 
@@ -305,6 +319,24 @@ private:
 		    block1,
 		    isLastCall);
 
+		// Krylov-evolve the GS under H_f into the dedicated extra target slot.
+		// This gives |Ψ_0(t)⟩ = e^{−iH_f t}|GS_i⟩, accessible as "gsT" in
+		// in-situ measurements.  Mirrors the operator-applied evolution above
+		// but uses the GS as the starting vector.
+		if (evolveGs_ && allOperatorsApplied) {
+			const VectorWithOffsetType psi0 = *this->common().aoe().psiConst()[0][0];
+			VectorSizeType             gsIdx(1, gsEvolvedIdx_);
+			this->common().aoeNonConst().calcTimeVectors(
+			    gsIdx,
+			    Eg,
+			    psi0,
+			    direction,
+			    allOperatorsApplied,
+			    false,
+			    block1,
+			    isLastCall);
+		}
+
 		// If a penultimate intermediate was captured (product TSP with >1 operators),
 		// emit the N-sector gauge overlap between the current and previous capture.
 		// phiPenultimate = identity|GS> — the N-sector state just before the last
@@ -395,6 +427,8 @@ private:
 	mutable VectorRealType        tvEnergy_;
 	RealType                      gsWeight_;
 	VectorWithOffsetType          phiPenultimate_; // N-sector ref for gauge tracking
+	bool                          evolveGs_;        // TSPEvolveGroundState=1
+	SizeType                      gsEvolvedIdx_;    // targetVectors slot for |Ψ_0(t)⟩
 }; // class TargetingTimeStep
 } // namespace Dmrg
 
