@@ -1,0 +1,3 @@
+# tDMRG U=0->U=2 quench, TSPEvolveGroundState=1 unit test.
+# No explicit energy oracle: run postCi.pl once to generate from output.
+# The <gsT|c|P1> in-situ measurements are compared via getTimeObservablesInSitu.
