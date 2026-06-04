@@ -1,2 +1,0 @@
-# GS of U=0 6-site Anderson impurity model (TSPEvolveGroundState unit test setup).
-# No explicit energy oracle: run postCi.pl once to generate from output.

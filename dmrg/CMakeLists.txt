@@ -185,6 +185,16 @@ add_test(NAME input9000 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9000.ain) # ene
 add_test(NAME input9001 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9001.ain "<P0|n|P0>"
 )# in-situ 1 (1.010966,0.000000) 0.500000 <P0|n|P0> (1.000000,0.000000)
 
+# TSPEvolveGroundState unit test — U=0->U=2 quench on 6-site Anderson impurity
+# input4002: GS of H_i (U=0); energy = -sqrt(5) for uniform hopping 0.5
+add_test(NAME input4002 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input4002.inp) # energy -2.23607
+add_lowest_eigenvalue_check_test(output4002 -2.23607 runForinput4002.cout)
+# input4003: tDMRG under H_f (U=2), TSPEvolveGroundState=1; check <gsT|c|P1> appears
+add_test(NAME input4003 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input4003.inp "<gsT|c|P1>") # none
+set_tests_properties(input4003 PROPERTIES DEPENDS input4002)
+add_test(NAME output4003_gsT COMMAND sh -c "grep -q '<gsT|c|P1>' ${CMAKE_CURRENT_BINARY_DIR}/runForinput4003.cout")
+set_tests_properties(output4003_gsT PROPERTIES DEPENDS input4003)
+
 # Tests for the observe executable
 add_test(NAME observe0002 COMMAND ./observe -l "+r" -f ${PATH_TO_INPUTS}/input2.ain
                                   "<gs|c';c|gs>,<gs|2.0*sz;2.0*sz|gs>,<gs|n;n|gs>")
