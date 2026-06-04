@@ -62,11 +62,26 @@ public:
 			diff_valpha = (jnd < nBath_); // diff with respect to valpha
 		} else {
 			assert(args.size() == nBath_);
-			SizeType offset = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
-			SizeType knd    = (jnd < offset) ? jnd : jnd - offset;
-			valpha          = calcVsIfParticleHoleSymm(args, knd, nBath_);
-			epsilon         = calcEpsilonIfParticleHoleSymm(args, knd, nBath_);
-			diff_valpha     = (jnd < offset);
+			SizeType offset  = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
+			SizeType Eoffset = (nBath_ & 1) ? (nBath_ - 1) / 2 : nBath_ / 2;
+			SizeType knd     = (jnd < offset) ? jnd : jnd - offset;
+			valpha           = calcVsIfParticleHoleSymm(args, knd, nBath_);
+			epsilon          = calcEpsilonIfParticleHoleSymm(args, knd, nBath_);
+			diff_valpha      = (jnd < offset);
+			// Each V or epsilon parameter is shared by two mirror bath sites;
+			// both contributions must be summed.
+			if (diff_valpha) {
+				if (knd < Eoffset) // paired baths: epsilon and -epsilon
+					return ComplexOrRealType(2.0) * valpha
+					    / (iwn + mu_ - epsilon)
+					    + ComplexOrRealType(2.0) * valpha
+					    / (iwn + mu_ + epsilon);
+				return ComplexOrRealType(2.0) * valpha
+				    / (iwn + mu_); // middle bath, epsilon=0
+			}
+			return squareOf(valpha / (iwn + mu_ - epsilon)) // epsilon derivative:
+			    - squareOf(valpha
+			               / (iwn + mu_ + epsilon)); // opposite sign for mirror bath
 		}
 
 		return (diff_valpha) ? 2.0 * valpha / (iwn + mu_ - epsilon)
