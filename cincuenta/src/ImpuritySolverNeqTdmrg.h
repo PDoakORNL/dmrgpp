@@ -27,10 +27,10 @@ namespace Dmft {
 //   Run 3: tDMRG with H(U_f), restarted from Run 1, applying c_{imp} as the
 //           initial operator to obtain |φ_h(t)⟩ (N-1 sector).  Gives G^<(t,0).
 //
-// In-situ measurements:
-//   Run 2: <gs|nup|gs>  →  n_up(t)              →  G^<(t,t) = i·n(t)
-//          <gs|c|P1>    →  ⟨Ψ_B|c|Φ(t)⟩        →  G^>(t,0) = -i·value
-//   Run 3: <P1|c|gs>    →  ⟨φ_h(t)|c|Ψ_B(t)⟩  →  G^<(t,0) = +i·value
+// In-situ measurements (TSPEvolveGroundState=1: "gsT" = time-evolved |Ψ_0(t)⟩):
+//   Run 2: <gsT|nup|gsT>  →  n_up(t)                 →  G^<(t,t) = i·n(t)
+//          <gsT|c|P1>     →  ⟨Ψ_0(t)|c|Φ_+(t)⟩      →  G^>(t,0) = -i·value
+//   Run 3: <P1|c|gsT>     →  ⟨φ_h(t)|c|Ψ_0(t)⟩      →  G^<(t,0) = +i·value
 //
 //   G^R(t,0) = G^>(t,0) - G^<(t,0)  (full retarded, no approximation)
 //
@@ -135,6 +135,8 @@ public:
 		}
 
 		// Run 2: particle-sector tDMRG — c†_{imp}|GS⟩ evolved under H(U_f)
+		// TSPEvolveGroundState=1 also Krylov-evolves |GS_i⟩ → |Ψ_0(t)⟩ (label "gsT"),
+		// so <gsT|c|P1> gives the correct G^>(t,0) = −i⟨Ψ_0(t)|c|Φ_+(t)⟩.
 		const std::string tdmrgLog = root_ + "tdmrg.log";
 		std::cout << "ImpuritySolverNeqTdmrg: running particle tDMRG for U_f=" << params_.uFinal
 		          << " to t_max=" << params_.tMax << "\n";
@@ -149,6 +151,7 @@ public:
 		}
 
 		// Run 3: hole-sector tDMRG — c_{imp}|GS⟩ evolved under H(U_f)
+		// <P1|c|gsT> gives the correct G^<(t,0) = +i⟨φ_h(t)|c|Ψ_0(t)⟩.
 		const std::string holeTdmrgLog = root_ + "tdmrg_hole.log";
 		std::cout << "ImpuritySolverNeqTdmrg: running hole tDMRG for G^<(t,0)\n";
 		{
@@ -246,6 +249,7 @@ private:
 		s += "TSPTimeSteps=" + ttos(tspTimeSteps_) + ";\n";
 		s += "TSPAdvanceEach=" + ttos(tspAdvanceEach_) + ";\n";
 		s += "TSPAlgorithm=Krylov;\n";
+		// TSPEvolveGroundState=1 reserved for Phase 2 (proper |GS_i⟩ accumulation).
 
 		// Operator: c†_{imp} at site 0 (border site in star → needs identity trigger at site 1)
 		s += "TSPProductOrSum=product;\n";
@@ -293,6 +297,7 @@ private:
 		s += "TSPTimeSteps=" + ttos(tspTimeSteps_) + ";\n";
 		s += "TSPAdvanceEach=" + ttos(tspAdvanceEach_) + ";\n";
 		s += "TSPAlgorithm=Krylov;\n";
+		// TSPEvolveGroundState=1 reserved for Phase 2 (proper |GS_i⟩ accumulation).
 
 		// Operator: c_{imp} at site 0 (annihilation, N-1 sector hole state)
 		s += "TSPProductOrSum=product;\n";
@@ -308,7 +313,7 @@ private:
 
 	// ---- Log parsing -------------------------------------------------------
 
-	// Parse the particle-sector tDMRG log for <gs|nup|gs>, <gs|c|P1>, and
+	// Parse the particle-sector tDMRG log for <gsT|nup|gsT>, <gsT|c|P1>, and
 	// <gs|penultimate> (overlap of consecutive N-sector GS captures for gauge tracking).
 	// Log format: "<site> (<re>,<im>) <time> <label> (<norm_re>,<norm_im>)"
 	// Last measurement per (step, label) at site 0 wins (most converged sweep).
@@ -398,12 +403,12 @@ private:
 		}
 	}
 
-	// Parse the hole-sector tDMRG log for <P1|c|gs> and <gs|penultimate>.
+	// Parse the hole-sector tDMRG log for <P1|c|gsT> and <gs|penultimate>.
 	// G^<(t,0) = +i * measured value.
 	//
-	// Per-step gauge correction: <P1|c|gs> picks up a spurious phase e^{i(φ_gs-φ_P1)}
-	// from the DMRG gauge.  <gs|penultimate> tracks the N-sector drift between
-	// consecutive advances.  Multiplying corrects the N-sector component of the phase.
+	// Per-step gauge correction: <P1|c|gsT> may still pick up a spurious DMRG gauge
+	// phase between the P1 and gsT targets.  <gs|penultimate> tracks the N-sector
+	// drift between consecutive advances.  Multiplying corrects the N-sector component.
 	void parseHoleTdmrgLog(const std::string&          logfile,
 	                        std::map<int, ComplexType>& glt0_at_step)
 	{
