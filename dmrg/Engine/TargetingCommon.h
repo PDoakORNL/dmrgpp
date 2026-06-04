@@ -200,8 +200,10 @@ public:
 		for (SizeType i = 0; i < n; ++i) {
 			const bool isDressed = isOpLabelDressed(meas_[i]);
 
-			// check this early that what's passed makes sense
-			if (isDressed)
+			// check this early that what's passed makes sense;
+			// skip labels that contain "gsT" — the evolved-GS index is not
+			// yet known at construction time, so resolveGsT cannot substitute.
+			if (isDressed && meas_[i].find("gsT") == PsimagLite::String::npos)
 				BraketType(checkPoint.model(), meas_[i]);
 
 			OpLabelCategory cocoonExpected
@@ -386,9 +388,10 @@ public:
                     aoe_.model(), checkPoint_, targetHelper_.wft(), direction);
 
 		for (SizeType i = 0; i < n; ++i) {
-			PsimagLite::String opLabel = meas_[i];
-			resolveGsT(opLabel);
-			BraketType braket(targetHelper_.model(), opLabel);
+			PsimagLite::String opLabel = meas_[i];         // original (may contain "gsT")
+			PsimagLite::String opLabelResolved = opLabel;  // resolved copy for BraketType
+			resolveGsT(opLabelResolved);
+			BraketType braket(targetHelper_.model(), opLabelResolved);
 
 			if (braket.points() != 1) {
 				multiPointInSitu(braket, site);
