@@ -397,6 +397,29 @@ private:
 			    false,
 			    block1,
 			    isLastCall);
+			// Gauge sign correction: the WFT can flip the sign of the N-sector
+			// block (a well-known DMRG gauge freedom).  Both the particle and hole
+			// tDMRG runs experience the same flip (their N-sector DM is identical),
+			// so a flip makes G^R → −G^R_correct for all subsequent time steps —
+			// Max|dIm(G^R)| ≈ 2.  This correction is the same operation that
+			// DMRG++ already applies to psiConst via <gs|penultimate> tracking.
+			//
+			// Reference: psiConst()[0][0] is always positively phased (DMRG++
+			// Lanczos convention) and lives in the same N-sector.  The overlap
+			// ⟨GS_f|Ψ_0(t)⟩ stays ≥ 0 for moderate t and quench (neq-DMFT regime);
+			// for very strong quenches or very long t this could fail — document
+			// with a comment if that regime is reached.
+			{
+				const VectorWithOffsetType& gsEvNew
+				    = this->common().aoe().targetVectors(gsEvolvedIdx_);
+				const auto& refPsi = this->common().aoe().psiConst();
+				if (gsEvNew.size() > 0 && refPsi.size() > 0 && refPsi[0].size() > 0
+				    && refPsi[0][0] != nullptr && refPsi[0][0]->size() > 0) {
+					const ComplexOrRealType ov = *refPsi[0][0] * gsEvNew;
+					if (PsimagLite::real(ov) < 0)
+						this->tvNonConst(gsEvolvedIdx_) *= ComplexOrRealType(-1);
+				}
+			}
 			// Mark the evolved GS as being in the current basis so the corner
 			// sub-call from evolve() does not re-WFT or re-evolve it.
 			gsEvolvedCurrentBasis_ = true;
