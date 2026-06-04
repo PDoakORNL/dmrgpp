@@ -143,7 +143,7 @@ public:
 		{
 			Dmrg::CmdLineOptions opts;
 			opts.logfile              = tdmrgLog;
-			opts.in_situ_measurements = "<gs|nup|gs>,<gs|c|P1>";
+			opts.in_situ_measurements = "<gsT|nup|gsT>,<gsT|c|P1>";
 			const std::string input = buildTdmrgInput(params_.uFinal, hoppings, potTdmrg,
 			                                           nup_, ndown_, nsites);
 			DmrgRunnerType runner(app_, input, opts);
@@ -157,7 +157,7 @@ public:
 		{
 			Dmrg::CmdLineOptions opts;
 			opts.logfile              = holeTdmrgLog;
-			opts.in_situ_measurements = "<P1|c|gs>";
+			opts.in_situ_measurements = "<P1|c|gsT>";
 			const std::string input = buildHoleTdmrgInput(params_.uFinal, hoppings, potTdmrg,
 			                                               nup_, ndown_, nsites);
 			DmrgRunnerType runner(app_, input, opts);
@@ -249,8 +249,7 @@ private:
 		s += "TSPTimeSteps=" + ttos(tspTimeSteps_) + ";\n";
 		s += "TSPAdvanceEach=" + ttos(tspAdvanceEach_) + ";\n";
 		s += "TSPAlgorithm=Krylov;\n";
-		// TSPEvolveGroundState=1 reserved for Phase 2 (proper |GS_i⟩ accumulation).
-
+		s += "TSPEvolveGroundState=1;\n";
 		// Operator: c†_{imp} at site 0 (border site in star → needs identity trigger at site 1)
 		s += "TSPProductOrSum=product;\n";
 		s += "TSPSites=[1, 0];\n";
@@ -297,8 +296,7 @@ private:
 		s += "TSPTimeSteps=" + ttos(tspTimeSteps_) + ";\n";
 		s += "TSPAdvanceEach=" + ttos(tspAdvanceEach_) + ";\n";
 		s += "TSPAlgorithm=Krylov;\n";
-		// TSPEvolveGroundState=1 reserved for Phase 2 (proper |GS_i⟩ accumulation).
-
+		s += "TSPEvolveGroundState=1;\n";
 		// Operator: c_{imp} at site 0 (annihilation, N-1 sector hole state)
 		s += "TSPProductOrSum=product;\n";
 		s += "TSPSites=[1, 0];\n";
@@ -351,9 +349,9 @@ private:
 			const int n = static_cast<int>(std::round(t / params_.dt));
 			if (n < 0 || n > static_cast<int>(params_.nT)) continue;
 
-			if (label == "<gs|nup|gs>")
+			if (label == "<gsT|nup|gsT>")
 				nup_at_step[n] = re;
-			else if (label == "<gs|c|P1>")
+			else if (label == "<gsT|c|P1>")
 				ggt0_at_step[n] = ComplexType(re, im);
 			else if (label == "<gs|penultimate>")
 				gauge_at_step[n] = ComplexType(re, im);
@@ -441,7 +439,7 @@ private:
 			const int n = static_cast<int>(std::round(t / params_.dt));
 			if (n < 0 || n > static_cast<int>(params_.nT)) continue;
 
-			if (label == "<P1|c|gs>")
+			if (label == "<P1|c|gsT>")
 				glt0_at_step[n] = ComplexType(re, im);
 			else if (label == "<gs|penultimate>")
 				gauge_at_step[n] = ComplexType(re, im);
