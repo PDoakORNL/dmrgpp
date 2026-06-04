@@ -140,7 +140,8 @@ public:
 	    , tvEnergy_(tstStruct_.times().size(), 0.0)
 	    , gsWeight_(tstStruct_.gsWeight())
 	    , evolveGs_(tstStruct_.evolveGroundState())
-	    , gsEvolvedIdx_(tstStruct_.times().size())
+	    , gsEvolvedIdx_(2 * tstStruct_.times().size() - 1)
+	    , gsEvolvedCurrentBasis_(false)
 	{
 		if (!wft.isEnabled())
 			err("TST needs an enabled wft\n");
@@ -181,14 +182,18 @@ public:
 
 	SizeType sites() const { return tstStruct_.sites(); }
 
-	SizeType targets() const { return tstStruct_.times().size() + (evolveGs_ ? 1 : 0); }
+	// With TSPEvolveGroundState=1 we append 2 extra Krylov slots for the GS:
+	//   slot N   = "anchor" (GS at Krylov t=0, starting point for this advance)
+	//   slot N+1 = evolved GS at the same Krylov time as P1 (= gsEvolvedIdx_)
+	// N extra slots for GS Krylov: anchor (times[0]=0) + N-1 evolved states (times[1..N-1]).
+	// The last slot (index 2N-1) accumulates a full tau step per advance, same as P-vectors.
+	SizeType targets() const { return tstStruct_.times().size() * (evolveGs_ ? 2 : 1); }
 
 	RealType weight(SizeType i) const
 	{
 		assert(!this->common().aoe().allStages(StageEnumType::DISABLED));
-		// The evolved-GS slot carries zero truncation weight: it is kept for
-		// measurement only, not for optimising the DMRG basis.
-		if (evolveGs_ && i == gsEvolvedIdx_)
+		// GS Krylov slots (N..2N-1) carry zero truncation weight.
+		if (evolveGs_ && i >= tstStruct_.times().size())
 			return 0.0;
 		return weight_[i];
 	}
@@ -218,6 +223,9 @@ public:
 		SizeType site = block1[0];
 		assert(energies.size() > 0);
 		RealType Eg = energies[0];
+		// Reset per-advance flag: the stored evolved GS is from the previous advance
+		// (in the previous basis) and needs a fresh WFT before use.
+		gsEvolvedCurrentBasis_ = false;
 		evolveInternal(Eg, direction, block1, loopNumber);
 
 		SizeType numberOfSites = this->lrs().super().block().size();
@@ -319,13 +327,36 @@ private:
 		    block1,
 		    isLastCall);
 
-		// Krylov-evolve the GS under H_f into the dedicated extra target slot.
-		// This gives |Ψ_0(t)⟩ = e^{−iH_f t}|GS_i⟩, accessible as "gsT" in
-		// in-situ measurements.  Mirrors the operator-applied evolution above
-		// but uses the GS as the starting vector.
-		if (evolveGs_ && allOperatorsApplied) {
-			const VectorWithOffsetType psi0 = *this->common().aoe().psiConst()[0][0];
-			VectorSizeType             gsIdx(1, gsEvolvedIdx_);
+		// Krylov-evolve the GS under H_f to give |Ψ_0(t)⟩ = e^{−iH_f t}|GS_i⟩,
+		// accessible as "gsT" in in-situ measurements.
+		//
+		// Two slots are used (required by TimeVectorsKrylov):
+		//   gsAnchorIdx_ = N  : anchor at Krylov t=0 (starting point for this advance)
+		//   gsEvolvedIdx_= N+1: evolved GS at the same Krylov time as P1
+		//
+		// Krylov-evolve the reference GS for "gsT" measurements.
+		//
+		// psiConst()[0][0] is the DMRG ground state, always in the current DMRG basis
+		// and always correctly phased (the DMRG solver fixes the gauge).  Using it as
+		// psi0 at every advance avoids WFT sign-flip artifacts.  For a converged DMRG
+		// run psiConst()[0][0] ≈ |GS_f⟩ (eigenstate of H−Eg), so the Krylov gives
+		// targetVectors[2N-1] ≈ |GS_f⟩ — identical to the fixed-GS approach, but
+		// computed through the Krylov infrastructure so that "gsT" maps to a proper
+		// targetVectors slot accessible in cocoon measurements.
+		//
+		// The gsEvolvedCurrentBasis_ flag prevents a second Krylov call in the corner
+		// sub-evolveInternal() triggered by evolve() for border-adjacent sites.
+		if (evolveGs_ && allOperatorsApplied && !gsEvolvedCurrentBasis_) {
+			const SizeType gsAnchorIdx = tstStruct_.times().size();
+			// Always use the current, properly-phased DMRG GS as psi0.
+			const VectorWithOffsetType& psi0 = *this->common().aoe().psiConst()[0][0];
+			// Build indices {N, N+1, ..., 2N-1} so the Krylov loop uses
+			// times[0..N-1], giving targetVectors[2N-1] a full tau evolution
+			// per advance (matching the particle-sector accumulation rate).
+			const SizeType N = tstStruct_.times().size();
+			VectorSizeType gsIdx(N);
+			for (SizeType j = 0; j < N; ++j)
+				gsIdx[j] = gsAnchorIdx + j;
 			this->common().aoeNonConst().calcTimeVectors(
 			    gsIdx,
 			    Eg,
@@ -335,6 +366,9 @@ private:
 			    false,
 			    block1,
 			    isLastCall);
+			// Mark the evolved GS as being in the current basis so the corner
+			// sub-call from evolve() does not re-WFT or re-evolve it.
+			gsEvolvedCurrentBasis_ = true;
 		}
 
 		// If a penultimate intermediate was captured (product TSP with >1 operators),
@@ -378,7 +412,10 @@ private:
 
 	void printEnergies() const
 	{
-		for (SizeType i = 0; i < this->common().aoe().tvs(); i++)
+		// Skip GS Krylov slots (indices >= N): they are for measurement only,
+		// and tvEnergy_ has only N entries.
+		const SizeType nMain = tstStruct_.times().size();
+		for (SizeType i = 0; i < nMain; i++)
 			printEnergies(this->tv(i), i);
 	}
 
@@ -426,9 +463,10 @@ private:
 	VectorRealType                weight_;
 	mutable VectorRealType        tvEnergy_;
 	RealType                      gsWeight_;
-	VectorWithOffsetType          phiPenultimate_; // N-sector ref for gauge tracking
-	bool                          evolveGs_;        // TSPEvolveGroundState=1
-	SizeType                      gsEvolvedIdx_;    // targetVectors slot for |Ψ_0(t)⟩
+	VectorWithOffsetType          phiPenultimate_;        // N-sector ref for gauge tracking
+	bool                          evolveGs_;              // TSPEvolveGroundState=1
+	SizeType                      gsEvolvedIdx_;          // targetVectors slot for |Ψ_0(t)⟩
+	bool                          gsEvolvedCurrentBasis_; // true once WFT+evolve done this advance
 }; // class TargetingTimeStep
 } // namespace Dmrg
 
