@@ -428,4 +428,20 @@ d===> 0.3091
 #7001-7500 reserved for ChemicalH
 9000) Peierls GS
 9001) Peierls time evolution
+9100) TSPEvolveGroundState unit test — GS of U=0 Anderson impurity (setup for 9101)
+InternalControlNumber: 9100
+Walltime (in seconds, approx.): 5
+Model: HubbardOneBand
+Do you need to run observe? No
+Do you need to run scripts? No
+Succint Description Of Features this test tests: Ground state checkpoint for U=0 Anderson impurity model (6-site star), used as |GS_i> for the TSPEvolveGroundState quench test (input9101).
+
+9101) TSPEvolveGroundState unit test — U=0->U=2 quench, tDMRG with time-evolved GS bra
+InternalControlNumber: 9101
+Walltime (in seconds, approx.): 30
+Model: HubbardOneBand
+Do you need to run observe? No
+Do you need to run scripts? Yes
+Succint Description Of Features this test tests: TSPEvolveGroundState=1 parameter. Loads U=0 GS from test 9100 (|GS_i>), runs tDMRG under U=2 Hamiltonian. The in-situ measurement <gsT|c|P1> gives G^>(t,0) = -i<Psi_0(t)|c|Phi+(t)> with the physically correct time-evolved bra |Psi_0(t)> = exp(-iH_f t)|GS_i>. Values at t>0 differ from the fixed-GS approach, confirming the feature works.
+
 #TAGEND DO NOT REMOVE THIS TAG

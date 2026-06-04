@@ -139,6 +139,10 @@ public:
 	    , weight_(tstStruct_.times().size())
 	    , tvEnergy_(tstStruct_.times().size(), 0.0)
 	    , gsWeight_(tstStruct_.gsWeight())
+	    , evolveGs_(tstStruct_.evolveGroundState())
+	    , gsEvolvedIdx_(2 * tstStruct_.times().size() - 1)
+	    , gsEvolvedCurrentBasis_(false)
+	    , gsWftAppliedThisAdvance_(false)
 	{
 		if (!wft.isEnabled())
 			err("TST needs an enabled wft\n");
@@ -167,15 +171,31 @@ public:
 		assert(fabs(sum - 1.0) < 1e-5);
 
 		this->common().aoeNonConst().initTimeVectors(tstStruct_, ioIn);
+
+		if (evolveGs_) {
+			// Register the extra slot index with TargetingCommon so that
+			// "gsT" in dressed measurement labels resolves to this P-vector.
+			// The slot itself is allocated by postCtor() → targetVectorsResize(targets()),
+			// which picks up the +1 from the overridden targets() above.
+			this->common().setEvolvedGsIndex(gsEvolvedIdx_);
+		}
 	}
 
 	SizeType sites() const { return tstStruct_.sites(); }
 
-	SizeType targets() const { return tstStruct_.times().size(); }
+	// With TSPEvolveGroundState=1 we append 2 extra Krylov slots for the GS:
+	//   slot N   = "anchor" (GS at Krylov t=0, starting point for this advance)
+	//   slot N+1 = evolved GS at the same Krylov time as P1 (= gsEvolvedIdx_)
+	// N extra slots for GS Krylov: anchor (times[0]=0) + N-1 evolved states (times[1..N-1]).
+	// The last slot (index 2N-1) accumulates a full tau step per advance, same as P-vectors.
+	SizeType targets() const { return tstStruct_.times().size() * (evolveGs_ ? 2 : 1); }
 
 	RealType weight(SizeType i) const
 	{
 		assert(!this->common().aoe().allStages(StageEnumType::DISABLED));
+		// GS Krylov slots (N..2N-1) carry zero truncation weight.
+		if (evolveGs_ && i >= tstStruct_.times().size())
+			return 0.0;
 		return weight_[i];
 	}
 
@@ -204,6 +224,9 @@ public:
 		SizeType site = block1[0];
 		assert(energies.size() > 0);
 		RealType Eg = energies[0];
+		// Reset per-advance flags.
+		gsEvolvedCurrentBasis_ = false;
+		gsWftAppliedThisAdvance_ = false;
 		evolveInternal(Eg, direction, block1, loopNumber);
 
 		SizeType numberOfSites = this->lrs().super().block().size();
@@ -233,6 +256,22 @@ public:
 	void read(typename TargetingCommonType::IoInputType& io, PsimagLite::String prefix)
 	{
 		this->common().readGSandNGSTs(io, prefix, "TimeStep");
+		// Save |GS_i⟩ immediately after checkpoint load, before any DMRG sweep overwrites
+		// psiConst.  This is the pre-quench GS with a sign fixed by the hdf5 file — the
+		// same in both the particle and hole tDMRG runs, ensuring sign consistency in G^<.
+		if (evolveGs_) {
+			const auto& psi = this->common().aoe().psiConst();
+			if (psi.size() > 0 && psi[0].size() > 0 && psi[0][0] != nullptr
+			    && psi[0][0]->size() > 0) {
+				gsInitial_ = *psi[0][0];
+				// Note: we do NOT pre-seed targetVectors[gsEvolvedIdx_] here.
+				// Between read() and the first advance, the DMRG changes the basis
+				// at every site.  Seeding here would leave gsT in the checkpoint
+				// basis, causing size mismatches in cocoon measurements.  The GS
+				// Krylov block in evolveInternal() seeds it on the first advance
+				// using the WFT to transform gsInitial_ to the current basis.
+			}
+		}
 	}
 
 	void write(const VectorSizeType&        block,
@@ -261,6 +300,21 @@ private:
 		assert(block1.size() > 0);
 		SizeType site = block1[0];
 
+		// WFT the GS Krylov slot at the START of each DMRG advance, before any cocoon
+		// or Krylov call.  This keeps targetVectors[gsEvolvedIdx_] in the current basis
+		// by chaining through every WFT step from the checkpoint to the current advance.
+		// gsWftAppliedThisAdvance_ prevents double-WFT on the corner sub-call.
+		if (evolveGs_ && !gsWftAppliedThisAdvance_) {
+			// Seed on very first call: copy gsInitial_ (checkpoint basis).
+			// The WFT below then maps it to the current basis.
+			if (this->common().aoe().targetVectors(gsEvolvedIdx_).size() == 0
+			    && gsInitial_.size() > 0)
+				this->tvNonConst(gsEvolvedIdx_) = gsInitial_;
+			if (this->common().aoe().targetVectors(gsEvolvedIdx_).size() > 0)
+				this->common().aoeNonConst().wftSome(site, gsEvolvedIdx_, gsEvolvedIdx_ + 1);
+			gsWftAppliedThisAdvance_ = true;
+		}
+
 		SizeType numberOfSites    = this->lrs().super().block().size();
 		bool     doBorderIfBorder = (site < 1 || site >= numberOfSites - 1);
 
@@ -282,7 +336,7 @@ private:
 		}
 
 		this->common().aoeNonConst().getPhi(
-		    &phiNew, Eg, direction, site, loopNumber, tstStruct_);
+		    &phiNew, Eg, direction, site, loopNumber, tstStruct_, nullptr);
 
 		PairType startEnd(0, tstStruct_.times().size());
 		bool     allOperatorsApplied
@@ -303,6 +357,73 @@ private:
 		    false, // don't wft or advance indices[0]
 		    block1,
 		    isLastCall);
+
+		// Krylov-evolve |GS_i⟩ → |Ψ_0(t)⟩ = e^{−iH_f t}|GS_i⟩ for "gsT" measurements.
+		//
+		// gsInitial_ is saved in read() from the checkpoint, before DMRG sweeps change
+		// psiConst.  Both the particle and hole tDMRG runs load the same checkpoint, so
+		// gsInitial_ carries the same sign in both runs — ensuring G^R = G^>−G^< is
+		// purely imaginary as required by causality.
+		//
+		// Accumulation: WFT-transform targetVectors[gsEvolvedIdx_] from the previous
+		// advance's basis to the current basis, then Krylov-evolve by one τ step.
+		// A sign-flip check after WFT detects and corrects spurious −1 gauge factors.
+		//
+		// gsEvolvedCurrentBasis_ prevents the corner sub-call in evolve() from
+		// re-WFT-ing a freshly computed vector (same-advance double-WFT → norm=0).
+		if (evolveGs_ && allOperatorsApplied && !gsEvolvedCurrentBasis_) {
+			const SizeType gsAnchorIdx = tstStruct_.times().size();
+			const VectorWithOffsetType& gsEvolved
+			    = this->common().aoe().targetVectors(gsEvolvedIdx_);
+			// gsEvolved is already in the current DMRG basis: WFT was applied at the
+			// start of evolveInternal() (gsWftAppliedThisAdvance_ flag).
+			const VectorWithOffsetType psi0
+			    = (gsEvolved.size() > 0) ? gsEvolved
+			                             : *this->common().aoe().psiConst()[0][0];
+			// Build indices {N, N+1, ..., 2N-1} so the Krylov loop uses
+			// times[0..N-1], giving targetVectors[2N-1] a full tau evolution
+			// per advance (matching the particle-sector accumulation rate).
+			const SizeType N = tstStruct_.times().size();
+			VectorSizeType gsIdx(N);
+			for (SizeType j = 0; j < N; ++j)
+				gsIdx[j] = gsAnchorIdx + j;
+			this->common().aoeNonConst().calcTimeVectors(
+			    gsIdx,
+			    Eg,
+			    psi0,
+			    direction,
+			    allOperatorsApplied,
+			    false,
+			    block1,
+			    isLastCall);
+			// Gauge sign correction: the WFT can flip the sign of the N-sector
+			// block (a well-known DMRG gauge freedom).  Both the particle and hole
+			// tDMRG runs experience the same flip (their N-sector DM is identical),
+			// so a flip makes G^R → −G^R_correct for all subsequent time steps —
+			// Max|dIm(G^R)| ≈ 2.  This correction is the same operation that
+			// DMRG++ already applies to psiConst via <gs|penultimate> tracking.
+			//
+			// Reference: psiConst()[0][0] is always positively phased (DMRG++
+			// Lanczos convention) and lives in the same N-sector.  The overlap
+			// ⟨GS_f|Ψ_0(t)⟩ stays ≥ 0 for moderate t and quench (neq-DMFT regime);
+			// for very strong quenches or very long t this could fail — document
+			// with a comment if that regime is reached.
+			{
+				const VectorWithOffsetType& gsEvNew
+				    = this->common().aoe().targetVectors(gsEvolvedIdx_);
+				const auto& refPsi = this->common().aoe().psiConst();
+				if (gsEvNew.size() > 0 && refPsi.size() > 0 && refPsi[0].size() > 0
+				    && refPsi[0][0] != nullptr && refPsi[0][0]->size() > 0) {
+					const ComplexOrRealType ov = *refPsi[0][0] * gsEvNew;
+					if (PsimagLite::real(ov) < 0)
+						this->tvNonConst(gsEvolvedIdx_) *= ComplexOrRealType(-1);
+				}
+			}
+			// Mark the evolved GS as being in the current basis so the corner
+			// sub-call from evolve() does not re-WFT or re-evolve it.
+			gsEvolvedCurrentBasis_ = true;
+		}
+
 
 		this->common().cocoon(block1, direction, false);
 
@@ -329,7 +450,10 @@ private:
 
 	void printEnergies() const
 	{
-		for (SizeType i = 0; i < this->common().aoe().tvs(); i++)
+		// Skip GS Krylov slots (indices >= N): they are for measurement only,
+		// and tvEnergy_ has only N entries.
+		const SizeType nMain = tstStruct_.times().size();
+		for (SizeType i = 0; i < nMain; i++)
 			printEnergies(this->tv(i), i);
 	}
 
@@ -377,6 +501,11 @@ private:
 	VectorRealType                weight_;
 	mutable VectorRealType        tvEnergy_;
 	RealType                      gsWeight_;
+	bool                          evolveGs_;              // TSPEvolveGroundState=1
+	SizeType                      gsEvolvedIdx_;          // targetVectors slot for |Ψ_0(t)⟩
+	bool                          gsEvolvedCurrentBasis_; // true once WFT+evolve done this advance
+	VectorWithOffsetType          gsInitial_;             // |GS_i⟩ from checkpoint (pre-quench)
+	bool                          gsWftAppliedThisAdvance_; // prevents double-WFT at corner
 }; // class TargetingTimeStep
 } // namespace Dmrg
 
