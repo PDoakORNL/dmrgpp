@@ -906,7 +906,8 @@ private:
 	TargetHelperType              targetHelper_;
 	ApplyOperatorExpressionType   aoe_;
 	mutable VectorType            inSitu_;
-	SizeType                      evolvedGsIdx_ = std::numeric_limits<SizeType>::max();
+	// max() = "unset" sentinel (SizeType is unsigned; no -1)
+	SizeType evolvedGsIdx_ = std::numeric_limits<SizeType>::max();
 }; // class TargetingCommon
 
 template <typename TargetHelperType, typename VectorWithOffsetType, typename LanczosSolverType>
