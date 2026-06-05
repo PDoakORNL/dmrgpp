@@ -175,8 +175,9 @@ public:
 		if (evolveGs_) {
 			// Register the extra slot index with TargetingCommon so that
 			// "gsT" in dressed measurement labels resolves to this P-vector.
-			// The slot itself is allocated by postCtor() → targetVectorsResize(targets()),
-			// which picks up the +1 from the overridden targets() above.
+			// The slot itself is allocated by postCtor() →
+			// targetVectorsResize(targets()), which picks up the +1 from the overridden
+			// targets() above.
 			this->common().setEvolvedGsIndex(gsEvolvedIdx_);
 		}
 	}
@@ -225,7 +226,7 @@ public:
 		assert(energies.size() > 0);
 		RealType Eg = energies[0];
 		// Reset per-advance flags.
-		gsEvolvedCurrentBasis_ = false;
+		gsEvolvedCurrentBasis_   = false;
 		gsWftAppliedThisAdvance_ = false;
 		evolveInternal(Eg, direction, block1, loopNumber);
 
@@ -311,7 +312,8 @@ private:
 			    && gsInitial_.size() > 0)
 				this->tvNonConst(gsEvolvedIdx_) = gsInitial_;
 			if (this->common().aoe().targetVectors(gsEvolvedIdx_).size() > 0)
-				this->common().aoeNonConst().wftSome(site, gsEvolvedIdx_, gsEvolvedIdx_ + 1);
+				this->common().aoeNonConst().wftSome(
+				    site, gsEvolvedIdx_, gsEvolvedIdx_ + 1);
 			gsWftAppliedThisAdvance_ = true;
 		}
 
@@ -372,14 +374,14 @@ private:
 		// gsEvolvedCurrentBasis_ prevents the corner sub-call in evolve() from
 		// re-WFT-ing a freshly computed vector (same-advance double-WFT → norm=0).
 		if (evolveGs_ && allOperatorsApplied && !gsEvolvedCurrentBasis_) {
-			const SizeType gsAnchorIdx = tstStruct_.times().size();
+			const SizeType              gsAnchorIdx = tstStruct_.times().size();
 			const VectorWithOffsetType& gsEvolved
 			    = this->common().aoe().targetVectors(gsEvolvedIdx_);
 			// gsEvolved is already in the current DMRG basis: WFT was applied at the
 			// start of evolveInternal() (gsWftAppliedThisAdvance_ flag).
-			const VectorWithOffsetType psi0
-			    = (gsEvolved.size() > 0) ? gsEvolved
-			                             : *this->common().aoe().psiConst()[0][0];
+			const VectorWithOffsetType psi0 = (gsEvolved.size() > 0)
+			    ? gsEvolved
+			    : *this->common().aoe().psiConst()[0][0];
 			// Build indices {N, N+1, ..., 2N-1} so the Krylov loop uses
 			// times[0..N-1], giving targetVectors[2N-1] a full tau evolution
 			// per advance (matching the particle-sector accumulation rate).
@@ -387,15 +389,14 @@ private:
 			VectorSizeType gsIdx(N);
 			for (SizeType j = 0; j < N; ++j)
 				gsIdx[j] = gsAnchorIdx + j;
-			this->common().aoeNonConst().calcTimeVectors(
-			    gsIdx,
-			    Eg,
-			    psi0,
-			    direction,
-			    allOperatorsApplied,
-			    false,
-			    block1,
-			    isLastCall);
+			this->common().aoeNonConst().calcTimeVectors(gsIdx,
+			                                             Eg,
+			                                             psi0,
+			                                             direction,
+			                                             allOperatorsApplied,
+			                                             false,
+			                                             block1,
+			                                             isLastCall);
 			// Gauge sign correction: the WFT can flip the sign of the N-sector
 			// block (a well-known DMRG gauge freedom).  Both the particle and hole
 			// tDMRG runs experience the same flip (their N-sector DM is identical),
@@ -416,14 +417,14 @@ private:
 				    && refPsi[0][0] != nullptr && refPsi[0][0]->size() > 0) {
 					const ComplexOrRealType ov = *refPsi[0][0] * gsEvNew;
 					if (PsimagLite::real(ov) < 0)
-						this->tvNonConst(gsEvolvedIdx_) *= ComplexOrRealType(-1);
+						this->tvNonConst(gsEvolvedIdx_)
+						    *= ComplexOrRealType(-1);
 				}
 			}
 			// Mark the evolved GS as being in the current basis so the corner
 			// sub-call from evolve() does not re-WFT or re-evolve it.
 			gsEvolvedCurrentBasis_ = true;
 		}
-
 
 		this->common().cocoon(block1, direction, false);
 
@@ -501,11 +502,11 @@ private:
 	VectorRealType                weight_;
 	mutable VectorRealType        tvEnergy_;
 	RealType                      gsWeight_;
-	bool                          evolveGs_;              // TSPEvolveGroundState=1
-	SizeType                      gsEvolvedIdx_;          // targetVectors slot for |Ψ_0(t)⟩
-	bool                          gsEvolvedCurrentBasis_; // true once WFT+evolve done this advance
-	VectorWithOffsetType          gsInitial_;             // |GS_i⟩ from checkpoint (pre-quench)
-	bool                          gsWftAppliedThisAdvance_; // prevents double-WFT at corner
+	bool                          evolveGs_; // TSPEvolveGroundState=1
+	SizeType                      gsEvolvedIdx_; // targetVectors slot for |Ψ_0(t)⟩
+	bool                 gsEvolvedCurrentBasis_; // true once WFT+evolve done this advance
+	VectorWithOffsetType gsInitial_; // |GS_i⟩ from checkpoint (pre-quench)
+	bool                 gsWftAppliedThisAdvance_; // prevents double-WFT at corner
 }; // class TargetingTimeStep
 } // namespace Dmrg
 

@@ -388,8 +388,9 @@ public:
                     aoe_.model(), checkPoint_, targetHelper_.wft(), direction);
 
 		for (SizeType i = 0; i < n; ++i) {
-			PsimagLite::String opLabel = meas_[i];         // original (may contain "gsT")
-			PsimagLite::String opLabelResolved = opLabel;  // resolved copy for BraketType
+			PsimagLite::String opLabel = meas_[i]; // original (may contain "gsT")
+			PsimagLite::String opLabelResolved
+			    = opLabel; // resolved copy for BraketType
 			resolveGsT(opLabelResolved);
 			BraketType braket(targetHelper_.model(), opLabelResolved);
 
