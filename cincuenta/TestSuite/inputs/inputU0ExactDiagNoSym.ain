@@ -1,0 +1,48 @@
+##Ainur1.0
+
+# U=0 equilibrium test WITHOUT FitOptions=particleholesymmetric.
+# At U=0 Sigma=0, so G_imp must still equal G_cluster_0 regardless of whether
+# the bath fitting is constrained to be PH-symmetric.  This test checks that
+# the unconstrained (2*nBath free parameters) fitting path does not break the
+# G_imp = G_cluster_0 identity, and that half-filling is maintained.
+# The optimizer finds an approximately PH-symmetric bath spontaneously.
+
+FicticiousBeta=20;
+ChemicalPotential=0.;
+Matsubaras=200;
+LatticeGf="energy,semicircular,4";
+NumberOfBathPoints=5;
+DmftNumberOfIterations=1;
+DmftTolerance=1e-6;
+ImpuritySolver="exactdiag";
+
+MinParamsDelta=0.01;
+MinParamsMaxIter=10000;
+MinParamsDelta2=0.01;
+MinParamsTolerance=1e-4;
+MinParamsVerbose=0;
+# Full 2*nBath=10 parameter starting point: [V0..V4, eps0..eps4].
+# PH-symmetric initial guess so the optimizer starts in a sensible region.
+vector InitBathVector=[0.447, 0.447, 0.447, 0.447, 0.447, 1.8, 1.0, 0.0, -1.0, -1.8];
+
+int ImpuritySite=0;
+real HubbardU=0.;
+
+TargetElectronsUp=3;
+TargetElectronsDown=3;
+
+RootOutputname="U0ExactDiagNoSym";
+InfiniteLoopKeptStates=20;
+matrix FiniteLoopsGs=[[@auto, 100, 0],[@auto, 100, 0]];
+matrix FiniteLoopsOmega=[[@auto, 100, 2],[@auto, 100, 2]];
+
+real OmegaBegin=-6.;
+integer OmegaTotal=20;
+real OmegaStep=0.3;
+real OmegaDelta=0.1;
+
+integer TridiagSteps=200;
+real TridiagEps=1e-9;
+TruncationTolerance="1e-10,100";
+CorrectionVectorEta=0.;
+GsWeight=0.1;

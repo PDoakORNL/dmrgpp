@@ -63,6 +63,10 @@ public:
 
 	// Rescale gimp so the high-frequency tail satisfies iω_n G(iω_n) → 1.
 	// Call only after a Matsubara solve.
+	//
+	// The raw spectral weight from LanczosPlusPlus is consistently ~4 for a
+	// diagonal G(i,i) call (measured: 3.999 across all Matsubara frequencies).
+	// The root cause inside LanczosPlusPlus is under investigation.
 	void enforceSpectralSumRule()
 	{
 		if (!useSpectralSumRule()) {

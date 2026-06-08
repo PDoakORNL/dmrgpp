@@ -118,9 +118,9 @@ public:
 		freq_enum_ = freq_enum;
 	}
 
-	const VectorComplexType& gimp() const { return gimp_; }
+	const VectorComplexType& gimp() const override { return gimp_; }
 
-	PsimagLite::FreqEnum freqEnum() const { return freq_enum_; }
+	PsimagLite::FreqEnum freqEnum() const override { return freq_enum_; }
 
 	void scaleGimp(RealType factor) override
 	{

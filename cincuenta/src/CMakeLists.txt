@@ -42,4 +42,22 @@ if(Python3_FOUND)
       --tolerance 1e-3)
   set_tests_properties(u0_gImpEqGcluster0_exactdiag_check PROPERTIES
     DEPENDS u0_gImpEqGcluster0_exactdiag)
+
+  # Same check without FitOptions=particleholesymmetric (unconstrained 2*nBath fit).
+  # Verifies that half-filling and G_imp=G_cluster0 hold without the PH constraint.
+  set(U0_ED_NOSYM_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0ExactDiagNoSym)
+  file(MAKE_DIRECTORY ${U0_ED_NOSYM_DIR})
+
+  add_test(NAME u0_gImpEqGcluster0_exactdiag_nosym
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/cincuenta -I ${PATH_TO_INPUTS} -f inputU0ExactDiagNoSym.ain
+    WORKING_DIRECTORY ${U0_ED_NOSYM_DIR})
+
+  add_test(NAME u0_gImpEqGcluster0_exactdiag_nosym_check
+    COMMAND ${Python3_EXECUTABLE}
+      ${PATH_TO_TESTSUITE}/compare_gimp_gcluster0.py
+      ${U0_ED_NOSYM_DIR}/gimp_exactdiag.txt
+      ${U0_ED_NOSYM_DIR}/gcluster0_exactdiag.txt
+      --tolerance 1e-3)
+  set_tests_properties(u0_gImpEqGcluster0_exactdiag_nosym_check PROPERTIES
+    DEPENDS u0_gImpEqGcluster0_exactdiag_nosym)
 endif()
