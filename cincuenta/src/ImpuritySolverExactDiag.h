@@ -122,6 +122,12 @@ public:
 
 	PsimagLite::FreqEnum freqEnum() const { return freq_enum_; }
 
+	void scaleGimp(RealType factor) override
+	{
+		for (SizeType i = 0; i < gimp_.size(); ++i)
+			gimp_[i] *= factor;
+	}
+
 private:
 
 	void computeGreenFunction(const CollectionContFractionType& cf_collection)

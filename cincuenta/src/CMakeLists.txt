@@ -16,3 +16,30 @@ set(PATH_TO_INPUTS ${CMAKE_CURRENT_SOURCE_DIR}/../TestSuite/inputs)
 add_test(NAME cincuenta0 COMMAND ./cincuenta -I ${PATH_TO_INPUTS} -f inputCincuenta0.ain) # energy 0.456977
 # dmrg impurity solver
 add_test(NAME cincuenta1 COMMAND ./cincuenta -I ${PATH_TO_INPUTS} -f inputCincuenta1.ain) # energy 0.456977
+
+# Regression: G_imp must equal G_cluster0 at U=0 with FitOptions=particleholesymmetric.
+# Physical basis: U=0 => Sigma_imp=0 exactly, so the impurity solver must reproduce
+# the non-interacting cluster propagator G_cluster0 to solver precision.
+# This was broken by a bath-parameter layout bug fixed in PR #195 (Anderson_symPH).
+find_package(Python3 QUIET COMPONENTS Interpreter)
+if(Python3_FOUND)
+  if(NOT PATH_TO_TESTSUITE)
+    set(PATH_TO_TESTSUITE ${CMAKE_CURRENT_SOURCE_DIR}/../TestSuite)
+  endif()
+
+  set(U0_ED_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0ExactDiag)
+  file(MAKE_DIRECTORY ${U0_ED_DIR})
+
+  add_test(NAME u0_gImpEqGcluster0_exactdiag
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/cincuenta -I ${PATH_TO_INPUTS} -f inputU0ExactDiag.ain
+    WORKING_DIRECTORY ${U0_ED_DIR})
+
+  add_test(NAME u0_gImpEqGcluster0_exactdiag_check
+    COMMAND ${Python3_EXECUTABLE}
+      ${PATH_TO_TESTSUITE}/compare_gimp_gcluster0.py
+      ${U0_ED_DIR}/gimp_exactdiag.txt
+      ${U0_ED_DIR}/gcluster0_exactdiag.txt
+      --tolerance 1e-3)
+  set_tests_properties(u0_gImpEqGcluster0_exactdiag_check PROPERTIES
+    DEPENDS u0_gImpEqGcluster0_exactdiag)
+endif()

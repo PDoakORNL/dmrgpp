@@ -80,6 +80,8 @@ public:
 			impuritySolver_->solve(
 			    fit_.result(), PsimagLite::FreqEnum::MATSUBARA, iter);
 
+			impuritySolver_->enforceSpectralSumRule();
+
 			this->logDebug();
 
 			error = computeNewSelfEnergy(fit_.result());
@@ -194,6 +196,26 @@ private:
 		}
 	}
 
+	// Write G_cluster0(iw_n) = 1/(iw_n + mu - bath_self_energy) to a file.
+	// At U=0 (Sigma_imp=0) this must equal gimp to machine precision; any
+	// deviation flags a bug in how bath parameters reach the impurity solver.
+	void writeGcluster0ForDebug(const std::string& filename) const
+	{
+		std::ofstream fout(filename);
+		if (!fout || !fout.good())
+			err(std::string("Could not write to ") + filename + "\n");
+		const SizeType               totalMatsubaras = sigma_.totalMatsubaras();
+		AndersonFunctionType         af(params_.nBath, params_.mu);
+		ClusterG0<ComplexOrRealType> cluster_g0(af);
+		for (SizeType i = 0; i < totalMatsubaras; ++i) {
+			const RealType          wn = sigma_.omega(i);
+			const ComplexOrRealType val
+			    = cluster_g0.g0cluster(fit_.result(), ComplexOrRealType(0, wn));
+			fout << wn << " " << PsimagLite::real(val) << " " << PsimagLite::imag(val)
+			     << "\n";
+		}
+	}
+
 	void logDebug() const
 	{
 		SizeType mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
@@ -215,6 +237,7 @@ private:
 
 		if (freq_enum == PsimagLite::FreqEnum::MATSUBARA) {
 			writeGimpForDebugOnly(root + ".txt");
+			writeGcluster0ForDebug("gcluster0_" + params_.impuritySolver + ".txt");
 		} else {
 			writeGimpForDebugOnly(root + "_real.txt");
 		}

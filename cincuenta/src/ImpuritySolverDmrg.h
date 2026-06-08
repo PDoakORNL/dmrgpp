@@ -92,6 +92,15 @@ public:
 
 	PsimagLite::FreqEnum freqEnum() const { return freq_enum_; }
 
+	void scaleGimp(RealType factor) override
+	{
+		for (SizeType i = 0; i < gimp_.size(); ++i)
+			gimp_[i] *= factor;
+	}
+
+	// DMRG has its own normalization path; skip the Matsubara tail-based rule.
+	bool useSpectralSumRule() const override { return false; }
+
 private:
 
 	std::string createOmegaInput(const ModelParamsType& model_params,
