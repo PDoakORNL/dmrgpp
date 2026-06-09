@@ -1,0 +1,48 @@
+##Ainur1.0
+
+# U=0 DMRG smoke test: G_imp(iw_n) must equal G_cluster0(iw_n).
+# Uses nBath=4 (even) WITHOUT FitOptions=particleholesymmetric.
+# With 5 total sites the nearest half-filling with Sz=0 is nUp=nDown=2.
+# Even nBath avoids the forced zero-energy bath site that causes ill-conditioning
+# in the CorrectionVector solve at low Matsubara frequencies (pi/beta ~ 0.16).
+
+FicticiousBeta=20;
+ChemicalPotential=0.;
+Matsubaras=8;
+LatticeGf="energy,semicircular,4";
+NumberOfBathPoints=4;
+DmftNumberOfIterations=1;
+DmftTolerance=1e-6;
+ImpuritySolver="dmrg";
+
+MinParamsDelta=0.01;
+MinParamsMaxIter=10000;
+MinParamsDelta2=0.01;
+MinParamsTolerance=1e-4;
+MinParamsVerbose=0;
+# Full 2*nBath=8 params: [V0, V1, V2, V3, eps0, eps1, eps2, eps3].
+# PH-symmetric starting point; optimizer free to break symmetry.
+vector InitBathVector=[0.447, 0.447, 0.447, 0.447, 1.8, 1.0, -1.0, -1.8];
+
+int ImpuritySite=0;
+real HubbardU=0.;
+
+SolverOptions=doNotCheckDmEigs;
+RootOutputname="U0Dmrg4Bath";
+InfiniteLoopKeptStates=50;
+matrix FiniteLoopsGs=[[@auto, 100, 0],[@auto, 100, 0]];
+matrix FiniteLoopsOmega=[[@auto, 100, 2],[@auto, 100, 2]];
+
+TargetElectronsUp=2;
+TargetElectronsDown=2;
+
+real OmegaBegin=-6.;
+integer OmegaTotal=20;
+real OmegaStep=0.3;
+real OmegaDelta=0.1;
+
+integer TridiagSteps=200;
+real TridiagEps=1e-9;
+TruncationTolerance="1e-10,100";
+CorrectionVectorEta=0.;
+GsWeight=0.1;
