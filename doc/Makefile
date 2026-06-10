@@ -1,12 +1,12 @@
-CPPFLAGS = -I../src/Engine -I../src/Models/Heisenberg -I../src/Models/Heisenberg -I../src/Models/HubbardOneBand -I../src/Models/FeAsModel \
-	   -IModels/Immm -I../src/Models/FeAsBasedScExtended -IModels/ExtendedHubbard1Orb -I../../PsimagLite/src -I../../PsimagLite/src/Geometry 
-CXX = g++ 
+CPPFLAGS = -I../dmrg/Engine -I../dmrg/Models/Heisenberg -I../dmrg/Models/HubbardOneBand -I../dmrg/Models/FeAsModel \
+	   -I../../PsimagLite/src -I../../PsimagLite/src/Geometry
+CXX = g++
 
 all: manual.pdf
 
-FILES = $(shell find ../src -iname "*.h" -or -iname "*.cpp")
+FILES = $(shell find ../dmrg -iname "*.h" -or -iname "*.cpp")
 manual.tex: manual.ptex ../README.md  $(FILES)
-	find ../src -iname "*.h" -or -iname "*.cpp" |\
+	find ../dmrg -iname "*.h" -or -iname "*.cpp" |\
               perl ../PsimagLite/scripts/doc.pl manual.ptex
 
 manual.pdf: manual.tex ../README.md ../src/*h ../src/Engine/*h ../src/*cpp
