@@ -975,9 +975,18 @@ TO BE ABLE TO PRODUCE DATA FOR THE OBSERVER.}
 \ptexPaste{TargetParamsCommon}
 \end{itemize}
 
+\section{TargetingExpression}
+\subsection{TargetingExpression Input}
+Enable with \verb!TargetingExpression! in \verb!SolverOptions!.
+P-vectors define the targeted states as algebraic expressions involving
+operators and previously defined states.
+\begin{itemize}
+\ptexPaste{Pvectors}
+\end{itemize}
+
 \section*{LICENSE}
 \begin{verbatim}
-\ptexReadFile{../src/LICENSE}
+\ptexReadFile{../dmrg/LICENSE}
 \end{verbatim}
 \bibliographystyle{plain}
 \bibliography{thesis}

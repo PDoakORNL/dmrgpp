@@ -220,6 +220,50 @@ public:
 
 private:
 
+	/*PSIDOC Pvectors
+	Input parameters for \verb!TargetingExpression! (i.e., when
+	\verb!SolverOptions! contains \verb!TargetingExpression!).
+
+	\item[GsWeight] [RealType] Weight for the ground state $|gs\rangle$
+	relative to the P-vectors in the density-matrix construction.
+
+	\item[P0, P1, \ldots] [String] The $n$-th P-vector definition
+	(indices start at 0 and must be contiguous -- no gaps).
+	Each value is a quoted algebraic expression of one of the following forms.
+
+	\begin{enumerate}
+	\item An operator expression applied to $|gs\rangle$ or another P-vector:
+	\begin{verbatim}
+	string P0="c'[3]*c[4]*|gs>+c'[5]*c[6]*|gs>";
+	string P1="c[1]*|P0>";
+	\end{verbatim}
+	Operator expressions follow the canonical form described in the
+	Operator Expressions section.
+	An optional real weight may be appended after the closing \verb!>!:
+	\verb!"...|gs>*0.5"!.
+
+	\item A time-evolution step applied to another P-vector:
+	\begin{verbatim}
+	string P1="TimeEvolve{tau=0.1,steps=5,advanceEach=6}*|P0>";
+	\end{verbatim}
+	\verb!TimeEvolve! accepts the following comma-separated key=value pairs
+	inside the braces.
+	\begin{itemize}
+	\item \verb!tau! [RealType] Time step $\tau$.
+	\item \verb!steps! [Integer] Number of time steps $n_v$.
+	\item \verb!advanceEach! [Integer] Number of DMRG sites to sweep
+	      before advancing to the next time step.
+	\item \verb!algorithm! [String] \verb!Krylov! (default),
+	      \verb!RungeKutta!, or \verb!SuzukiTrotter!.
+	\item \verb!EnergyForExp! [RealType] Energy origin for the exponential.
+	\item \verb!depends! [String] Comma-separated list of P-vector labels
+	      (e.g.\ \verb!P1,P2!) that must be fully evolved before this
+	      P-vector is advanced.
+	\end{itemize}
+	\end{enumerate}
+
+	Note: the obsolete \verb!Pvectors=! input key is rejected with an error.
+	*/
 	void pvectorsFromInput(InputValidatorType& io)
 	{
 		checkObsolete(io);
