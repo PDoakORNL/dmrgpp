@@ -238,7 +238,8 @@ private:
 			} else if (key == "depends") {
 				getDepends(timeParams.depends, value);
 			} else if (key == "overlap") {
-				timeParams.computeConsecutiveOverlap = (value == "1" || value == "yes");
+				timeParams.computeConsecutiveOverlap
+				    = (value == "1" || value == "yes");
 			} else {
 				err("Unrecognized key=" + key + "\n");
 			}
