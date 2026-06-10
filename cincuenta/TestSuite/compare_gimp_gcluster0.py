@@ -7,9 +7,14 @@ one line per Matsubara frequency.
 
 At U=0 the self-energy is identically zero, so the impurity solver must reproduce
 the non-interacting cluster propagator exactly (to solver precision).  Any
-discrepancy larger than the tolerance indicates a bug in how bath parameters are
-passed to or used by the impurity solver -- notably the particleholesymmetric
-bath-parameter layout introduced in the Anderson_symPH fix (PR #195).
+discrepancy larger than the tolerance indicates an issue. But there
+are so far at least two classes of observed issues. One is how bath parameters are
+passed to or used by the impurity solver. One example would the particleholesymmetric
+bath-parameter layout wrt derivatives patched in the Anderson_symPH fix (PR #195).
+Another would the behavior of odd numbers of bath sites at half
+filling where the Kyrlov correction vector scheme becomes increasingly
+more ill-conditioned at the same time the lowest bath frequency approaches
+the w=0 pole resulting in growing max|G_imp - G_cluster0|
 
 Usage:
     python3 compare_gimp_gcluster0.py gimp_exactdiag.txt gcluster0_exactdiag.txt \\
