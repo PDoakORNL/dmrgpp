@@ -3,7 +3,7 @@
 # Ground state of a 6-site Anderson impurity model (1 impurity + 5 bath)
 # with U=0 at all sites (non-interacting H_i).
 # Half-filling: 3 up + 3 down = 6 electrons on 6 sites.
-# Output checkpoint data9100 is loaded by input9101 as the pre-quench GS.
+# Output checkpoint data9100 is loaded by input9102 as the pre-quench GS.
 
 TotalNumberOfSites=6;
 NumberOfTerms=1;

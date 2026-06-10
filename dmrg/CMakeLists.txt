@@ -185,15 +185,20 @@ add_test(NAME input9000 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9000.ain) # ene
 add_test(NAME input9001 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9001.ain "<P0|n|P0>"
 )# in-situ 1 (1.010966,0.000000) 0.500000 <P0|n|P0> (1.000000,0.000000)
 
-# TSPEvolveGroundState unit test — U=0->U=2 quench on 6-site Anderson impurity
+# U=0->U=2 quench unit tests using TargetingExpression + TimeEvolve overlap tracking
 # input9100: GS of H_i (U=0); energy = -sqrt(5) for uniform hopping 0.5
 add_test(NAME input9100 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9100.inp) # energy -2.23607
 add_lowest_eigenvalue_check_test(output9100 -2.23607 runForinput9100.cout)
-# input9101: tDMRG under H_f (U=2), TSPEvolveGroundState=1; check <gsT|c|P1> appears
-add_test(NAME input9101 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9101.inp "<gsT|c|P1>") # none
-set_tests_properties(input9101 PROPERTIES DEPENDS input9100)
-add_test(NAME output9101_gsT COMMAND sh -c "grep -q '<gsT|c|P1>' ${CMAKE_CURRENT_BINARY_DIR}/runForinput9101.cout")
-set_tests_properties(output9101_gsT PROPERTIES DEPENDS input9101)
+# input9102: TargetingExpression restart from 9100, computes P0 = c'[0]*|GS_i>
+add_test(NAME input9102 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9102.inp)
+set_tests_properties(input9102 PROPERTIES DEPENDS input9100)
+# input9103: tDMRG under H_f, P2=TimeEvolve{overlap=1}*|gs>, measures <P2|c|P1>
+add_test(NAME input9103 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9103.inp "<P2|c|P1>")
+set_tests_properties(input9103 PROPERTIES DEPENDS input9102)
+add_test(NAME output9103_P2cP1 COMMAND sh -c "grep -q '<P2|c|P1>' ${CMAKE_CURRENT_BINARY_DIR}/runForinput9103.cout")
+set_tests_properties(output9103_P2cP1 PROPERTIES DEPENDS input9103)
+add_test(NAME output9103_P2prev COMMAND sh -c "grep -q '<P2|prev>' ${CMAKE_CURRENT_BINARY_DIR}/runForinput9103.cout")
+set_tests_properties(output9103_P2prev PROPERTIES DEPENDS input9103)
 
 # Tests for the observe executable
 add_test(NAME observe0002 COMMAND ./observe -l "+r" -f ${PATH_TO_INPUTS}/input2.ain

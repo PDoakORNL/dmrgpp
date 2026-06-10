@@ -428,20 +428,28 @@ d===> 0.3091
 #7001-7500 reserved for ChemicalH
 9000) Peierls GS
 9001) Peierls time evolution
-9100) TSPEvolveGroundState unit test — GS of U=0 Anderson impurity (setup for 9101)
+9100) GS quench unit test — GS of U=0 Anderson impurity (setup for 9102)
 InternalControlNumber: 9100
 Walltime (in seconds, approx.): 5
 Model: HubbardOneBand
 Do you need to run observe? No
 Do you need to run scripts? No
-Succint Description Of Features this test tests: Ground state checkpoint for U=0 Anderson impurity model (6-site star), used as |GS_i> for the TSPEvolveGroundState quench test (input9101).
+Succint Description Of Features this test tests: Ground state checkpoint for U=0 Anderson impurity model (6-site star), used as |GS_i> for the TargetingExpression quench tests (input9102, input9103).
 
-9101) TSPEvolveGroundState unit test — U=0->U=2 quench, tDMRG with time-evolved GS bra
-InternalControlNumber: 9101
+9102) GS quench unit test — TargetingExpression restart, computes P0=c'|GS_i>
+InternalControlNumber: 9102
+Walltime (in seconds, approx.): 5
+Model: HubbardOneBand
+Do you need to run observe? No
+Do you need to run scripts? No
+Succint Description Of Features this test tests: TargetingExpression restart from U=0 GS (data9100) under U=2 Hamiltonian. FiniteLoops "2" flag (fast WFT) keeps |gs> as the WFT-transformed |GS_i>. Computes P0=c'[0]*|GS_i> for use as initial hole state in test 9103.
+
+9103) GS quench unit test — tDMRG TimeEvolve with overlap=1, measures <P2|c|P1>
+InternalControlNumber: 9103
 Walltime (in seconds, approx.): 30
 Model: HubbardOneBand
 Do you need to run observe? No
 Do you need to run scripts? Yes
-Succint Description Of Features this test tests: TSPEvolveGroundState=1 parameter. Loads U=0 GS from test 9100 (|GS_i>), runs tDMRG under U=2 Hamiltonian. The in-situ measurement <gsT|c|P1> gives G^>(t,0) = -i<Psi_0(t)|c|Phi+(t)> with the physically correct time-evolved bra |Psi_0(t)> = exp(-iH_f t)|GS_i>. Values at t>0 differ from the fixed-GS approach, confirming the feature works.
+Succint Description Of Features this test tests: TimeEvolve{overlap=1} parameter in TargetingExpression. Evolves P2=|GS_i> and P1=c'|GS_i> under U=2 Hamiltonian. In-situ <P2|c|P1> gives G^>(t,0) with the physically correct time-evolved bra. The overlap=1 flag outputs <P2|prev> (consecutive N-sector overlaps) for gauge-phase correction.
 
 #TAGEND DO NOT REMOVE THIS TAG

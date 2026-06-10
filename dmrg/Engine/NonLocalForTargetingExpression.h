@@ -50,6 +50,7 @@ public:
 		SizeType           disposition;
 		VectorSizeType     depends;
 		RealType           Eg;
+		bool               computeConsecutiveOverlap = false;
 	};
 
 	NonLocalForTargetingExpression(const AuxiliaryType& aux)
@@ -126,6 +127,14 @@ public:
 		    false, // don't wft or advance indices[0]
 		    block1,
 		    isLastCall);
+
+		if (timeHasAdvanced && timeParams.computeConsecutiveOverlap) {
+			const VectorWithOffsetType& newVec
+			    = aux_.pVectors().aoe().targetVectors(firstOrLast);
+			const auto gaugeOverlap = (*phi) * newVec;
+			std::cout << site << " " << gaugeOverlap << " " << oneTimeEvolution->time()
+			          << " <P" << firstIndex << "|prev> " << gaugeOverlap << "\n";
+		}
 
 		if (oneTimeEvolution->time() > 0) {
 			delete phi;
@@ -228,6 +237,8 @@ private:
 				timeParams.Eg = PsimagLite::atof(value);
 			} else if (key == "depends") {
 				getDepends(timeParams.depends, value);
+			} else if (key == "overlap") {
+				timeParams.computeConsecutiveOverlap = (value == "1" || value == "yes");
 			} else {
 				err("Unrecognized key=" + key + "\n");
 			}
