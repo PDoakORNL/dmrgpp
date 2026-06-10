@@ -34,8 +34,8 @@ potentialV=[0, 0, 0, 0, 0, 0,
 RestartFilename=data9102;
 RestartMappingTvs=[0, -1, -1];
 string P0=|P0>;
-string P1="TimeEvolve{tau=0.1,steps=2,advanceEach=1}*|P0>";
-string P2="TimeEvolve{tau=0.1,steps=2,advanceEach=1,overlap=1}*|gs>";
+string P1="TimeEvolve{tau=0.1,steps=5,advanceEach=4}*|P0>";
+string P2="TimeEvolve{tau=0.1,steps=5,advanceEach=4,overlap=1}*|gs>";
 GsWeight=0.1;
 
 #ci dmrg arguments="<P2|c|P1>"
