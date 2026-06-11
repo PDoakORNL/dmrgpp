@@ -30,6 +30,8 @@ endif()
 add_subdirectory(util)
 set(CHECK_VALUE_TARGET util::check_values)
 
+find_package(Python3 QUIET COMPONENTS Interpreter)
+
 add_subdirectory(PsimagLite)
 add_subdirectory(dmrg)
 

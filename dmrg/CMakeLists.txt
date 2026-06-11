@@ -194,7 +194,6 @@ add_lowest_eigenvalue_check_test(output957 -6.28342 runForinput957.cout)
 set_tests_properties(output957 PROPERTIES DEPENDS input957)
 
 set(PATH_TO_CINCUENTA_TESTSUITE ${CMAKE_CURRENT_SOURCE_DIR}/../cincuenta/TestSuite)
-find_package(Python3 QUIET COMPONENTS Interpreter)
 if(Python3_FOUND)
   add_test(
     NAME compare_gimp_gcluster0_dynamic_4bath

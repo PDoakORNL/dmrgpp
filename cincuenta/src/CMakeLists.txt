@@ -21,7 +21,6 @@ add_test(NAME cincuenta1 COMMAND ./cincuenta -I ${PATH_TO_INPUTS} -f inputCincue
 # Physical basis: U=0 => Sigma_imp=0 exactly, so the impurity solver must reproduce
 # the non-interacting cluster propagator G_cluster0 to solver precision.
 # This was broken by a bath-parameter layout bug fixed in PR #195 (Anderson_symPH).
-find_package(Python3 QUIET COMPONENTS Interpreter)
 if(Python3_FOUND)
   if(NOT PATH_TO_TESTSUITE)
     set(PATH_TO_TESTSUITE ${CMAKE_CURRENT_SOURCE_DIR}/../TestSuite)
