@@ -1,0 +1,52 @@
+##Ainur1.0
+
+# U=0 DMRG test: G_imp(iw_n) == G_cluster0(iw_n) for nBath=5 (odd, PH-symmetric).
+# PH symmetry forces one bath site at epsilon=0, which creates a pole at omega=0 that
+# ill-conditions the CorrectionVector solve at small real frequencies.  At Matsubara
+# frequencies (CorrectionVectorEta=0, z=i*omega_n) the solve is always well-conditioned.
+# The two-stage FiniteLoopsGs (GS) + FiniteLoopsOmega (solver) structure ensures the GS
+# is fully converged before the frequency calculation starts (same principle as an
+# explicit DMRG restart).  m=400 == C(6,3)^2, the full GS-sector Hilbert space.
+# This is the case at issue in the Gonzalo/Thomas nBath=5 debate.
+
+FicticiousBeta=20;
+ChemicalPotential=0.;
+Matsubaras=8;
+LatticeGf="energy,semicircular,4";
+NumberOfBathPoints=5;
+DmftNumberOfIterations=1;
+DmftTolerance=1e-6;
+ImpuritySolver="dmrg";
+
+FitOptions=particleholesymmetric;
+MinParamsDelta=0.01;
+MinParamsMaxIter=10000;
+MinParamsDelta2=0.01;
+MinParamsTolerance=1e-4;
+MinParamsVerbose=0;
+# PH-symmetric layout for nBath=5: [V0, V1, V2, eps1, eps2] (5 params).
+# Bath energies placed at {-eps2, -eps1, 0, eps1, eps2}; V=1/sqrt(5)~0.447.
+vector InitBathVector=[0.447, 0.447, 0.447, 1.0, 1.8];
+
+int ImpuritySite=0;
+real HubbardU=0.;
+
+SolverOptions=doNotCheckDmEigs;
+RootOutputname="U0Dmrg5Bath";
+InfiniteLoopKeptStates=50;
+matrix FiniteLoopsGs=[[@auto, 400, 0], [@auto, 400, 0], [@auto, 400, 0]];
+matrix FiniteLoopsOmega=[[@auto, 400, 2], [@auto, 400, 2]];
+
+TargetElectronsUp=3;
+TargetElectronsDown=3;
+
+real OmegaBegin=-6.;
+integer OmegaTotal=20;
+real OmegaStep=0.3;
+real OmegaDelta=0.1;
+
+integer TridiagSteps=200;
+real TridiagEps=1e-9;
+TruncationTolerance="1e-10,400";
+CorrectionVectorEta=0.;
+GsWeight=0.1;
