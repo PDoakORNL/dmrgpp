@@ -428,4 +428,9 @@ d===> 0.3091
 #7001-7500 reserved for ChemicalH
 9000) Peierls GS
 9001) Peierls time evolution
+956) U=0 AIM, star geometry, 1 impurity + 4 bath sites (even nBath), TargetingDynamic TYPE_0 (addition, c†).
+	Control test for G_imp=G_cluster0 check; even nBath has no forced zero-energy bath site.
+	Pairs with input957.  V=0.5, bath epsilon={-1.8,-1.0,+1.0,+1.8}, nUp=nDown=2, m=100.
+957) U=0 AIM, star geometry, 1 impurity + 4 bath sites (even nBath), TargetingDynamic TYPE_1 (removal, c).
+	Pair for input956.  Same parameters, DynamicDmrgType=1.
 #TAGEND DO NOT REMOVE THIS TAG
