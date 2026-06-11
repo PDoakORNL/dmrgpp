@@ -30,6 +30,7 @@ Please see full open source license included in file LICENSE.
 #define CONTINUED_FRACTION_H
 #include "Complex.h"
 #include "FreqEnum.h"
+#include "Io/IoNg.h"
 #include "Io/IoSimple.h"
 #include "Matsubaras.h"
 #include "ParametersForSolver.h"
@@ -120,6 +121,16 @@ public:
 
 		io.write(eigs_, "#CFEigs");
 		io.write(intensity_, "#CFIntensities");
+	}
+
+	void write(IoNg::Out& io, String label) const
+	{
+		RealType w = PsimagLite::real(weight_);
+		io.write(Eg_, label + "/CFEnergy");
+		io.write(w, label + "/CFWeight");
+		io.write(isign_, label + "/CFIsign");
+		io.write(eigs_, label + "/CFEigs");
+		io.write(intensity_, label + "/CFIntensities");
 	}
 
 	void set(const TridiagonalMatrixType& ab, const RealType& Eg, RealType weight, int isign)

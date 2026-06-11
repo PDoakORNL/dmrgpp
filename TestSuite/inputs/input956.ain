@@ -1,0 +1,47 @@
+##Ainur1.0
+
+# U=0 AIM: 1 impurity + 4 bath sites (even nBath), TargetingDynamic TYPE_0.
+# CONTROL test: even nBath has no forced zero-energy bath site, so both Krylov
+# and continued-fraction approaches are uncontroversial.  Passing this control
+# validates the Python CF evaluator before drawing conclusions about the odd
+# nBath=5 case (input954/955).
+#
+# Star geometry: site 0 = impurity (epsilon=0, U=0)
+#                sites 1-4 = bath (epsilon = -1.8, -1.0, +1.0, +1.8)
+# Hybridization: V=0.5.  Near half-filling Sz=0: nUp=nDown=2.
+# DynamicDmrgType=0: addition spectrum (c' at impurity).
+
+TotalNumberOfSites=5;
+NumberOfTerms=1;
+DegreesOfFreedom=1;
+GeometryKind=star;
+GeometryOptions=none;
+
+dir0:Connectors=[0.5, 0.5, 0.5, 0.5];
+
+hubbardU=[0., 0., 0., 0., 0.];
+potentialV=[0., -1.8, -1.0, 1.0, 1.8, 0., -1.8, -1.0, 1.0, 1.8];
+Model=HubbardOneBand;
+
+SolverOptions=DynamicTargeting,twositedmrg,geometryallinsystem;
+Version=templateForDMFT;
+OutputFile=data956;
+InfiniteLoopKeptStates=50;
+FiniteLoops=[[@auto, 100, 0], [@auto, 100, 0], [@auto, 100, 1]];
+
+TargetElectronsUp=2;
+TargetElectronsDown=2;
+
+GsWeight=0.1;
+DynamicDmrgType=0;
+
+TSPSites=[1, 0];
+TSPLoops=[0, 0];
+TSPProductOrSum=product;
+
+string TSPOp0:TSPOperator=expression;
+string TSPOp0:OperatorExpression=identity;
+string TSPOp1:TSPOperator=expression;
+string TSPOp1:OperatorExpression=c';
+
+TruncationTolerance=1e-9;

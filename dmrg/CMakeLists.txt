@@ -181,15 +181,59 @@ add_lowest_eigenvalue_check_test(output6020 -2.59474 runForinput6020.cout)
 add_test(NAME input6700 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input6700.ain) # energy -4.17889 we don't check this
 add_test(NAME input8900 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input8900.ain "<gs|sz_p|gs>") # none
 add_test(NAME input8901 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input8901.ain "<gs|sz|gs>") # none
-# U=0 Anderson impurity model, nBath=3 (odd), PH-symmetric star geometry.
-# One bath site forced to epsilon=0 by PH symmetry creates a pole at omega=0
-# that causes CorrectionVector/Krylov ill-conditioning at small Matsubara frequencies.
-# TargetingDynamic avoids this: omega never enters the DMRG optimization loop;
-# G(omega) is evaluated post-hoc from Lanczos (a,b) tridiagonal coefficients.
-# GS energy = -sqrt(11) = -3.31662... (exact for U=0 at half-filling).
-add_test(NAME input954 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input954.ain) # energy -3.31662
-add_lowest_eigenvalue_check_test(output954 -3.31662 runForinput954.cout)
+# U=0 Anderson impurity model: TargetingDynamic (continued-fraction Lanczos) tests.
+# Verifies G_imp(iw_n) == G_cluster0(iw_n) for non-interacting AIM at Matsubara frequencies.
+# nBath=5 (odd, PH-symmetric): two-step restart approach — pure GS first so discarded_weight=0
+# exactly (m=400 == full C(6,3)^2 GS-sector Hilbert space), then DynamicTargeting restarts
+# from that checkpoint.  Without restart, DMRG+joint-GS+targeting stabilises at an approximate
+# fixed point with ~7% error; with restart the error drops to <1e-8.
+# nBath=4 (even control): single run, no restart needed; discarded_weight=0 naturally.
+
+# --- nBath=5: step 1 pure GS ---
+add_test(NAME input954gs COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input954gs.ain) # energy -7.11384
+add_lowest_eigenvalue_check_test(output954gs -7.11384 runForinput954gs.cout)
+set_tests_properties(output954gs PROPERTIES DEPENDS input954gs)
+
+# --- nBath=5: step 2 TargetingDynamic, restart from exact GS ---
+add_test(NAME input954 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input954.ain) # energy -7.11384
+add_lowest_eigenvalue_check_test(output954 -7.11384 runForinput954.cout)
+set_tests_properties(input954 PROPERTIES DEPENDS input954gs)
 set_tests_properties(output954 PROPERTIES DEPENDS input954)
+
+add_test(NAME input955 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input955.ain) # energy -7.11384
+add_lowest_eigenvalue_check_test(output955 -7.11384 runForinput955.cout)
+set_tests_properties(input955 PROPERTIES DEPENDS input954gs)
+set_tests_properties(output955 PROPERTIES DEPENDS input955)
+
+# --- nBath=4 even control ---
+add_test(NAME input956 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input956.ain) # energy -6.28342
+add_lowest_eigenvalue_check_test(output956 -6.28342 runForinput956.cout)
+set_tests_properties(output956 PROPERTIES DEPENDS input956)
+
+add_test(NAME input957 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input957.ain) # energy -6.28342
+add_lowest_eigenvalue_check_test(output957 -6.28342 runForinput957.cout)
+set_tests_properties(output957 PROPERTIES DEPENDS input957)
+
+# --- G_imp(iw_n) == G_cluster0(iw_n) comparisons (require Python3 + h5py) ---
+set(PATH_TO_CINCUENTA_TESTSUITE ${CMAKE_CURRENT_SOURCE_DIR}/../cincuenta/TestSuite)
+find_package(Python3 QUIET COMPONENTS Interpreter)
+if(Python3_FOUND)
+  add_test(
+    NAME compare_gimp_gcluster0_dynamic_5bath
+    COMMAND
+      ${Python3_EXECUTABLE} ${PATH_TO_CINCUENTA_TESTSUITE}/compare_gimp_gcluster0_dynamic.py
+      ${CMAKE_CURRENT_BINARY_DIR}/data954.hd5 ${CMAKE_CURRENT_BINARY_DIR}/data955.hd5 --nbath 5 --v 0.5 --eps_bath -1.8
+      -1.0 0.0 1.0 1.8 --nelec_up 3 --beta 20 --nmat 20 --tol 1e-6)
+  set_tests_properties(compare_gimp_gcluster0_dynamic_5bath PROPERTIES DEPENDS "input954;input955")
+
+  add_test(
+    NAME compare_gimp_gcluster0_dynamic_4bath
+    COMMAND
+      ${Python3_EXECUTABLE} ${PATH_TO_CINCUENTA_TESTSUITE}/compare_gimp_gcluster0_dynamic.py
+      ${CMAKE_CURRENT_BINARY_DIR}/data956.hd5 ${CMAKE_CURRENT_BINARY_DIR}/data957.hd5 --nbath 4 --v 0.5 --eps_bath -1.8
+      -1.0 1.0 1.8 --nelec_up 2 --beta 20 --nmat 20 --tol 1e-6)
+  set_tests_properties(compare_gimp_gcluster0_dynamic_4bath PROPERTIES DEPENDS "input956;input957")
+endif()
 
 add_test(NAME input9000 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9000.ain) # energy -0.472136
 add_test(NAME input9001 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9001.ain "<P0|n|P0>"

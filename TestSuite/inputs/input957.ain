@@ -1,0 +1,40 @@
+##Ainur1.0
+
+# U=0 AIM: 1 impurity + 4 bath sites (even nBath), TargetingDynamic TYPE_1.
+# Pair with input956.ain (TYPE_0).  CONTROL test for even bath.
+# DynamicDmrgType=1: removal spectrum (c at impurity).
+
+TotalNumberOfSites=5;
+NumberOfTerms=1;
+DegreesOfFreedom=1;
+GeometryKind=star;
+GeometryOptions=none;
+
+dir0:Connectors=[0.5, 0.5, 0.5, 0.5];
+
+hubbardU=[0., 0., 0., 0., 0.];
+potentialV=[0., -1.8, -1.0, 1.0, 1.8, 0., -1.8, -1.0, 1.0, 1.8];
+Model=HubbardOneBand;
+
+SolverOptions=DynamicTargeting,twositedmrg,geometryallinsystem;
+Version=templateForDMFT;
+OutputFile=data957;
+InfiniteLoopKeptStates=50;
+FiniteLoops=[[@auto, 100, 0], [@auto, 100, 0], [@auto, 100, 1]];
+
+TargetElectronsUp=2;
+TargetElectronsDown=2;
+
+GsWeight=0.1;
+DynamicDmrgType=1;
+
+TSPSites=[1, 0];
+TSPLoops=[0, 0];
+TSPProductOrSum=product;
+
+string TSPOp0:TSPOperator=expression;
+string TSPOp0:OperatorExpression=identity;
+string TSPOp1:TSPOperator=expression;
+string TSPOp1:OperatorExpression=c;
+
+TruncationTolerance=1e-9;
