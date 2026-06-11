@@ -578,6 +578,7 @@ public:
 	{
 		bool wereSumming = (concat == TargetParamsType::ConcatEnum::SUM);
 		ProgramGlobals::FermionOrBosonEnum forB = ProgramGlobals::FermionOrBosonEnum::BOSON;
+		bool                               forBSet = false;
 
 		for (SizeType i = 0; i < myoperator.size(); ++i) {
 
@@ -585,11 +586,15 @@ public:
 
 			if (norma == 0 && wereSumming)
 				continue;
+			// Identity operators in a product do not contribute a sign; skip them.
+			// This handles the boundary-site workaround where identity is placed at
+			// op[0] to trigger the TSP sweep, with the real operator at op[1].
 			if (isTheIdentity(myoperator[i].getCRS()) && !wereSumming)
 				continue;
 
-			if (i == 0) {
-				forB = myoperator[i].fermionOrBoson();
+			if (!forBSet) {
+				forB    = myoperator[i].fermionOrBoson();
+				forBSet = true;
 				continue;
 			}
 

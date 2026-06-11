@@ -181,6 +181,16 @@ add_lowest_eigenvalue_check_test(output6020 -2.59474 runForinput6020.cout)
 add_test(NAME input6700 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input6700.ain) # energy -4.17889 we don't check this
 add_test(NAME input8900 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input8900.ain "<gs|sz_p|gs>") # none
 add_test(NAME input8901 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input8901.ain "<gs|sz|gs>") # none
+# U=0 Anderson impurity model, nBath=3 (odd), PH-symmetric star geometry.
+# One bath site forced to epsilon=0 by PH symmetry creates a pole at omega=0
+# that causes CorrectionVector/Krylov ill-conditioning at small Matsubara frequencies.
+# TargetingDynamic avoids this: omega never enters the DMRG optimization loop;
+# G(omega) is evaluated post-hoc from Lanczos (a,b) tridiagonal coefficients.
+# GS energy = -sqrt(11) = -3.31662... (exact for U=0 at half-filling).
+add_test(NAME input954 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input954.ain) # energy -3.31662
+add_lowest_eigenvalue_check_test(output954 -3.31662 runForinput954.cout)
+set_tests_properties(output954 PROPERTIES DEPENDS input954)
+
 add_test(NAME input9000 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9000.ain) # energy -0.472136
 add_test(NAME input9001 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9001.ain "<P0|n|P0>"
 )# in-situ 1 (1.010966,0.000000) 0.500000 <P0|n|P0> (1.000000,0.000000)
