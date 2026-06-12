@@ -74,6 +74,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "ApplyOperatorLocal.h"
 #include "CorrelationsSkeleton.h"
 #include "Io/IoSelector.h"
+#include "LastKrylovSlots.h"
 #include "MultiSiteExpressionHelper.h"
 #include "ProgressIndicator.h"
 #include "StageEnum.h"
@@ -82,7 +83,6 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "TimeVectorsKrylov.h"
 #include "TimeVectorsRungeKutta.h"
 #include "TimeVectorsSuzukiTrotter.h"
-#include <map>
 
 namespace Dmrg {
 
@@ -456,14 +456,10 @@ public:
 
 	void registerLastKrylovSlot(SizeType pIndex, SizeType slotIndex)
 	{
-		pIndexToLastKrylovSlot_[pIndex] = slotIndex;
+		lastKrylovSlots_.registerSlot(pIndex, slotIndex);
 	}
 
-	int getLastKrylovSlot(SizeType pIndex) const
-	{
-		auto it = pIndexToLastKrylovSlot_.find(pIndex);
-		return (it == pIndexToLastKrylovSlot_.end()) ? -1 : static_cast<int>(it->second);
-	}
+	int getLastKrylovSlot(SizeType pIndex) const { return lastKrylovSlots_.getSlot(pIndex); }
 
 	void destroyPvector(SizeType ind)
 	{
@@ -916,7 +912,7 @@ private:
 	ApplyOperatorType                     applyOpLocal_;
 	VectorVectorVectorWithOffsetType      psi_;
 	VectorVectorWithOffsetType            targetVectors_;
-	std::map<SizeType, SizeType>          pIndexToLastKrylovSlot_;
+	LastKrylovSlots                       lastKrylovSlots_;
 	TimeVectorsBaseType*                  timeVectorsBase_;
 	WftHelperType                         wftHelper_;
 	mutable MultiSiteExpressionHelperType multiSiteExprHelper_;

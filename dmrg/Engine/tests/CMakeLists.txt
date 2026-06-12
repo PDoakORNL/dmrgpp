@@ -1,0 +1,4 @@
+add_executable(test_ApplyOperatorExpression test_ApplyOperatorExpression.cpp)
+target_link_libraries(test_ApplyOperatorExpression PRIVATE Catch2::Catch2WithMain psimaglite)
+target_include_directories(test_ApplyOperatorExpression PRIVATE ${CMAKE_SOURCE_DIR}/dmrg/Engine)
+catch_discover_tests(test_ApplyOperatorExpression)
