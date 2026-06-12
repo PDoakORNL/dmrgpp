@@ -2,11 +2,6 @@
 #include "PsimagLite.h"
 #include <catch2/catch_test_macros.hpp>
 
-// LastKrylovSlots is the registry extracted from ApplyOperatorExpression that
-// maps a P-vector's primary slot index to the last Krylov slot allocated for
-// its time evolution.  ApplyOperatorExpression delegates its
-// registerLastKrylovSlot / getLastKrylovSlot methods to this class.
-
 using Dmrg::LastKrylovSlots;
 
 TEST_CASE("LastKrylovSlots returns -1 for unregistered index", "[LastKrylovSlots]")
