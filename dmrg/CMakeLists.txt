@@ -185,6 +185,22 @@ add_test(NAME input9000 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9000.ain) # ene
 add_test(NAME input9001 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9001.ain "<P0|n|P0>"
 )# in-situ 1 (1.010966,0.000000) 0.500000 <P0|n|P0> (1.000000,0.000000)
 
+# U=0->U=2 quench unit tests using TargetingExpression + TimeEvolve P.last syntax
+# input9100: GS of H_i (U=0); energy = -sqrt(5) for uniform hopping 0.5
+add_test(NAME input9100 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9100.inp) # energy -2.23607
+add_lowest_eigenvalue_check_test(output9100 -2.23607 runForinput9100.cout)
+# input9102: TargetingExpression restart from 9100, computes P0 = c'[0]*|GS_i>
+add_test(NAME input9102 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9102.inp)
+set_tests_properties(input9102 PROPERTIES DEPENDS input9100)
+# input9103: tDMRG under H_f, measures <P2|c|P1> and consecutive overlap <P2.last|P2>
+add_test(NAME input9103 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9103.inp "<P2|c|P1>,<P2.last|P2>")
+set_tests_properties(input9103 PROPERTIES DEPENDS input9102)
+add_test(NAME output9103_P2cP1 COMMAND sh -c "grep -q '<P2|c|P1>' ${CMAKE_CURRENT_BINARY_DIR}/runForinput9103.cout")
+set_tests_properties(output9103_P2cP1 PROPERTIES DEPENDS input9103)
+add_test(NAME output9103_P2lastP2 COMMAND sh -c
+                                          "grep -q '<P2.last|P2>' ${CMAKE_CURRENT_BINARY_DIR}/runForinput9103.cout")
+set_tests_properties(output9103_P2lastP2 PROPERTIES DEPENDS input9103)
+
 # Tests for the observe executable
 add_test(NAME observe0002 COMMAND ./observe -l "+r" -f ${PATH_TO_INPUTS}/input2.ain
                                   "<gs|c';c|gs>,<gs|2.0*sz;2.0*sz|gs>,<gs|n;n|gs>")
