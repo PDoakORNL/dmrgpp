@@ -37,13 +37,15 @@ template <typename ComplexOrRealType> struct ParamsNeqDmftSolver {
 		} catch (std::exception&) {
 			neqDmftError = eqParams.dmftError;
 		}
-
 		try {
 			io.readline(bandwidthFinal, "BandwidthFinal=");
 		} catch (std::exception&) { }
 
 		try {
 			io.readline(neqOutputPrefix, "NeqOutputPrefix=");
+		} catch (std::exception&) { }
+		try {
+			io.readline(neqBathRank, "NeqBathRank=");
 		} catch (std::exception&) { }
 	}
 
@@ -57,10 +59,18 @@ template <typename ComplexOrRealType> struct ParamsNeqDmftSolver {
 	RealType dt   = 0; ///<
 
 	SizeType neqDmftIter  = 10; ///< Inner DMFT convergence at each time step
-	RealType neqDmftError = 1e-4; ///<
+	RealType neqDmftError = 1e-4;
 
-	/// Hopping quench: Bethe lattice bandwidth for t > 0.
-	/// 0 (default) means no quench — use the equilibrium bandwidth from LatticeGf.
+	/* \brief  Rank L of the low-rank Cholesky second bath (GBEK scheme).
+	 *	// L=0: first bath only (no GBEK second bath; equivalent to single-shot ExactDiag).
+	 *	// L>0: second bath with 2L orbitals (L empty + L occupied at t=0).
+	 */
+	SizeType neqBathRank = 0;
+
+	/* \brief Hopping quench: Bethe lattice bandwidth for t > 0.
+	 * 0 (default) means no quench — use the equilibrium bandwidth from
+	 * LatticeGf.
+	 */
 	RealType bandwidthFinal = 0;
 
 	/// Optional prefix for output Green's function files.
