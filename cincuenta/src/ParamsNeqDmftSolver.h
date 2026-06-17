@@ -8,20 +8,19 @@ namespace Dmft {
 // Parameters for the non-equilibrium DMFT extension.
 // Contains all equilibrium parameters (via composition) plus the
 // interaction-quench and real-time grid parameters.
-template <typename ComplexOrRealType>
-struct ParamsNeqDmftSolver {
+template <typename ComplexOrRealType> struct ParamsNeqDmftSolver {
 
-	using RealType        = typename PsimagLite::Real<ComplexOrRealType>::Type;
-	using InputNgType     = PsimagLite::InputNg<CincuentaInputCheck>;
-	using EqParamsType    = ParamsDmftSolver<ComplexOrRealType>;
+	using RealType     = typename PsimagLite::Real<ComplexOrRealType>::Type;
+	using InputNgType  = PsimagLite::InputNg<CincuentaInputCheck>;
+	using EqParamsType = ParamsDmftSolver<ComplexOrRealType>;
 
 	ParamsNeqDmftSolver(typename InputNgType::Readable& io)
 	    : eqParams(io)
 	{
 		io.readline(uInitial, "HubbardU=");
-		io.readline(uFinal,   "HubbardUFinal=");
-		io.readline(tMax,     "TmaxNeq=");
-		io.readline(nT,       "NtNeq=");
+		io.readline(uFinal, "HubbardUFinal=");
+		io.readline(tMax, "TmaxNeq=");
+		io.readline(nT, "NtNeq=");
 		dt = tMax / static_cast<RealType>(nT);
 
 		try {
@@ -35,6 +34,14 @@ struct ParamsNeqDmftSolver {
 		} catch (std::exception&) {
 			neqDmftError = eqParams.dmftError;
 		}
+
+		try {
+			io.readline(neqBathRank, "NeqBathRank=");
+		} catch (std::exception&) { }
+
+		try {
+			io.readline(bandwidthFinal, "BandwidthFinal=");
+		} catch (std::exception&) { }
 	}
 
 	// Equilibrium DMFT parameters (beta, mu, nBath, etc.)
@@ -52,6 +59,15 @@ struct ParamsNeqDmftSolver {
 	// Inner DMFT convergence at each time step
 	SizeType neqDmftIter  = 10;
 	RealType neqDmftError = 1e-4;
+
+	// Rank L of the low-rank Cholesky second bath (GBEK scheme).
+	// L=0: first bath only (no GBEK second bath; equivalent to single-shot ExactDiag).
+	// L>0: second bath with 2L orbitals (L empty + L occupied at t=0).
+	SizeType neqBathRank = 0;
+
+	// Hopping quench: Bethe lattice bandwidth for t > 0.
+	// 0 (default) means no quench — use the equilibrium bandwidth from LatticeGf.
+	RealType bandwidthFinal = 0;
 };
 
 } // namespace Dmft

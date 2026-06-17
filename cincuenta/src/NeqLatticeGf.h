@@ -23,8 +23,7 @@ namespace Dmft {
 //   1. Call initialize(gimp) once after the equilibrium run (sets t=0 BCs).
 //   2. updateDelta(n, gimp) — copy t*² G_imp → Δ for the n-th row.
 //   3. advance(n) — solve the Volterra equation for G_0(n, j), j ≤ n.
-template <typename ComplexOrRealType>
-class NeqLatticeGf {
+template <typename ComplexOrRealType> class NeqLatticeGf {
 
 public:
 
@@ -43,6 +42,9 @@ public:
 	            / static_cast<RealType>(params.eqParams.nMatsubaras))
 	    , tStar_(parseTstar(params.eqParams.latticeGf))
 	    , tStarSq_(tStar_ * tStar_)
+	    , tStarFinalSq_(params.bandwidthFinal > RealType(0) ? RealType(0.25)
+	                            * params.bandwidthFinal * RealType(0.25) * params.bandwidthFinal
+	                                                        : tStarSq_)
 	    , g0_(params.nT,
 	          params.eqParams.nMatsubaras,
 	          params.dt,
@@ -56,7 +58,7 @@ public:
 	    , g0_der_(params.nT, params.eqParams.nMatsubaras)
 	    , g0_der_new_(params.nT, params.eqParams.nMatsubaras)
 	    , h_(params.nT + 1, ComplexType(params.eqParams.mu, 0))
-	{}
+	{ }
 
 	// Set t=0 boundary conditions and Matsubara components from equilibrium G_imp.
 	//
@@ -77,9 +79,9 @@ public:
 			delta_.matsubara_w[k] = tStarSq_ * gimp.matsubara_w[k];
 
 		for (SizeType k = 0; k < nTau_; ++k) {
-			const RealType  omk = matsubaraFreq(k, nTau_, beta);
-			g0_.matsubara_w[k]  = ComplexType(1)
-			    / (I * omk + mu - delta_.matsubara_w[k]);
+			const RealType omk = matsubaraFreq(k, nTau_, beta);
+			g0_.matsubara_w[k]
+			    = ComplexType(1) / (I * omk + mu - delta_.matsubara_w[k]);
 		}
 
 		// G_0^M(τ_j) = (1/β) Σ_k G_0^M(iω_k) exp(-iω_k τ_j)
@@ -117,14 +119,15 @@ public:
 		// gives the wrong value; use the positive-frequency sum instead, which
 		// converges correctly: n = 1/2 + (1/beta) Re[sum_{omega>0} G_0^M(i*omega)].
 		{
-			const RealType betaVal  = params_.eqParams.ficticiousBeta;
-			const SizeType halfN    = nTau_ / 2; // first positive-frequency index
-			ComplexType    posSum   = 0;
+			const RealType betaVal = params_.eqParams.ficticiousBeta;
+			const SizeType halfN   = nTau_ / 2; // first positive-frequency index
+			ComplexType    posSum  = 0;
 			for (SizeType k = halfN; k < nTau_; ++k)
 				posSum += g0_.matsubara_w[k];
-			const RealType n_weiss  = RealType(0.5) + PsimagLite::real(posSum) / betaVal;
-			g0_.lesser(0, 0)        = ComplexType(0, 1) * n_weiss;
-			g0_.left_mixing(0, 0)   = g0_.lesser(0, 0); // left_mixing(0, tau=0) = lesser(0,0)
+			const RealType n_weiss = RealType(0.5) + PsimagLite::real(posSum) / betaVal;
+			g0_.lesser(0, 0)       = ComplexType(0, 1) * n_weiss;
+			g0_.left_mixing(0, 0)
+			    = g0_.lesser(0, 0); // left_mixing(0, tau=0) = lesser(0,0)
 		}
 		delta_.lesser(0, 0) = tStarSq_ * gimp.lesser(0, 0);
 
@@ -132,16 +135,17 @@ public:
 		computeDerivativesAt0();
 	}
 
-	// Copy t*² G_imp → Δ for the n-th time row (retarded, lesser, left-mixing).
+	// Copy t*_f² G_imp → Δ for the n-th time row (retarded, lesser, left-mixing).
+	// Uses tStarFinalSq_ (post-quench bandwidth) for t > 0; t=0 BCs use tStarSq_.
 	void updateDelta(int n, const KBType& gimp)
 	{
 		for (int j = 0; j <= n; ++j) {
-			delta_.retarded(n, j) = tStarSq_ * gimp.retarded(n, j);
-			delta_.lesser(n, j)   = tStarSq_ * gimp.lesser(n, j);
-			delta_.lesser(j, n)   = tStarSq_ * gimp.lesser(j, n);
+			delta_.retarded(n, j) = tStarFinalSq_ * gimp.retarded(n, j);
+			delta_.lesser(n, j)   = tStarFinalSq_ * gimp.lesser(n, j);
+			delta_.lesser(j, n)   = tStarFinalSq_ * gimp.lesser(j, n);
 		}
 		for (SizeType j = 0; j <= nTau_; ++j)
-			delta_.left_mixing(n, j) = tStarSq_ * gimp.left_mixing(n, j);
+			delta_.left_mixing(n, j) = tStarFinalSq_ * gimp.left_mixing(n, j);
 	}
 
 	// Advance G_0 to time step n via volterra_intdiff.
@@ -153,7 +157,7 @@ public:
 		g0_der_.update(static_cast<SizeType>(n), nTau_, g0_der_new_);
 	}
 
-	const KBType& g0()    const { return g0_; }
+	const KBType& g0() const { return g0_; }
 	const KBType& delta() const { return delta_; }
 
 private:
@@ -174,8 +178,7 @@ private:
 	// Fermionic Matsubara frequency ω_k = (2k - N + 1) π / β, k = 0..N-1.
 	static RealType matsubaraFreq(SizeType k, SizeType N, RealType beta)
 	{
-		return RealType(2 * static_cast<int>(k) - static_cast<int>(N) + 1)
-		       * M_PI / beta;
+		return RealType(2 * static_cast<int>(k) - static_cast<int>(N) + 1) * M_PI / beta;
 	}
 
 	// Trapezoidal quadrature: half-weight at endpoints.  Returns 0 for i == j.
@@ -214,12 +217,10 @@ private:
 		// Left-mixing
 		for (int j = 0; j <= Ntau; ++j) {
 			for (int l = 0; l <= j; ++l)
-				tmp[l] = delta_.left_mixing(0, l)
-				       * g0_.matsubara_t[Ntau + l - j];
+				tmp[l] = delta_.left_mixing(0, l) * g0_.matsubara_t[Ntau + l - j];
 			g0_der_.left_mixing[j] = I * dtau_ * trapz(tmp, 0, j);
 			for (int l = j; l <= Ntau; ++l)
-				tmp[l] = delta_.left_mixing(0, l)
-				       * g0_.matsubara_t[l - j];
+				tmp[l] = delta_.left_mixing(0, l) * g0_.matsubara_t[l - j];
 			g0_der_.left_mixing[j] -= I * dtau_ * trapz(tmp, j, Ntau);
 			g0_der_.left_mixing[j] -= I * mu * g0_.left_mixing(0, j);
 		}
@@ -227,9 +228,8 @@ private:
 		// Lesser diagonal — coefficient matches -I*(-I) = -1 from volterra_intdiff
 		for (int l = 0; l <= Ntau; ++l)
 			tmp[l] = delta_.left_mixing(0, l)
-			       * PsimagLite::conj(g0_.left_mixing(0, Ntau - l));
-		g0_der_.lesser[0] = -dtau_ * trapz(tmp, 0, Ntau)
-		                   - I * mu * g0_.lesser(0, 0);
+			    * PsimagLite::conj(g0_.left_mixing(0, Ntau - l));
+		g0_der_.lesser[0] = -dtau_ * trapz(tmp, 0, Ntau) - I * mu * g0_.lesser(0, 0);
 	}
 
 	const ParamsNeqType& params_;
@@ -237,6 +237,7 @@ private:
 	RealType             dtau_;
 	RealType             tStar_;
 	RealType             tStarSq_;
+	RealType             tStarFinalSq_; // post-quench; equals tStarSq_ if BandwidthFinal=0
 	KBType               g0_;
 	KBType               delta_;
 	KBDerivType          g0_der_;

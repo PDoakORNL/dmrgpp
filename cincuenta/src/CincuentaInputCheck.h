@@ -64,11 +64,17 @@ public:
 		str += "integer NtNeq;\n";
 		str += "integer NeqDmftIter;\n";
 		str += "real NeqDmftTolerance;\n";
-		str += "integer NstatesNeq;\n"; // Lanczos states per sector for ImpuritySolverNeqLanczos
-		str += "integer NstatesEq;\n";  // Lanczos states per sector for ImpuritySolverEqLanczos
+		str += "integer NstatesNeq;\n"; // Lanczos states per sector for
+		                                // ImpuritySolverNeqLanczos
+		str += "integer NstatesEq;\n"; // Lanczos states per sector for
+		                               // ImpuritySolverEqLanczos
 
 		// tDMRG non-equilibrium impurity solver (ImpuritySolverNeqTdmrg)
-		str += "string NeqSolver;\n"; // "tdmrg" to select tDMRG solver
+		str += "string NeqSolver;\n"; // "tdmrg" or "gbek" to select solver
+		// GBEK two-bath scheme (Gramsch, Balzer, Eckstein, Kollar PRB 88, 235106)
+		str += "integer NeqBathRank;\n"; // L: rank of Cholesky second bath (0 = first bath
+		                                 // only)
+		str += "real BandwidthFinal;\n"; // W_f for hopping quench; default 0 = no quench
 		// Note: FiniteLoopsTdmrg is read as a raw string (like FiniteLoopsGs),
 		// not declared here to avoid type validation conflicts.
 
