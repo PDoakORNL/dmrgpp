@@ -72,11 +72,20 @@ template <typename ComplexOrRealType> struct ParamsNeqDmftSolver {
 	 * LatticeGf.
 	 */
 	RealType bandwidthFinal = 0;
+<<<<<<< variant A
 
 	/// Optional prefix for output Green's function files.
 	/// Empty (default) → "green-retarded" etc.  Non-empty → "{prefix}-green-retarded" etc.
 	std::string neqOutputPrefix = "";
-};
+>>>>>>> variant B
+
+	// Optional prefix for output Green's function files.
+	// Empty (default) → "green-retarded" etc.  Non-empty → "{prefix}-green-retarded" etc.
+	std::string neqOutputPrefix = "";
+	###### #Ancestor
+======= end
+}
+;
 
 } // namespace Dmft
 #endif // PARAMS_NEQ_DMFT_SOLVER_H
