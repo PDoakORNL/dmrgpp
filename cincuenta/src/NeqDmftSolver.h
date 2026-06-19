@@ -38,8 +38,7 @@ public:
 	using ImpSolverType     = ImpSolverTemplate<ComplexOrRealType>;
 	using LatticeGfType     = NeqLatticeGf<ComplexOrRealType>;
 
-	NeqDmftSolver(const ParamsNeqType&            params,
-	              typename InputNgType::Readable& io)
+	NeqDmftSolver(const ParamsNeqType& params, typename InputNgType::Readable& io)
 	    : params_(params)
 	    , impSolver_(params, io)
 	    , latticeGf_(params)
@@ -48,7 +47,7 @@ public:
 	            params.dt,
 	            params.eqParams.ficticiousBeta
 	                / static_cast<RealType>(params.eqParams.nMatsubaras))
-	{}
+	{ }
 
 	// Run the full neq-DMFT calculation.
 	//   bathParams: equilibrium bath parameters {V_0..V_{nBath-1}, ε_0..ε_{nBath-1}}
@@ -67,8 +66,8 @@ public:
 		impSolver_.computeGimp(gimp_, 0);
 		latticeGf_.initialize(gimp_);
 
-		std::cout << "NeqDmftSolver: starting time propagation to t_max="
-		          << params_.tMax << " with nT=" << params_.nT << " steps\n";
+		std::cout << "NeqDmftSolver: starting time propagation to t_max=" << params_.tMax
+		          << " with nT=" << params_.nT << " steps\n";
 
 		for (int n = 1; n <= static_cast<int>(params_.nT); ++n) {
 			timeStep(n);
@@ -85,13 +84,13 @@ public:
 	// Access the Weiss field G_0 (populated after solve()).
 	const KBType& g0() const { return latticeGf_.g0(); }
 
-	// Write KB Green's functions to files matching the noneq-dmft reference format.
-	//   green-{retarded,lesser,left-mixing,matsubara-t}
-	//   weiss-green-{retarded,lesser,left-mixing,matsubara-t}
+	// Write KB Green's functions to files.  When params_.neqOutputPrefix is set,
+	// filenames are "{prefix}-green-retarded" etc.; otherwise "green-retarded" etc.
 	void dumpGreenFunctions() const
 	{
-		gimp_.dump("green");
-		latticeGf_.g0().dump("weiss-green");
+		const std::string& p = params_.neqOutputPrefix;
+		gimp_.dump(p.empty() ? "green" : p + "-green");
+		latticeGf_.g0().dump(p.empty() ? "weiss-green" : p + "-weiss-green");
 	}
 
 private:

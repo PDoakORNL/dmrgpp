@@ -42,6 +42,10 @@ template <typename ComplexOrRealType> struct ParamsNeqDmftSolver {
 		try {
 			io.readline(bandwidthFinal, "BandwidthFinal=");
 		} catch (std::exception&) { }
+
+		try {
+			io.readline(neqOutputPrefix, "NeqOutputPrefix=");
+		} catch (std::exception&) { }
 	}
 
 	// Equilibrium DMFT parameters (beta, mu, nBath, etc.)
@@ -68,6 +72,10 @@ template <typename ComplexOrRealType> struct ParamsNeqDmftSolver {
 	// Hopping quench: Bethe lattice bandwidth for t > 0.
 	// 0 (default) means no quench — use the equilibrium bandwidth from LatticeGf.
 	RealType bandwidthFinal = 0;
+
+	// Optional prefix for output Green's function files.
+	// Empty (default) → "green-retarded" etc.  Non-empty → "{prefix}-green-retarded" etc.
+	std::string neqOutputPrefix = "";
 };
 
 } // namespace Dmft

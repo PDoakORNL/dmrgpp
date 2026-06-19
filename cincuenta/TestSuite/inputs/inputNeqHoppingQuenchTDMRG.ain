@@ -1,6 +1,15 @@
 ##Ainur1.0
 
-# ---- Equilibrium parameters (same as inputNeqTsuji.ain) --------------------
+# Hopping quench: Bethe lattice bandwidth W_i=4 -> W_f=3 at t=0, U=2 fixed.
+# Equilibrium bath fitted at W_i=4; post-quench self-consistency uses W_f=3.
+# NeqSolver=tdmrg provides the reference answer via TargetingExpression tDMRG.
+# Compare against GBEK L=1,2 (inputNeqHoppingQuenchGBEK1/2.ain) to validate
+# GBEK L-convergence for the hopping quench case.
+#
+# Validation (advisor): run with BandwidthFinal=LatticeGf_W/2=2 (no quench,
+# W_i=W_f=4 semicircular) and compare G^R(t,0) against exactdiag — must agree
+# to truncation error before trusting quench results.
+
 FicticiousBeta=16;
 ChemicalPotential=0.;
 Matsubaras=200;
@@ -16,16 +25,16 @@ MinParamsDelta=0.01;
 MinParamsMaxIter=10000;
 MinParamsDelta2=0.01;
 MinParamsTolerance=1e-3;
-MinParamsVerbose=1;
+MinParamsVerbose=0;
 
 TargetElectronsUp=3;
 TargetElectronsDown=3;
 
 int ImpuritySite=0;
-real HubbardU=0.;
+real HubbardU=2.;
 
-# ---- LanczosPlusPlus/DMRG GS settings --------------------------------------
-RootOutputname="NeqTsujiTdmrg";
+# DMRG settings
+RootOutputname="NeqHopQuenchTDMRG";
 InfiniteLoopKeptStates=200;
 matrix FiniteLoopsGs=[[@auto, 200, 0],[@auto, 200, 0],[@auto, 200, 0],[@auto, 200, 0]];
 
@@ -42,37 +51,23 @@ GsWeight=0.1;
 
 matrix FiniteLoopsOmega=[[@auto, 200, 2],[@auto, 200, 2]];
 
-# ---- Non-equilibrium DMFT parameters ---------------------------------------
+# Non-equilibrium DMFT: hopping quench (no U quench)
 HubbardUFinal=2.;
-
-# Reduced time parameters for a quick tDMRG validation test.
-# Full run uses NtNeq=200; here we use NtNeq=50 with larger TSPTau for speed.
-TmaxNeq=5.0;
-NtNeq=50;
+TmaxNeq=3.0;
+NtNeq=30;
 
 NeqDmftIter=1;
 NeqDmftTolerance=0.001;
 
-# ---- tDMRG impurity solver selection ---------------------------------------
 NeqSolver="tdmrg";
+NeqOutputPrefix="TDMRG";
 
-# tDMRG finite loops: TSPAdvanceEach=4 gives ~1 advance per sweep.
-# For NtNeq=50: 60 rows covers 50 advances with 10 extra at t_max.
+# Post-quench Bethe lattice bandwidth (hopping quench W_i=4 -> W_f=3)
+BandwidthFinal=3.;
+
+# tDMRG FiniteLoops: TSPAdvanceEach=N-2=4 for 6-site star gives ~1 advance/sweep.
+# 32 rows covers NtNeq=30 with 2 extra sweeps at t_max.
 matrix FiniteLoopsTdmrg=[
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
-    [@auto, 200, 0],[@auto, 200, 0],
     [@auto, 200, 0],[@auto, 200, 0],
     [@auto, 200, 0],[@auto, 200, 0],
     [@auto, 200, 0],[@auto, 200, 0],
@@ -91,7 +86,7 @@ matrix FiniteLoopsTdmrg=[
     [@auto, 200, 0],[@auto, 200, 0]];
 
 # TSP parameters: reviewer-approved values (PR #202 / commit aa8c55e5)
-# TSPAdvanceEach = N-2 = 4 for N=6 sites: one time advance per half-sweep
+# TSPAdvanceEach = N-2 = 4 for N=6 sites: exactly one time advance per half-sweep
 # TSPTimeSteps = 5: Krylov substeps (Gonzalo's preference)
 TSPTimeSteps=5;
 TSPAdvanceEach=4;

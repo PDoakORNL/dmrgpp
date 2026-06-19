@@ -75,8 +75,11 @@ public:
 		str += "integer NeqBathRank;\n"; // L: rank of Cholesky second bath (0 = first bath
 		                                 // only)
 		str += "real BandwidthFinal;\n"; // W_f for hopping quench; default 0 = no quench
-		// Note: FiniteLoopsTdmrg is read as a raw string (like FiniteLoopsGs),
-		// not declared here to avoid type validation conflicts.
+		str += "string NeqOutputPrefix;\n"; // prefix for output Green's function files
+		// TSPTimeSteps and TSPAdvanceEach are declared by Dmrg::InputCheck().import()
+		// above — do NOT re-declare them here; duplicates cause Ainur parse failures.
+		// Note: FiniteLoopsGs and FiniteLoopsTdmrg are read as raw strings;
+		// not declared here to avoid type validation conflicts with matrix format.
 
 		return str;
 	}
