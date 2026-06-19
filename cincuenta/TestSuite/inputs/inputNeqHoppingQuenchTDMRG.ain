@@ -7,7 +7,7 @@
 # GBEK L-convergence for the hopping quench case.
 #
 # Validation (advisor): run with BandwidthFinal=LatticeGf_W/2=2 (no quench,
-# W_i=W_f=4 semicircular) and compare G^R(t,0) against exactdiag — must agree
+# W_i=W_f=4 semicircular) and compare G^R(t,0) against exactdiag -- must agree
 # to truncation error before trusting quench results.
 
 FicticiousBeta=16;
