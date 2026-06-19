@@ -6,18 +6,18 @@ using G = PsimagLite::GetBraOrKet;
 
 TEST_CASE("GetBraOrKet ket vs bra detection", "[GetBraOrKet]")
 {
-	REQUIRE(G("|gs>").isKet() == true);
-	REQUIRE(G("<gs|").isKet() == false);
-	REQUIRE(G("|P3>").isKet() == true);
-	REQUIRE(G("<P3|").isKet() == false);
+	CHECK(G("|gs>").isKet() == true);
+	CHECK(G("<gs|").isKet() == false);
+	CHECK(G("|P3>").isKet() == true);
+	CHECK(G("<P3|").isKet() == false);
 }
 
 TEST_CASE("GetBraOrKet ground state", "[GetBraOrKet]")
 {
 	G gs("|gs>");
-	REQUIRE(gs.isPvector() == false);
-	REQUIRE(gs.isRvector() == false);
-	REQUIRE(gs.isLastKrylov() == false);
+	CHECK(gs.isPvector() == false);
+	CHECK(gs.isRvector() == false);
+	CHECK(gs.isLastKrylov() == false);
 }
 
 TEST_CASE("GetBraOrKet P-vector index parsing", "[GetBraOrKet]")
@@ -25,33 +25,33 @@ TEST_CASE("GetBraOrKet P-vector index parsing", "[GetBraOrKet]")
 	SECTION("P0")
 	{
 		G p0("|P0>");
-		REQUIRE(p0.isPvector() == true);
-		REQUIRE(p0.pIndex() == 0);
-		REQUIRE(p0.isLastKrylov() == false);
+		CHECK(p0.isPvector() == true);
+		CHECK(p0.pIndex() == 0);
+		CHECK(p0.isLastKrylov() == false);
 	}
 
 	SECTION("P2")
 	{
 		G p2("|P2>");
-		REQUIRE(p2.isPvector() == true);
-		REQUIRE(p2.pIndex() == 2);
-		REQUIRE(p2.isLastKrylov() == false);
+		CHECK(p2.isPvector() == true);
+		CHECK(p2.pIndex() == 2);
+		CHECK(p2.isLastKrylov() == false);
 	}
 
 	SECTION("P12 multi-digit")
 	{
 		G p12("|P12>");
-		REQUIRE(p12.isPvector() == true);
-		REQUIRE(p12.pIndex() == 12);
-		REQUIRE(p12.isLastKrylov() == false);
+		CHECK(p12.isPvector() == true);
+		CHECK(p12.pIndex() == 12);
+		CHECK(p12.isLastKrylov() == false);
 	}
 
 	SECTION("bra form <P2|")
 	{
 		G p2bra("<P2|");
-		REQUIRE(p2bra.isPvector() == true);
-		REQUIRE(p2bra.pIndex() == 2);
-		REQUIRE(p2bra.isKet() == false);
+		CHECK(p2bra.isPvector() == true);
+		CHECK(p2bra.pIndex() == 2);
+		CHECK(p2bra.isKet() == false);
 	}
 }
 
@@ -60,31 +60,31 @@ TEST_CASE("GetBraOrKet .last suffix", "[GetBraOrKet]")
 	SECTION("ket |P2.last>")
 	{
 		G p2last("|P2.last>");
-		REQUIRE(p2last.isPvector() == true);
-		REQUIRE(p2last.pIndex() == 2);
-		REQUIRE(p2last.isLastKrylov() == true);
-		REQUIRE(p2last.isKet() == true);
+		CHECK(p2last.isPvector() == true);
+		CHECK(p2last.pIndex() == 2);
+		CHECK(p2last.isLastKrylov() == true);
+		CHECK(p2last.isKet() == true);
 	}
 
 	SECTION("bra <P2.last|")
 	{
 		G p2lastBra("<P2.last|");
-		REQUIRE(p2lastBra.isPvector() == true);
-		REQUIRE(p2lastBra.pIndex() == 2);
-		REQUIRE(p2lastBra.isLastKrylov() == true);
-		REQUIRE(p2lastBra.isKet() == false);
+		CHECK(p2lastBra.isPvector() == true);
+		CHECK(p2lastBra.pIndex() == 2);
+		CHECK(p2lastBra.isLastKrylov() == true);
+		CHECK(p2lastBra.isKet() == false);
 	}
 
 	SECTION("P0.last")
 	{
 		G p0last("|P0.last>");
-		REQUIRE(p0last.pIndex() == 0);
-		REQUIRE(p0last.isLastKrylov() == true);
+		CHECK(p0last.pIndex() == 0);
+		CHECK(p0last.isLastKrylov() == true);
 	}
 
 	SECTION("regular P2 does not have .last set")
 	{
 		G p2("|P2>");
-		REQUIRE(p2.isLastKrylov() == false);
+		CHECK(p2.isLastKrylov() == false);
 	}
 }
