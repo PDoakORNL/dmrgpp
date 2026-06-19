@@ -179,7 +179,7 @@ int main(int argc, char** argv)
 		using ParamsNeqType = Dmft::ParamsNeqDmftSolver<std::complex<RealType>>;
 		using NeqSolverType = Dmft::NeqDmftSolver<std::complex<RealType>>;
 
-		RealType tMax = 0;
+		RealType tMax  = 0;
 		bool     isNeq = false;
 		try {
 			io.readline(tMax, "TmaxNeq=");
@@ -195,7 +195,8 @@ int main(int argc, char** argv)
 				io.readline(nStatesNeq, "NstatesNeq=");
 			} catch (std::exception&) { }
 
-			auto runNeq = [&](auto& neqSolver) {
+			auto runNeq = [&](auto& neqSolver)
+			{
 				neqSolver.solve(dmftSolver.bathResult());
 				neqSolver.dumpGreenFunctions();
 			};
@@ -208,20 +209,25 @@ int main(int argc, char** argv)
 
 			if (neqSolverType == "tdmrg") {
 				std::cout << "  using ImpuritySolverNeqTdmrg (tDMRG)\n";
-				using TdmrgImpType = Dmft::ImpuritySolverNeqTdmrg<std::complex<RealType>>;
+				using TdmrgImpType
+				    = Dmft::ImpuritySolverNeqTdmrg<std::complex<RealType>>;
 				TdmrgImpType tdmrgSolver(neqParams, application, io);
 				tdmrgSolver.solve(dmftSolver.bathResult());
-				tdmrgSolver.gimp().dump("green");
+				{
+					const std::string& p = neqParams.neqOutputPrefix;
+					tdmrgSolver.gimp().dump(p.empty() ? "green" : p + "-green");
+				}
 			} else if (nStatesNeq > 0) {
 				std::cout << "  using ImpuritySolverNeqLanczos with NstatesNeq="
 				          << nStatesNeq << "\n";
-				using DmrgNeqSolverType =
-				    Dmft::NeqDmftSolver<std::complex<RealType>,
-				                       Dmft::ImpuritySolverNeqLanczos>;
+				using DmrgNeqSolverType
+				    = Dmft::NeqDmftSolver<std::complex<RealType>,
+				                          Dmft::ImpuritySolverNeqLanczos>;
 				DmrgNeqSolverType neqSolver(neqParams, io);
 				runNeq(neqSolver);
 			} else {
-				using ExactNeqSolverType = Dmft::NeqDmftSolver<std::complex<RealType>>;
+				using ExactNeqSolverType
+				    = Dmft::NeqDmftSolver<std::complex<RealType>>;
 				ExactNeqSolverType neqSolver(neqParams, io);
 				runNeq(neqSolver);
 			}
