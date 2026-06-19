@@ -64,7 +64,42 @@ public:
 
 		return sum;
 	}
+
+	// Returns asymptotic spectral weight of G at large iω_n:
+	// lim_{ω_n→∞} -ω_n Im(G(iω_n)) → ⟨{c,c†}⟩ = 1. Averaged over the last N_AVG frequencies.
+	static RealType spectralWeight(const VectorComplexType& g, const MatsubarasType& m)
+	{
+		const SizeType n     = g.size();
+		const SizeType n_avg = std::min(SizeType(5), n);
+		RealType       sum   = 0;
+		for (SizeType i = n - n_avg; i < n; ++i)
+			sum += -m.omega(i) * PsimagLite::imag(g[i]);
+		return sum / n_avg;
+	}
 	// public static END
+
+	// Rescale gimp_ by factor; implemented by each concrete solver.
+	virtual void scaleGimp(RealType factor) = 0;
+
+	// Override to return false for solvers whose Matsubara grid is too coarse for
+	// the high-frequency tail to converge (e.g. DMRG with O(10) Matsubara points).
+	virtual bool useSpectralSumRule() const { return true; }
+
+	// Rescale gimp so the high-frequency tail satisfies iω_n G(iω_n) → 1.
+	// Call only after a Matsubara solve.
+	void enforceSpectralSumRule()
+	{
+		if (!useSpectralSumRule()) {
+			std::cout << "SpectralSumRule: skipped (solver opted out)\n";
+			return;
+		}
+		const RealType sw = spectralWeight(gimp(), matsubaras());
+		if (std::abs(sw) < RealType(1e-10))
+			err("enforceSpectralSumRule: spectral weight near zero\n");
+		const RealType factor = RealType(1) / sw;
+		std::cout << "SpectralWeight=" << sw << " NormalizationFactor=" << factor << "\n";
+		scaleGimp(factor);
+	}
 
 protected:
 

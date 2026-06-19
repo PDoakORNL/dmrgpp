@@ -76,10 +76,6 @@ public:
 
 		PsimagLite::String data2 = BaseType::createGsInput(model_params, io_);
 
-		// This will replaced by a LanzosRunner at some point
-		// so that we don't repeat what's in lanczos.cpp main driver
-		// and also honor and have all its features
-
 		// std::cout << geometry;
 
 		Dmrg::InputCheck                                          inputCheck;
@@ -118,9 +114,15 @@ public:
 		freq_enum_ = freq_enum;
 	}
 
-	const VectorComplexType& gimp() const { return gimp_; }
+	const VectorComplexType& gimp() const override { return gimp_; }
 
-	PsimagLite::FreqEnum freqEnum() const { return freq_enum_; }
+	PsimagLite::FreqEnum freqEnum() const override { return freq_enum_; }
+
+	void scaleGimp(RealType factor) override
+	{
+		for (SizeType i = 0; i < gimp_.size(); ++i)
+			gimp_[i] *= factor;
+	}
 
 private:
 

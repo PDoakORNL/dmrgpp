@@ -1,0 +1,49 @@
+##Ainur1.0
+
+# U=0 equilibrium test: G_imp(iw_n) must equal G_cluster_0(iw_n).
+# With no interactions Sigma=0 exactly, so the DMFT self-consistency condition
+# G_imp = G_lattice holds up to bath-discretization error (~1% for 5 bath sites).
+# Both G_imp and G_cluster_0 are written by cincuenta (gimp_dmrg.txt and
+# latticeG_dmrg.txt) and compared by compare_gimp_latticeG.py.
+# Kept at Matsubaras=6 to match the existing cincuenta1 DMRG speed baseline.
+
+FicticiousBeta=10;
+ChemicalPotential=0.;
+Matsubaras=6;
+LatticeGf="energy,semicircular,4";
+NumberOfBathPoints=5;
+DmftNumberOfIterations=1;
+DmftTolerance=1e-6;
+ImpuritySolver="dmrg";
+
+FitOptions=particleholesymmetric;
+MinParamsDelta=0.01;
+MinParamsMaxIter=10000;
+MinParamsDelta2=0.01;
+MinParamsTolerance=1e-4;
+MinParamsVerbose=0;
+# PH-symmetric layout for nBath=5: [V0, V1, V2, eps0, eps1] (5 params).
+vector InitBathVector=[0.447, 0.447, 0.447, 1.0, 1.8];
+
+int ImpuritySite=0;
+real HubbardU=0.;
+
+SolverOptions=doNotCheckDmEigs;
+TargetElectronsUp=3;
+TargetElectronsDown=3;
+
+RootOutputname="U0Dmrg";
+InfiniteLoopKeptStates=100;
+matrix FiniteLoopsGs=[[@auto, 200, 0],[@auto, 200, 0]];
+matrix FiniteLoopsOmega=[[@auto, 200, 2],[@auto, 200, 2]];
+
+real OmegaBegin=-6.;
+integer OmegaTotal=10;
+real OmegaStep=1.2;
+real OmegaDelta=0.1;
+
+integer TridiagSteps=400;
+real TridiagEps=1e-9;
+TruncationTolerance="1e-10,100";
+CorrectionVectorEta=0.;
+GsWeight=0.1;

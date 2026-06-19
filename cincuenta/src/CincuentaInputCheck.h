@@ -48,8 +48,6 @@ public:
 		str += "real MinParamsTolerance;\n";
 		str += "integer MinParamsMaxIter;\n";
 		str += "integer MinParamsVerbose;\n";
-		str += "string DmrgGsTemplate;\n";
-		str += "string DmrgOmegaTemplate;\n";
 		str += "string LatticeGf;\n";
 		str += "string ImpuritySolver;\n";
 		str += "real InitBathRa;\n";
@@ -57,6 +55,15 @@ public:
 		str += "string FitMethod;\n";
 		str += "string RootOutputname;\n";
 		str += "string FitOptions;\n";
+
+		// Non-equilibrium DMFT (interaction quench)
+		str += "real HubbardUFinal;\n";
+		str += "real TmaxNeq;\n";
+		str += "integer NtNeq;\n";
+		str += "integer NeqDmftIter;\n";
+		str += "real NeqDmftTolerance;\n";
+		str += "real BandwidthFinal;\n"; // W_f for hopping quench; default 0 = no quench
+		str += "string NeqOutputPrefix;\n"; // prefix for output Green's function files
 
 		return str;
 	}

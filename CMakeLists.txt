@@ -19,6 +19,28 @@ if(BUILD_TESTING)
   include(Catch)
 endif()
 
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND)
+  message(STATUS "Python3 found: ${Python3_EXECUTABLE}")
+  # Probe for third-party packages used by cincuenta test scripts.
+  # Add one block per package; gate the relevant tests on the result.
+  foreach(_pkg IN ITEMS numpy)
+    execute_process(
+      COMMAND ${Python3_EXECUTABLE} -c "import ${_pkg}"
+      RESULT_VARIABLE _rc
+      OUTPUT_QUIET ERROR_QUIET)
+    if(_rc EQUAL 0)
+      set(Python3_${_pkg}_FOUND TRUE)
+      message(STATUS "  Python3 package ${_pkg}: found")
+    else()
+      set(Python3_${_pkg}_FOUND FALSE)
+      message(STATUS "  Python3 package ${_pkg}: NOT found — dependent tests skipped")
+    endif()
+  endforeach()
+else()
+  message(STATUS "Python3 not found — Python-based tests will be skipped")
+endif()
+
 include(GNUInstallDirs)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 if(APPLE)

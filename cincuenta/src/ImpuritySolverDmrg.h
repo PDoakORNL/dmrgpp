@@ -54,7 +54,9 @@ public:
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
 	// bathParams[nBath-...] ==> energies on each bath site
-	void solve(const VectorRealType& bathParams, PsimagLite::FreqEnum freq_enum, SizeType iter)
+	void solve(const VectorRealType& bathParams,
+	           PsimagLite::FreqEnum  freq_enum,
+	           SizeType              iter) override
 	{
 		ModelParamsType model_params(bathParams, io_);
 		SizeType        mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
@@ -81,16 +83,14 @@ public:
 
 		doType(DmrgType::TYPE_1, data3, impurity_site, freq_enum);
 
-		// scaleGimp();
-
 		freq_enum_ = freq_enum;
 
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
 	}
 
-	const VectorComplexType& gimp() const { return gimp_; }
+	const VectorComplexType& gimp() const override { return gimp_; }
 
-	PsimagLite::FreqEnum freqEnum() const { return freq_enum_; }
+	PsimagLite::FreqEnum freqEnum() const override { return freq_enum_; }
 
 private:
 
@@ -343,15 +343,15 @@ private:
 			err("readGimp: Not all values computed\n");
 	}
 
-	void scaleGimp()
+	void scaleGimp(RealType factor) override
 	{
-		const SizeType n           = gimp_.size();
-		ComplexType    pre_density = BaseType::density(gimp_);
-		const RealType factor      = -M_PI / std::real(pre_density);
-		for (SizeType i = 0; i < n; ++i) {
+		for (SizeType i = 0; i < gimp_.size(); ++i)
 			gimp_[i] *= factor;
-		}
 	}
+
+	// DMRG uses O(10) Matsubara points; the high-frequency tail has not converged
+	// at those frequencies, so the spectral weight estimate is unreliable.
+	bool useSpectralSumRule() const override { return false; }
 
 	const ParamsDmftSolverType&     params_;
 	const ApplicationType&          app_;

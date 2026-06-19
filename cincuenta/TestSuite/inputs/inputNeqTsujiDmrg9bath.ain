@@ -1,0 +1,87 @@
+##Ainur1.0
+
+
+# Aoki et al. interaction-quench benchmark: U_i=0 -> U_f=2 on a half-filled
+# Bethe-lattice Hubbard model (semicircular DOS, W=4, beta=16).
+#
+# Differences from inputNeqTsujiLanczos.ain:
+#   - ImpuritySolver="dmrg"  (DMRG++ instead of exactdiag for equilibrium)
+#   - NumberOfBathPoints=9   (10-site star: 9 bath + 1 impurity)
+#   - TargetElectronsUp/Down=5 (half-filling for 10 sites)
+#   - NstatesNeq must be set (sector dim ~63k; exact diag is infeasible)
+
+# ---- Equilibrium parameters ------------------------------------------------
+FicticiousBeta=16;
+ChemicalPotential=0.;
+
+# N_tau imaginary-time steps.
+# Keep this small for DMRG: each Matsubara frequency spawns a separate
+# correction-vector sub-process.  20 is sufficient for the self-consistency
+# loop; use 200 only with ImpuritySolver="exactdiag".
+Matsubaras=20;
+
+# Bethe lattice: semicircular DOS, full bandwidth W=4 (half-bandwidth D=2)
+LatticeGf="energy,semicircular,4";
+
+# 9 bath sites + 1 impurity = 10-site star geometry
+# Half-filling: N_up = N_down = 5
+NumberOfBathPoints=9;
+
+DmftNumberOfIterations=20;
+DmftTolerance=0.001;
+ImpuritySolver="dmrg";
+
+FitOptions=particleholesymmetric;
+MinParamsDelta=0.01;
+MinParamsMaxIter=10000;
+MinParamsDelta2=0.01;
+MinParamsTolerance=1e-3;
+MinParamsVerbose=1;
+
+TargetElectronsUp=5;
+TargetElectronsDown=5;
+
+int ImpuritySite=0;
+
+# U_i = 0: non-interacting initial state
+# potentialV[impurity] = -U/2 = 0 is enforced inside the solver
+real HubbardU=0.;
+
+# ---- DMRG++ settings -------------------------------------------------------
+RootOutputname="NeqTsujiDmrg9bath";
+
+# Infinite-system warm-up: 50 states is sufficient for a 10-site star at U=0;
+# raise to 100-200 for U > 0 or better accuracy.
+InfiniteLoopKeptStates=50;
+
+# Two finite sweeps keeping 200 states.  Raise m for production runs with U>0.
+matrix FiniteLoopsGs=[[@auto, 200, 0],[@auto, 200, 0]];
+matrix FiniteLoopsOmega=[[@auto, 200, 2],[@auto, 200, 2]];
+
+real OmegaBegin=-6.;
+integer OmegaTotal=120;
+real OmegaStep=0.1;
+real OmegaDelta=0.1;
+
+integer TridiagSteps=400;
+real TridiagEps=1e-9;
+TruncationTolerance="1e-10,100";
+CorrectionVectorEta=0.;
+GsWeight=0.1;
+
+SolverOptions=doNotCheckDmEigs;
+
+# ---- Non-equilibrium DMFT parameters --------------------------------------
+# U_f = 2 (interaction switched on at t=0)
+HubbardUFinal=2.;
+
+TmaxNeq=5.0;
+NtNeq=50;  # 50 steps for a quick test; raise to 200 for the full Aoki et al. benchmark
+
+# Sector dimension for 10-site half-filled system is 63k; exact diag is
+# infeasible.  NstatesNeq=50 keeps the 50 lowest Lanczos eigenstates per
+# sector (use 100-200 for production accuracy).
+NstatesNeq=50;
+
+NeqDmftIter=1;
+NeqDmftTolerance=0.001;
