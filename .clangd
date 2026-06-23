@@ -1,0 +1,32 @@
+# clangd configuration for DMRG++ / cincuenta
+#
+# Provides include paths so clangd resolves PsimagLite, LanczosPlusPlus,
+# and cincuenta headers without needing compile_commands.json.
+#
+# If you have a build directory other than ./build, also run:
+#   cmake -S . -B <builddir> -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+# and point clangd at it via CompileDatabase below.
+
+CompileFlags:
+  Add:
+    # PsimagLite
+    - "-I./PsimagLite/src"
+    - "-I./PsimagLite/src/Io"
+    - "-I./PsimagLite/src/Ainur"
+    - "-I./PsimagLite"
+    # LanczosPlusPlus internal includes (needs both)
+    - "-I./LanczosPlusPlus/src/Engine"
+    - "-I."
+    # DMRG++ engine
+    - "-I./dmrg/Engine"
+    # Generated headers (GitRevision.h etc.) — adjust if build dir differs
+    - "-I./build/dmrg"
+    # HDF5 (Homebrew; symlinked at /usr/local/include on Intel, /opt/homebrew/include on ARM)
+    - "-I/usr/local/include"
+    - "-I/opt/homebrew/include"
+    # cincuenta internal headers
+    - "-I./cincuenta/src"
+    # Same defines as the CMake build
+    - "-DH5_BUILT_AS_DYNAMIC_LIB"
+    - "-DUSE_PTHREADS"
+    - "-std=gnu++17"

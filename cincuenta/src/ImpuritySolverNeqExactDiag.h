@@ -3,9 +3,9 @@
 
 #include "CincuentaInputCheck.h"
 #include "ImpuritySolverNeqBase.h"
-#include "InputCheck.h"
 #include "KadanoffBaym.h"
 #include "LanczosPlusPlus/src/Engine/DefaultSymmetry.h"
+#include "LanczosPlusPlus/src/Engine/InputCheck.h"
 #include "LanczosPlusPlus/src/Engine/InternalProductStored.h"
 #include "LanczosPlusPlus/src/Engine/LabeledOperator.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
@@ -51,13 +51,14 @@ public:
 	using MatrixComplexType = PsimagLite::Matrix<ComplexType>;
 	using ParamsNeqType     = ParamsNeqDmftSolver<ComplexOrRealType>;
 
-	using DmrgInputReadable = typename PsimagLite::InputNg<Dmrg::InputCheck>::Readable;
-	using GeometryType      = PsimagLite::
-	    Geometry<ComplexOrRealType, DmrgInputReadable, LanczosPlusPlus::LanczosGlobals>;
+	using LppInputReadable =
+	    typename PsimagLite::InputNg<LanczosPlusPlus::InputCheck>::Readable;
+	using GeometryType = PsimagLite::
+	    Geometry<ComplexOrRealType, LppInputReadable, LanczosPlusPlus::LanczosGlobals>;
 	using ModelSelectorType
-	    = LanczosPlusPlus::ModelSelector<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	    = LanczosPlusPlus::ModelSelector<ComplexOrRealType, GeometryType, LppInputReadable>;
 	using ModelBaseType
-	    = LanczosPlusPlus::LanczosModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	    = LanczosPlusPlus::LanczosModelBase<ComplexOrRealType, GeometryType, LppInputReadable>;
 	using BasisBaseType       = typename ModelBaseType::BasisBaseType;
 	using DefaultSymmetryType = LanczosPlusPlus::DefaultSymmetry<GeometryType, BasisBaseType>;
 	using InternalProductStoredType
@@ -132,12 +133,13 @@ public:
 		{
 			const std::string inputStr = buildLanczosInput(
 			    params_.uInitial, nup_, ndown_, hoppings, potPre, nsites);
-			Dmrg::InputCheck                                          ic;
-			typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioW(ic, inputStr);
-			DmrgInputReadable                                         ioR(ioW);
-			GeometryType                                              geom(ioR);
-			ModelSelectorType                                         ms(ioR, geom);
-			const ModelBaseType&                                      model = ms();
+			LanczosPlusPlus::InputCheck                                          ic;
+			typename PsimagLite::InputNg<LanczosPlusPlus::InputCheck>::Writeable ioW(
+			    ic, inputStr);
+			LppInputReadable     ioR(ioW);
+			GeometryType         geom(ioR);
+			ModelSelectorType    ms(ioR, geom);
+			const ModelBaseType& model = ms();
 
 			diagWithBasis(model, model.basis(), geom, energiesPreN, eigvecsPreN);
 			E0_pre_ = energiesPreN[0];
@@ -161,12 +163,13 @@ public:
 		{
 			const std::string inputStr = buildLanczosInput(
 			    params_.uFinal, nup_, ndown_, hoppings, potPost, nsites);
-			Dmrg::InputCheck                                          ic;
-			typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioW(ic, inputStr);
-			DmrgInputReadable                                         ioR(ioW);
-			GeometryType                                              geom(ioR);
-			ModelSelectorType                                         ms(ioR, geom);
-			const ModelBaseType&                                      model = ms();
+			LanczosPlusPlus::InputCheck                                          ic;
+			typename PsimagLite::InputNg<LanczosPlusPlus::InputCheck>::Writeable ioW(
+			    ic, inputStr);
+			LppInputReadable     ioR(ioW);
+			GeometryType         geom(ioR);
+			ModelSelectorType    ms(ioR, geom);
+			const ModelBaseType& model = ms();
 
 			diagWithBasis(model, model.basis(), geom, energiesN_post_, eigvecsPostN);
 
@@ -233,11 +236,17 @@ public:
 
 	const KBType& gimp() const override { return gimp_; }
 
-private:
-
 	/*!
 	 * \brief Build a minimal LanczosPlusPlus input string for the Anderson model
 	 * with explicit U, electron numbers, bath parameters.
+	 *
+	 * \param[in] U Hubbard interaction (applied at the impurity site only).
+	 * \param[in] nup Number of spin-up electrons.
+	 * \param[in] ndown Number of spin-down electrons.
+	 * \param[in] hoppings Bath hopping amplitudes (length nBath).
+	 * \param[in] potV On-site potentials (length nsites: impurity + bath).
+	 * \param[in] nsites Total number of sites.
+	 * \return Ainur-format input string consumed by LanczosPlusPlus.
 	 */
 	static std::string buildLanczosInput(RealType              U,
 	                                     SizeType              nup,
@@ -295,6 +304,8 @@ private:
 		s += "potentialV=" + potStr + ";\n";
 		return s;
 	}
+
+private:
 
 	/*!
 	 * \brief Full diagonalization of the Hamiltonian restricted to basis.
