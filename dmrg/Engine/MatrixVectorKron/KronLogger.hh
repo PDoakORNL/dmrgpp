@@ -10,6 +10,7 @@
 #include "PsimagLite.h"
 #include <cstddef>
 #include <fstream>
+#include <optional>
 
 namespace Dmrg {
 
@@ -47,7 +48,7 @@ public:
 	 */
 	KronLogger(const InitKronType& init_kron)
 	    : progress_("KronLogger")
-	    , fout_(nullptr)
+	    , fout_()
 	    , init_kron_(init_kron)
 	{
 		if (!init_kron.params().options.isSet("KroneckerDumper")) {
@@ -66,10 +67,9 @@ public:
 		assert(counter_ >= start + 1);
 		std::string filename
 		    = buildFilename(init_kron.params().filename, counter_ - start - 1);
-		fout_ = new std::ofstream(filename);
+		fout_.emplace(filename);
 		if (!fout_ or !fout_->good() or fout_->bad()) {
-			delete fout_;
-			fout_ = nullptr;
+			fout_.reset();
 			err(std::string("Failed to create KronLogger file ") + filename + "\n");
 		}
 
@@ -84,16 +84,13 @@ public:
 	 */
 	~KronLogger()
 	{
-		if (!fout_)
+		if (!fout_.has_value())
 			return;
 
 		PsimagLite::OstringStream                     msgg(std::cout.precision());
 		PsimagLite::OstringStream::OstringStreamType& msg = msgg();
 		msg << "KronLogger: Bye from dtor\n";
 		progress_.printline(msgg, *fout_);
-
-		delete fout_;
-		fout_ = nullptr;
 	}
 
 	/*!
@@ -103,7 +100,7 @@ public:
 	 */
 	void vector(const std::vector<ComplexOrRealType>& v)
 	{
-		if (!fout_)
+		if (!fout_.has_value())
 			return;
 
 		*fout_ << "Vector\n";
@@ -117,7 +114,7 @@ public:
 	 */
 	void one(SizeType outPatch)
 	{
-		if (!fout_)
+		if (!fout_.has_value())
 			return;
 
 		SizeType nC      = init_kron_.connections();
@@ -134,7 +131,7 @@ public:
 	 */
 	void two(SizeType inPatch)
 	{
-		if (!fout_)
+		if (!fout_.has_value())
 			return;
 
 		SizeType offsetY = init_kron_.offsetForPatches(InitKronType::OLD, inPatch);
@@ -151,7 +148,7 @@ public:
 	 */
 	void three(SizeType outPatch, SizeType inPatch, SizeType ic)
 	{
-		if (!fout_)
+		if (!fout_.has_value())
 			return;
 
 		const ArrayOfMatStructType& xiStruct = init_kron_.xc(ic);
@@ -217,7 +214,7 @@ private:
 
 	static SizeType               counter_;
 	PsimagLite::ProgressIndicator progress_;
-	std::ofstream*                fout_;
+	std::optional<std::ofstream>  fout_;
 	const InitKronType&           init_kron_;
 };
 
