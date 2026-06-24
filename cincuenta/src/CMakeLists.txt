@@ -144,6 +144,114 @@ if(Python3_FOUND)
 
 endif()
 
+# ---- U=0 self-consistency tests: G_imp must equal G_cluster_0 ----------------
+# Physical basis: at U=0 the self-energy Sigma=0 exactly, so the DMFT condition
+# G_imp = G_cluster_0 (local lattice GF) must hold for any correct impurity solver.
+# cincuenta writes gimp_<solver>.txt and latticeG_<solver>.txt after the Matsubara
+# loop; compare_gimp_latticeG.py checks they agree to within bath-fitting error.
+if(Python3_FOUND)
+  if(NOT PATH_TO_TESTSUITE)
+    set(PATH_TO_TESTSUITE ${CMAKE_CURRENT_SOURCE_DIR}/../TestSuite)
+  endif()
+
+  # -- ExactDiag ---------------------------------------------------------------
+  set(U0_ED_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0ExactDiag)
+  file(MAKE_DIRECTORY ${U0_ED_DIR})
+
+  add_test(
+    NAME u0_gImpEqGcluster_exactdiag
+    COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputU0ExactDiag.ain
+    WORKING_DIRECTORY ${U0_ED_DIR})
+
+  add_test(NAME u0_gImpEqGcluster_exactdiag_check
+           COMMAND ${Python3_EXECUTABLE} ${PATH_TO_TESTSUITE}/compare_gimp_latticeG.py ${U0_ED_DIR}/gimp_exactdiag.txt
+                   ${U0_ED_DIR}/latticeG_exactdiag.txt --tolerance 0.01)
+  set_tests_properties(u0_gImpEqGcluster_exactdiag_check PROPERTIES DEPENDS u0_gImpEqGcluster_exactdiag)
+
+  # -- DMRG --------------------------------------------------------------------
+  set(U0_DMRG_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0Dmrg)
+  file(MAKE_DIRECTORY ${U0_DMRG_DIR})
+
+  add_test(
+    NAME u0_gImpEqGcluster_dmrg
+    COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputU0Dmrg.ain
+    WORKING_DIRECTORY ${U0_DMRG_DIR})
+
+  add_test(NAME u0_gImpEqGcluster_dmrg_check
+           COMMAND ${Python3_EXECUTABLE} ${PATH_TO_TESTSUITE}/compare_gimp_latticeG.py ${U0_DMRG_DIR}/gimp_dmrg.txt
+                   ${U0_DMRG_DIR}/latticeG_dmrg.txt --tolerance 0.01)
+  set_tests_properties(u0_gImpEqGcluster_dmrg_check PROPERTIES DEPENDS u0_gImpEqGcluster_dmrg)
+
+  # ---- U=0 no-quench neq tests: G_imp must equal Weiss field G_0 ---------------
+  # Physical basis: at U_i=U_f=0 (no quench) Sigma_imp=0, so Dyson gives G_imp=G_0.
+  # cincuenta writes green-{retarded,lesser} (G_imp) and weiss-green-* (G_0);
+  # compare_gimp_weiss.py checks they agree.
+
+  # -- Neq ExactDiag -----------------------------------------------------------
+  set(U0_NEQ_ED_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0NeqExactDiag)
+  file(MAKE_DIRECTORY ${U0_NEQ_ED_DIR})
+
+  add_test(
+    NAME u0_neq_gImpEqG0_exactdiag
+    COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputU0NeqExactDiag.ain
+    WORKING_DIRECTORY ${U0_NEQ_ED_DIR})
+
+  add_test(
+    NAME u0_neq_gImpEqG0_exactdiag_check
+    COMMAND
+      ${Python3_EXECUTABLE} ${PATH_TO_TESTSUITE}/compare_gimp_weiss.py --retarded-gimp ${U0_NEQ_ED_DIR}/green-retarded
+      --retarded-weiss ${U0_NEQ_ED_DIR}/weiss-green-retarded --lesser-gimp ${U0_NEQ_ED_DIR}/green-lesser --lesser-weiss
+      ${U0_NEQ_ED_DIR}/weiss-green-lesser --tolerance 0.02)
+  set_tests_properties(u0_neq_gImpEqG0_exactdiag_check PROPERTIES DEPENDS u0_neq_gImpEqG0_exactdiag)
+
+  # -- Neq tDMRG ---------------------------------------------------------------
+  # The tDMRG path does not produce a Weiss-field output (it bypasses NeqDmftSolver).
+  # Instead compare tDMRG at U=0 against the exact-diag reference: since ExactDiag
+  # verifies G_imp=G_cluster_0 above, agreement here transitively establishes that
+  # the tDMRG G_imp also equals G_cluster_0 at U=0.
+  set(U0_NEQ_TDMRG_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0NeqTdmrg)
+  file(MAKE_DIRECTORY ${U0_NEQ_TDMRG_DIR})
+
+  add_test(
+    NAME u0_neq_gImpEqGcluster_tdmrg
+    COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputU0NeqTdmrg.ain
+    WORKING_DIRECTORY ${U0_NEQ_TDMRG_DIR})
+
+  add_test(
+    NAME u0_neq_gImpEqGcluster_tdmrg_check
+    COMMAND
+      ${Python3_EXECUTABLE} ${PATH_TO_TESTSUITE}/compare_neq_gr.py --tdmrg-retarded ${U0_NEQ_TDMRG_DIR}/green-retarded
+      --tdmrg-lesser ${U0_NEQ_TDMRG_DIR}/green-lesser --ed-retarded ${U0_NEQ_ED_DIR}/green-retarded --ed-lesser
+      ${U0_NEQ_ED_DIR}/green-lesser --tolerance-re 0.02 --tolerance-im 0.02)
+  set_tests_properties(u0_neq_gImpEqGcluster_tdmrg_check
+                       PROPERTIES DEPENDS "u0_neq_gImpEqGcluster_tdmrg;u0_neq_gImpEqG0_exactdiag")
+
+endif()
+
+# 9-bath correction-vector DMRG equilibrium test: compare n_imp to Tsuji's
+# exact n=0.5 (IPT is exact at U_i=0).  Tolerance 0.025 is tighter than the
+# 5-bath ED deviation (0.027) so this test distinguishes DMRG quality.
+set(DMRG9_DIR ${CMAKE_CURRENT_BINARY_DIR}/neqTsujiDmrg9bath)
+file(MAKE_DIRECTORY ${DMRG9_DIR})
+
+add_test(
+  NAME neqTsujiDmrg9bath0
+  COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputNeqTsujiDmrg9bathFast.ain
+  WORKING_DIRECTORY ${DMRG9_DIR})
+
+# G^R(0,0) = -i: exact boundary condition [Tsuji: -1.0000]
+add_check(neqTsujiDmrg9bath0_GR00_Im "0\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)" "-1.0" "1e-8"
+          ${DMRG9_DIR}/green-retarded neqTsujiDmrg9bath0)
+
+# G^M(tau=0) = -n_imp: 9-bath DMRG should reach Tsuji's -0.5 within 2.5%
+# (5-bath ED gives -0.473, off by 0.027 > tolerance -- this test would fail there)
+add_check(neqTsujiDmrg9bath0_GM0_Re "^0\\.0000000000 ([-0-9.eE+]+) [-0-9.eE+]+" "-0.5" "0.025"
+          ${DMRG9_DIR}/green-matsubara-t neqTsujiDmrg9bath0)
+
+# G^<(0,0) Im = n_imp: should match Tsuji's 0.5 within 2.5%
+add_check(neqTsujiDmrg9bath0_GL00_Im "0\\.0000000000 0\\.0000000000 [^ ]+ ([-0-9.eE+]+)" "0.5" "0.025"
+          ${DMRG9_DIR}/green-lesser neqTsujiDmrg9bath0)
+
 # tDMRG non-equilibrium test: U_i=0 -> U_f=2 quench, compare G^R and G^< against
 # exact-diag reference.  Requires Python 3; skipped silently if not available.
 if(Python3_FOUND)

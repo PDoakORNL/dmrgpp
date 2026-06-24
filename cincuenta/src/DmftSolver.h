@@ -25,9 +25,9 @@ public:
 	using MinParamsType               = typename FitType::MinParamsType;
 	using ParamsDmftSolverType        = ParamsDmftSolver<ComplexOrRealType>;
 	using ImpuritySolverType          = ImpuritySolverBase<ComplexOrRealType>;
-	using ImpuritySolverExactDiagType  = ImpuritySolverExactDiag<ComplexOrRealType>;
-	using ImpuritySolverDmrgType       = ImpuritySolverDmrg<ComplexOrRealType>;
-	using ImpuritySolverEqLanczosType  = ImpuritySolverEqLanczos<ComplexOrRealType>;
+	using ImpuritySolverExactDiagType = ImpuritySolverExactDiag<ComplexOrRealType>;
+	using ImpuritySolverDmrgType      = ImpuritySolverDmrg<ComplexOrRealType>;
+	using ImpuritySolverEqLanczosType = ImpuritySolverEqLanczos<ComplexOrRealType>;
 	using LatticeGfType               = LatticeGf<ComplexOrRealType>;
 	using ApplicationType             = typename ImpuritySolverType::ApplicationType;
 	using AndersonFunctionType        = typename FitType::AndersonFunctionType;
