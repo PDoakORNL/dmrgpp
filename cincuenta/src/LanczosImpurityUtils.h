@@ -6,7 +6,7 @@
 #include "LanczosPlusPlus/src/Engine/InternalProductOnTheFly.h"
 #include "LanczosPlusPlus/src/Engine/InternalProductStored.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
-#include "LanczosPlusPlus/src/Engine/ModelBase.h"
+#include "LanczosPlusPlus/src/Engine/LanczosModelBase.hpp"
 #include "LanczosSolver.h"
 #include "Matrix.h"
 #include "ParametersForSolver.h"
@@ -17,26 +17,25 @@ namespace Dmft {
 
 // Shared Lanczos diagonalization and input-building utilities used by both
 // ImpuritySolverEqLanczos (equilibrium) and ImpuritySolverNeqLanczos (NEQ).
-template <typename ComplexOrRealType>
-struct LanczosImpurityUtils {
+template <typename ComplexOrRealType> struct LanczosImpurityUtils {
 
 	using RealType       = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using VectorRealType = typename PsimagLite::Vector<RealType>::Type;
 	using MatrixType     = PsimagLite::Matrix<ComplexOrRealType>;
 
 	using DmrgInputReadable = typename PsimagLite::InputNg<Dmrg::InputCheck>::Readable;
-	using GeometryType =
-	    PsimagLite::Geometry<ComplexOrRealType, DmrgInputReadable, LanczosPlusPlus::LanczosGlobals>;
-	using ModelBaseType =
-	    LanczosPlusPlus::ModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	using GeometryType      = PsimagLite::
+	    Geometry<ComplexOrRealType, DmrgInputReadable, LanczosPlusPlus::LanczosGlobals>;
+	using ModelBaseType
+	    = LanczosPlusPlus::LanczosModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
 	using BasisBaseType       = typename ModelBaseType::BasisBaseType;
 	using DefaultSymmetryType = LanczosPlusPlus::DefaultSymmetry<GeometryType, BasisBaseType>;
-	using InternalProductOnTheFlyType =
-	    LanczosPlusPlus::InternalProductOnTheFly<ModelBaseType, DefaultSymmetryType>;
-	using InternalProductStoredType =
-	    LanczosPlusPlus::InternalProductStored<ModelBaseType, DefaultSymmetryType>;
-	using VectorType         = typename PsimagLite::Vector<ComplexOrRealType>::Type;
-	using VectorVectorType   = typename PsimagLite::Vector<VectorType>::Type;
+	using InternalProductOnTheFlyType
+	    = LanczosPlusPlus::InternalProductOnTheFly<ModelBaseType, DefaultSymmetryType>;
+	using InternalProductStoredType
+	    = LanczosPlusPlus::InternalProductStored<ModelBaseType, DefaultSymmetryType>;
+	using VectorType           = typename PsimagLite::Vector<ComplexOrRealType>::Type;
+	using VectorVectorType     = typename PsimagLite::Vector<VectorType>::Type;
 	using ParametersSolverType = PsimagLite::ParametersForSolver<RealType>;
 	using LanczosSolverType    = PsimagLite::LanczosSolver<InternalProductOnTheFlyType>;
 
@@ -120,19 +119,22 @@ struct LanczosImpurityUtils {
 
 		std::string connStr = "[";
 		for (SizeType i = 0; i < hoppings.size(); ++i) {
-			if (i > 0) connStr += ",";
+			if (i > 0)
+				connStr += ",";
 			connStr += ttos(hoppings[i]);
 		}
 		connStr += "]";
 
 		std::string potStr = "[";
 		for (SizeType i = 0; i < nsites; ++i) {
-			if (i > 0) potStr += ",";
+			if (i > 0)
+				potStr += ",";
 			potStr += ttos(potV[i]);
 		}
 		potStr += ",";
 		for (SizeType i = 0; i < nsites; ++i) {
-			if (i > 0) potStr += ",";
+			if (i > 0)
+				potStr += ",";
 			potStr += ttos(potV[i]);
 		}
 		potStr += "]";

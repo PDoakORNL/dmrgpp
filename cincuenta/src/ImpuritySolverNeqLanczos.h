@@ -5,10 +5,10 @@
 #include "ImpuritySolverNeqBase.h"
 #include "InputCheck.h"
 #include "KadanoffBaym.h"
+#include "LanczosImpurityUtils.h"
 #include "LanczosPlusPlus/src/Engine/LabeledOperator.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
 #include "LanczosPlusPlus/src/Engine/ModelSelector.h"
-#include "LanczosImpurityUtils.h"
 #include "Matrix.h"
 #include "ParamsNeqDmftSolver.h"
 #include "PsimagLite.h"
@@ -41,9 +41,9 @@ class ImpuritySolverNeqLanczos : public ImpuritySolverNeqBase<ComplexOrRealType>
 
 public:
 
-	using BaseType    = ImpuritySolverNeqBase<ComplexOrRealType>;
-	using RealType    = typename BaseType::RealType;
-	using ComplexType = typename BaseType::ComplexType;
+	using BaseType          = ImpuritySolverNeqBase<ComplexOrRealType>;
+	using RealType          = typename BaseType::RealType;
+	using ComplexType       = typename BaseType::ComplexType;
 	using VectorRealType    = typename BaseType::VectorRealType;
 	using KBType            = typename BaseType::KBType;
 	using InputNgType       = typename BaseType::InputNgType;
@@ -53,46 +53,45 @@ public:
 	using ParamsNeqType     = ParamsNeqDmftSolver<ComplexOrRealType>;
 
 	using DmrgInputReadable = typename PsimagLite::InputNg<Dmrg::InputCheck>::Readable;
-	using GeometryType = PsimagLite::
+	using GeometryType      = PsimagLite::
 	    Geometry<ComplexOrRealType, DmrgInputReadable, LanczosPlusPlus::LanczosGlobals>;
-	using ModelSelectorType =
-	    LanczosPlusPlus::ModelSelector<ComplexOrRealType, GeometryType, DmrgInputReadable>;
-	using ModelBaseType =
-	    LanczosPlusPlus::ModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
-	using BasisBaseType         = typename ModelBaseType::BasisBaseType;
-	using DefaultSymmetryType   = LanczosPlusPlus::DefaultSymmetry<GeometryType, BasisBaseType>;
-	using InternalProductOnTheFlyType =
-	    LanczosPlusPlus::InternalProductOnTheFly<ModelBaseType, DefaultSymmetryType>;
-	using InternalProductStoredType =
-	    LanczosPlusPlus::InternalProductStored<ModelBaseType, DefaultSymmetryType>;
+	using ModelSelectorType
+	    = LanczosPlusPlus::ModelSelector<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	using ModelBaseType
+	    = LanczosPlusPlus::LanczosModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	using BasisBaseType       = typename ModelBaseType::BasisBaseType;
+	using DefaultSymmetryType = LanczosPlusPlus::DefaultSymmetry<GeometryType, BasisBaseType>;
+	using InternalProductOnTheFlyType
+	    = LanczosPlusPlus::InternalProductOnTheFly<ModelBaseType, DefaultSymmetryType>;
+	using InternalProductStoredType
+	    = LanczosPlusPlus::InternalProductStored<ModelBaseType, DefaultSymmetryType>;
 	using LabeledOperatorType = LanczosPlusPlus::LabeledOperator;
 	using WordType            = LanczosPlusPlus::LanczosGlobals::WordType;
 	using PairIntType         = LanczosPlusPlus::LanczosGlobals::PairIntType;
 
-	using Utils              = LanczosImpurityUtils<ComplexOrRealType>;
-	using VectorType         = typename PsimagLite::Vector<ComplexOrRealType>::Type;
-	using VectorVectorType   = typename PsimagLite::Vector<VectorType>::Type;
+	using Utils            = LanczosImpurityUtils<ComplexOrRealType>;
+	using VectorType       = typename PsimagLite::Vector<ComplexOrRealType>::Type;
+	using VectorVectorType = typename PsimagLite::Vector<VectorType>::Type;
 
-	ImpuritySolverNeqLanczos(const ParamsNeqType&            params,
-	                       typename InputNgType::Readable& io)
+	ImpuritySolverNeqLanczos(const ParamsNeqType& params, typename InputNgType::Readable& io)
 	    : params_(params)
 	    , io_(io)
 	    , nup_(0)
 	    , ndown_(0)
 	    , nT_(params.nT)
 	    , nTau_(params.eqParams.nMatsubaras)
-	    , dtau_(params.eqParams.ficticiousBeta /
-	            static_cast<RealType>(params.eqParams.nMatsubaras))
+	    , dtau_(params.eqParams.ficticiousBeta
+	            / static_cast<RealType>(params.eqParams.nMatsubaras))
 	    , nStates_(0)
 	    , gimp_(params.nT,
 	            params.eqParams.nMatsubaras,
 	            params.dt,
-	            params.eqParams.ficticiousBeta /
-	                static_cast<RealType>(params.eqParams.nMatsubaras))
+	            params.eqParams.ficticiousBeta
+	                / static_cast<RealType>(params.eqParams.nMatsubaras))
 	    , E0_pre_(0)
 	{
-		io.readline(nup_,     "TargetElectronsUp=");
-		io.readline(ndown_,   "TargetElectronsDown=");
+		io.readline(nup_, "TargetElectronsUp=");
+		io.readline(ndown_, "TargetElectronsDown=");
 		io.readline(nStates_, "NstatesNeq=");
 		if (nStates_ == 0)
 			err("ImpuritySolverNeqLanczos: NstatesNeq must be > 0\n");
@@ -128,20 +127,20 @@ public:
 		{
 			const std::string inputStr = Utils::buildLanczosInput(
 			    params_.uInitial, nup_, ndown_, hoppings, potPre, nsites);
-			Dmrg::InputCheck ic;
+			Dmrg::InputCheck                                          ic;
 			typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioW(ic, inputStr);
-			DmrgInputReadable ioR(ioW);
-			GeometryType      geom(ioR);
-			ModelSelectorType ms(ioR, geom);
-			const ModelBaseType& model = ms();
+			DmrgInputReadable                                         ioR(ioW);
+			GeometryType                                              geom(ioR);
+			ModelSelectorType                                         ms(ioR, geom);
+			const ModelBaseType&                                      model = ms();
 
-			Utils::diagWithBasisTruncated(model, model.basis(), geom, nStates_,
-			                              energiesPreN, eigvecsPreN);
+			Utils::diagWithBasisTruncated(
+			    model, model.basis(), geom, nStates_, energiesPreN, eigvecsPreN);
 			E0_pre_ = energiesPreN[0];
 
 			std::unique_ptr<BasisBaseType> bN1pre(model.createBasis(nup_ + 1, ndown_));
-			Utils::diagWithBasisTruncated(model, *bN1pre, geom, nStates_,
-			                              energiesN1_pre_, eigvecsPreN1);
+			Utils::diagWithBasisTruncated(
+			    model, *bN1pre, geom, nStates_, energiesN1_pre_, eigvecsPreN1);
 
 			buildF(model.basis(), *bN1pre, eigvecsPreN, eigvecsPreN1, impSite);
 		}
@@ -151,23 +150,24 @@ public:
 		{
 			const std::string inputStr = Utils::buildLanczosInput(
 			    params_.uFinal, nup_, ndown_, hoppings, potPost, nsites);
-			Dmrg::InputCheck ic;
+			Dmrg::InputCheck                                          ic;
 			typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioW(ic, inputStr);
-			DmrgInputReadable ioR(ioW);
-			GeometryType      geom(ioR);
-			ModelSelectorType ms(ioR, geom);
-			const ModelBaseType& model = ms();
+			DmrgInputReadable                                         ioR(ioW);
+			GeometryType                                              geom(ioR);
+			ModelSelectorType                                         ms(ioR, geom);
+			const ModelBaseType&                                      model = ms();
 
-			Utils::diagWithBasisTruncated(model, model.basis(), geom, nStates_,
-			                              energiesN_post_, eigvecsPostN);
+			Utils::diagWithBasisTruncated(
+			    model, model.basis(), geom, nStates_, energiesN_post_, eigvecsPostN);
 
 			std::unique_ptr<BasisBaseType> bN1post(model.createBasis(nup_ + 1, ndown_));
-			Utils::diagWithBasisTruncated(model, *bN1post, geom, nStates_,
-			                              energiesN1_post_, eigvecsPostN1);
+			Utils::diagWithBasisTruncated(
+			    model, *bN1post, geom, nStates_, energiesN1_post_, eigvecsPostN1);
 
-			std::unique_ptr<BasisBaseType> bNm1post(model.createBasis(nup_ - 1, ndown_));
-			Utils::diagWithBasisTruncated(model, *bNm1post, geom, nStates_,
-			                              energiesNm1_post_, eigvecsPostNm1);
+			std::unique_ptr<BasisBaseType> bNm1post(
+			    model.createBasis(nup_ - 1, ndown_));
+			Utils::diagWithBasisTruncated(
+			    model, *bNm1post, geom, nStates_, energiesNm1_post_, eigvecsPostNm1);
 
 			// b_n = <n^N_post | GS_pre>
 			// Outer: kept post-quench N states; inner: full Fock basis
@@ -178,12 +178,17 @@ public:
 				ComplexType s = 0;
 				for (SizeType i = 0; i < dimN_full; ++i)
 					s += std::conj(ComplexType(eigvecsPostN(i, n)))
-					   * ComplexType(eigvecsPreN(i, 0));
+					    * ComplexType(eigvecsPreN(i, 0));
 				b_[n] = s;
 			}
 
-			buildPhiPsi(model.basis(), *bN1post, *bNm1post,
-			            eigvecsPostN, eigvecsPostN1, eigvecsPostNm1, impSite);
+			buildPhiPsi(model.basis(),
+			            *bN1post,
+			            *bNm1post,
+			            eigvecsPostN,
+			            eigvecsPostN1,
+			            eigvecsPostNm1,
+			            impSite);
 		}
 
 		buildON1(eigvecsPreN1, eigvecsPostN1);
@@ -214,8 +219,8 @@ private:
 	// l runs over nKeptN1_pre kept eigenstates; inner sums over full Fock basis.
 	void buildF(const BasisBaseType& basisN,
 	            const BasisBaseType& basisN1,
-	            const MatrixType&    eigvecsN,   // (dimN_full, nKeptN_pre)
-	            const MatrixType&    eigvecsN1,  // (dimN1_full, nKeptN1_pre)
+	            const MatrixType&    eigvecsN, // (dimN_full, nKeptN_pre)
+	            const MatrixType&    eigvecsN1, // (dimN1_full, nKeptN1_pre)
 	            SizeType             impSite)
 	{
 		const SizeType dimN_full  = basisN.size();
@@ -230,7 +235,8 @@ private:
 		for (SizeType m = 0; m < dimN_full; ++m) {
 			WordType    ket1 = basisN(m, spinUp);
 			WordType    ket2 = basisN(m, spinDn);
-			PairIntType bra  = basisN1.getBraIndex(ket1, ket2, opCdag, impSite, spinUp, 0);
+			PairIntType bra
+			    = basisN1.getBraIndex(ket1, ket2, opCdag, impSite, spinUp, 0);
 			if (bra.first < 0)
 				continue;
 			int sign = basisN.doSignGf(ket1, ket2, impSite, spinUp, 0);
@@ -255,20 +261,20 @@ private:
 	void buildPhiPsi(const BasisBaseType& basisN,
 	                 const BasisBaseType& basisN1,
 	                 const BasisBaseType& basisNm1,
-	                 const MatrixType&    eigvecsN,    // (dimN_full,   nKeptN_post)
-	                 const MatrixType&    eigvecsN1,   // (dimN1_full,  nKeptN1_post)
-	                 const MatrixType&    eigvecsNm1,  // (dimNm1_full, nKeptNm1_post)
+	                 const MatrixType&    eigvecsN, // (dimN_full,   nKeptN_post)
+	                 const MatrixType&    eigvecsN1, // (dimN1_full,  nKeptN1_post)
+	                 const MatrixType&    eigvecsNm1, // (dimNm1_full, nKeptNm1_post)
 	                 SizeType             impSite)
 	{
-		const SizeType dimN_full   = basisN.size();
-		const SizeType dimN1_full  = basisN1.size();
-		const SizeType dimNm1_full = basisNm1.size();
-		const SizeType nKeptN      = eigvecsN.cols();
-		const SizeType nKeptN1     = eigvecsN1.cols();
-		const SizeType nKeptNm1    = eigvecsNm1.cols();
-		const SizeType nSteps      = nT_ + 1;
-		const SizeType spinUp      = LanczosPlusPlus::LanczosGlobals::SPIN_UP;
-		const SizeType spinDn      = LanczosPlusPlus::LanczosGlobals::SPIN_DOWN;
+		const SizeType            dimN_full   = basisN.size();
+		const SizeType            dimN1_full  = basisN1.size();
+		const SizeType            dimNm1_full = basisNm1.size();
+		const SizeType            nKeptN      = eigvecsN.cols();
+		const SizeType            nKeptN1     = eigvecsN1.cols();
+		const SizeType            nKeptNm1    = eigvecsNm1.cols();
+		const SizeType            nSteps      = nT_ + 1;
+		const SizeType            spinUp      = LanczosPlusPlus::LanczosGlobals::SPIN_UP;
+		const SizeType            spinDn      = LanczosPlusPlus::LanczosGlobals::SPIN_DOWN;
 		const LabeledOperatorType opCdag(LabeledOperatorType::Label::OPERATOR_CDAGGER);
 		const LabeledOperatorType opC(LabeledOperatorType::Label::OPERATOR_C);
 
@@ -281,11 +287,13 @@ private:
 			for (SizeType m = 0; m < dimN_full; ++m) {
 				WordType    ket1 = basisN(m, spinUp);
 				WordType    ket2 = basisN(m, spinDn);
-				PairIntType bra  = basisN1.getBraIndex(ket1, ket2, opCdag, impSite, spinUp, 0);
+				PairIntType bra
+				    = basisN1.getBraIndex(ket1, ket2, opCdag, impSite, spinUp, 0);
 				if (bra.first < 0)
 					continue;
 				int sign = basisN.doSignGf(ket1, ket2, impSite, spinUp, 0);
-				cdagFock(static_cast<SizeType>(bra.first), m) = ComplexOrRealType(sign);
+				cdagFock(static_cast<SizeType>(bra.first), m)
+				    = ComplexOrRealType(sign);
 			}
 			// tmp(k, m) = sum_a conj(eigvecsN1(a,k)) * cdagFock(a,m)
 			// k in 0..nKeptN1-1, a in 0..dimN1_full-1, m in 0..dimN_full-1
@@ -294,13 +302,14 @@ private:
 				for (SizeType m = 0; m < dimN_full; ++m)
 					for (SizeType a = 0; a < dimN1_full; ++a)
 						tmp(k, m) += std::conj(ComplexType(eigvecsN1(a, k)))
-						           * ComplexType(cdagFock(a, m));
+						    * ComplexType(cdagFock(a, m));
 			// Mcdag(k,m) = sum_b tmp(k,b) * eigvecsN(b,m)
 			// b in 0..dimN_full-1
 			for (SizeType k = 0; k < nKeptN1; ++k)
 				for (SizeType m = 0; m < nKeptN; ++m)
 					for (SizeType b = 0; b < dimN_full; ++b)
-						Mcdag(k, m) += tmp(k, b) * ComplexType(eigvecsN(b, m));
+						Mcdag(k, m)
+						    += tmp(k, b) * ComplexType(eigvecsN(b, m));
 		}
 
 		// Phi_(k, n) = sum_m Mcdag(k,m) * b_m * exp(i * omega_km * t_n)
@@ -310,9 +319,10 @@ private:
 				const RealType tn = n * params_.dt;
 				ComplexType    s  = 0;
 				for (SizeType m = 0; m < nKeptN; ++m) {
-					const RealType phase = (energiesN1_post_[k] - energiesN_post_[m]) * tn;
+					const RealType phase
+					    = (energiesN1_post_[k] - energiesN_post_[m]) * tn;
 					s += Mcdag(k, m) * b_[m]
-					   * ComplexType(std::cos(phase), std::sin(phase));
+					    * ComplexType(std::cos(phase), std::sin(phase));
 				}
 				Phi_(k, n) = s;
 			}
@@ -326,18 +336,21 @@ private:
 			for (SizeType m = 0; m < dimN_full; ++m) {
 				WordType    ket1 = basisN(m, spinUp);
 				WordType    ket2 = basisN(m, spinDn);
-				PairIntType bra  = basisNm1.getBraIndex(ket1, ket2, opC, impSite, spinUp, 0);
+				PairIntType bra
+				    = basisNm1.getBraIndex(ket1, ket2, opC, impSite, spinUp, 0);
 				if (bra.first < 0)
 					continue;
 				int sign = basisN.doSignGf(ket1, ket2, impSite, spinUp, 0);
-				cFock(static_cast<SizeType>(bra.first), m) = ComplexOrRealType(sign);
+				cFock(static_cast<SizeType>(bra.first), m)
+				    = ComplexOrRealType(sign);
 			}
 			MatrixComplexType tmp(nKeptNm1, dimN_full);
 			for (SizeType k = 0; k < nKeptNm1; ++k)
 				for (SizeType m = 0; m < dimN_full; ++m)
 					for (SizeType a = 0; a < dimNm1_full; ++a)
-						tmp(k, m) += std::conj(ComplexType(eigvecsNm1(a, k)))
-						           * ComplexType(cFock(a, m));
+						tmp(k, m)
+						    += std::conj(ComplexType(eigvecsNm1(a, k)))
+						    * ComplexType(cFock(a, m));
 			for (SizeType k = 0; k < nKeptNm1; ++k)
 				for (SizeType m = 0; m < nKeptN; ++m)
 					for (SizeType b = 0; b < dimN_full; ++b)
@@ -351,9 +364,10 @@ private:
 				const RealType tn = n * params_.dt;
 				ComplexType    s  = 0;
 				for (SizeType m = 0; m < nKeptN; ++m) {
-					const RealType phase = (energiesNm1_post_[k] - energiesN_post_[m]) * tn;
+					const RealType phase
+					    = (energiesNm1_post_[k] - energiesN_post_[m]) * tn;
 					s += Mc(k, m) * b_[m]
-					   * ComplexType(std::cos(phase), std::sin(phase));
+					    * ComplexType(std::cos(phase), std::sin(phase));
 				}
 				Psi_(k, n) = s;
 			}
@@ -375,7 +389,7 @@ private:
 				ComplexType s = 0;
 				for (SizeType i = 0; i < dimN1_full; ++i)
 					s += std::conj(ComplexType(eigvecsPostN1(i, k)))
-					   * ComplexType(eigvecsPreN1(i, l));
+					    * ComplexType(eigvecsPreN1(i, l));
 				O_N1_(k, l) = s;
 			}
 	}
@@ -440,7 +454,7 @@ private:
 		ComplexType    s       = 0;
 		for (SizeType k = 0; k < nKeptN1; ++k)
 			s += std::conj(Phi_(k, static_cast<SizeType>(n)))
-			   * Phi_(k, static_cast<SizeType>(j));
+			    * Phi_(k, static_cast<SizeType>(j));
 		return ComplexType(0, -1) * s;
 	}
 
@@ -451,7 +465,7 @@ private:
 		ComplexType    s        = 0;
 		for (SizeType k = 0; k < nKeptNm1; ++k)
 			s += std::conj(Psi_(k, static_cast<SizeType>(j)))
-			   * Psi_(k, static_cast<SizeType>(n));
+			    * Psi_(k, static_cast<SizeType>(n));
 		return ComplexType(0, 1) * s;
 	}
 
