@@ -42,7 +42,7 @@ integer OmegaTotal=3;
 real OmegaStep=2.0;
 real OmegaDelta=0.1;
 
-integer TridiagSteps=200;
+integer TridiagSteps=400;
 real TridiagEps=1e-9;
 TruncationTolerance="1e-10,100";
 CorrectionVectorEta=0.;
