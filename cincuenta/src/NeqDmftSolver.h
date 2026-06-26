@@ -91,6 +91,7 @@ public:
 		const std::string& p = params_.neqOutputPrefix;
 		gimp_.dump(p.empty() ? "green" : p + "-green");
 		latticeGf_.g0().dump(p.empty() ? "weiss-green" : p + "-weiss-green");
+		latticeGf_.delta().dump(p.empty() ? "weiss-delta" : p + "-weiss-delta");
 	}
 
 private:
