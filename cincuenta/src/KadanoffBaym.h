@@ -7,28 +7,38 @@
 #include <fstream>
 #include <string>
 
-// Translated and adapted from Naoto Tsuji's noneq-dmft/cxx (2013).
-// green.h/green.cxx → single header, templated on ComplexOrRealType,
-// using PsimagLite types instead of bare STL vectors.
+// Translated and adapted from sample code by N. Tsuji accompanying:
+//   H. Aoki, N. Tsuji, M. Eckstein, M. Kollar, T. Oka, P. Werner,
+//   "Nonequilibrium dynamical mean-field theory and its applications",
+//   Rev. Mod. Phys. 86, 779 (2014).  https://doi.org/10.1103/RevModPhys.86.779
+//
+// Per the authors: the sample programs may be used and modified for
+// non-commercial purposes, but their use must be acknowledged in
+// publications with a citation to the review article above.
+//
+// Changes from the original noneq-dmft/cxx (2013): merged green.h/green.cxx
+// into a single header, templated on ComplexOrRealType, and replaced bare
+// STL containers with PsimagLite Matrix/Vector types.
 
 namespace Dmft {
 
-template <typename ComplexOrRealType>
-class KBDerivative;
+template <typename ComplexOrRealType> class KBDerivative;
 
-// Two-time Kadanoff-Baym Green's function G(t,t') on a uniform real-time
-// grid 0..N_t and imaginary-time grid 0..N_tau.
-//
-// Convention (following Tsuji 2013):
-//   retarded(n,j)    = G^R(t_n, t_j),       j <= n
-//   left_mixing(n,j) = G^{Left}(t_n, tau_j)
-//   lesser(n,j)      = G^{<}(t_n, t_j)
-//   matsubara_w[k]   = G^M(i*omega_k),  k = 0..N_tau-1
-//   matsubara_t[j]   = G^M(tau_j),      j = 0..N_tau
-//     (matsubara_t has N_tau+1 entries so that the periodicity access
-//      matsubara_t[N_tau + k - j] = G^M(beta - (tau_j - tau_k)) is valid)
-template <typename ComplexOrRealType>
-class KadanoffBaym {
+/*!
+ * \brief KadanoffBaym
+ * Two-time Kadanoff-Baym Green's function G(t,t') on a uniform real-time
+ * grid 0..N_t and imaginary-time grid 0..N_tau.
+ *
+ * Convention (following Aoki et al. 2014):
+ *   retarded(n,j)    = G^R(t_n, t_j),       j <= n
+ *   left_mixing(n,j) = G^{Left}(t_n, tau_j)
+ *   lesser(n,j)      = G^{<}(t_n, t_j)
+ *   matsubara_w[k]   = G^M(i*omega_k),  k = 0..N_tau-1
+ *   matsubara_t[j]   = G^M(tau_j),      j = 0..N_tau
+ *     (matsubara_t has N_tau+1 entries so that the periodicity access
+ *      matsubara_t[N_tau + k - j] = G^M(beta - (tau_j - tau_k)) is valid)
+ */
+template <typename ComplexOrRealType> class KadanoffBaym {
 
 public:
 
@@ -40,38 +50,39 @@ public:
 	KadanoffBaym() = default;
 
 	KadanoffBaym(SizeType nT, SizeType nTau, RealType dt, RealType dtau)
-	    : nT_(nT)
-	    , nTau_(nTau)
-	    , dt_(dt)
-	    , dtau_(dtau)
-	    , matsubara_w(nTau)
+	    : matsubara_w(nTau)
 	    , matsubara_t(nTau + 1)
 	    , retarded(nT + 1, nT + 1)
 	    , left_mixing(nT + 1, nTau + 1)
 	    , lesser(nT + 1, nT + 1)
-	{}
+	    , nT_(nT)
+	    , nTau_(nTau)
+	    , dt_(dt)
+	    , dtau_(dtau)
+	{ }
 
-	SizeType nT()   const { return nT_; }
+	SizeType nT() const { return nT_; }
 	SizeType nTau() const { return nTau_; }
-	RealType dt()   const { return dt_; }
+	RealType dt() const { return dt_; }
 	RealType dtau() const { return dtau_; }
 
 	// Matsubara parts — populated during equilibrium initialisation
-	VectorComplexType matsubara_w;  // G^M(i*omega_k)
-	VectorComplexType matsubara_t;  // G^M(tau_j)
+	VectorComplexType matsubara_w; ///< G^M(i*omega_k)
+	VectorComplexType matsubara_t; ///< G^M(tau_j)
 
 	// Real-time Kadanoff-Baym components
-	MatrixComplexType retarded;     // G^R(t_n, t_j)
-	MatrixComplexType left_mixing;  // G^{Left}(t_n, tau_j)
-	MatrixComplexType lesser;       // G^{<}(t_n, t_j)
+	MatrixComplexType retarded; ///< G^R(t_n, t_j)
+	MatrixComplexType left_mixing; ///< G^{Left}(t_n, tau_j)
+	MatrixComplexType lesser; ///< G^{<}(t_n, t_j)
 
-	// -------------------------------------------------------------------
-	// C(t,t') = (A*B)(t,t') for t=n*dt or t'=n*dt.
-	// Integrals via trapezoidal rule (Tsuji eq. B1-B3).
-	// -------------------------------------------------------------------
+	/*!
+	 * \brief convolute
+	 * C(t,t') = (A*B)(t,t') for t=n*dt or t'=n*dt.
+	 * Integrals via trapezoidal rule.
+	 */
 	void convolute(int n, const KadanoffBaym& A, const KadanoffBaym& B)
 	{
-		const int        Ntau = static_cast<int>(nTau_);
+		const int         Ntau = static_cast<int>(nTau_);
 		VectorComplexType AxB(std::max(Ntau + 1, n + 1));
 
 		// C^R(t_n, t_j) = int_{t_j}^{t_n} ds A^R(t_n,s) B^R(s,t_j)
@@ -133,10 +144,11 @@ public:
 		}
 	}
 
-	// -------------------------------------------------------------------
-	// Solves G = G0 + K*G (Volterra integral, 2nd-order) at index n.
-	// G^R diagonal G(n,n) = G0(n,n) is the free propagator.
-	// -------------------------------------------------------------------
+	/*!
+	 * \brief volterra_int
+	 * Solves G = G0 + K*G (Volterra integral, 2nd-order) at index n.
+	 * G^R diagonal G(n,n) = G0(n,n) is the free propagator.
+	 */
 	void volterra_int(int n, const KadanoffBaym& G0, const KadanoffBaym& K)
 	{
 		const int         Ntau = static_cast<int>(nTau_);
@@ -165,7 +177,8 @@ public:
 			for (int l = 0; l <= n - 1; ++l)
 				KxG[l] = K.retarded(n, l) * left_mixing(l, j);
 			left_mixing(n, j) += dt_ * trapezoid_half_edge(KxG, 0, n - 1);
-			left_mixing(n, j) /= ComplexType(1) - RealType(0.5) * dt_ * K.retarded(n, n);
+			left_mixing(n, j)
+			    /= ComplexType(1) - RealType(0.5) * dt_ * K.retarded(n, n);
 		}
 
 		// Lesser — G^<(t_n, t_j) for j < n
@@ -200,14 +213,15 @@ public:
 		lesser(n, n) /= ComplexType(1) - RealType(0.5) * dt_ * K.retarded(n, n);
 	}
 
-	// -------------------------------------------------------------------
-	// Solves [i d/dt - h(t)] G(t,t') = delta(t,t') + (K*G)(t,t')
-	// at index n using 2nd-order implicit Runge-Kutta (n >= 1).
-	// Updates both *this (G values) and G_der_new (derivative at t_n).
-	// -------------------------------------------------------------------
-	void volterra_intdiff(int                             n,
-	                      const VectorComplexType&        h,
-	                      const KadanoffBaym&             K,
+	/*!
+	 * \brief volterra_intdiff
+	 * Solves [i d/dt - h(t)] G(t,t') = delta(t,t') + (K*G)(t,t')
+	 * at index n using 2nd-order implicit Runge-Kutta (n >= 1).
+	 * Updates both *this (G values) and G_der_new (derivative at t_n).
+	 */
+	void volterra_intdiff(int                              n,
+	                      const VectorComplexType&         h,
+	                      const KadanoffBaym&              K,
 	                      KBDerivative<ComplexOrRealType>& G_der,
 	                      KBDerivative<ComplexOrRealType>& G_der_new)
 	{
@@ -217,11 +231,11 @@ public:
 		const ComplexType I(0, 1);
 
 		// Retarded
-		retarded(n, n) = -I;
+		retarded(n, n)        = -I;
 		G_der_new.retarded[n] = -I * h[n] * retarded(n, n);
 		for (int j = 0; j <= n - 1; ++j) {
-			retarded(n, j) = retarded(n - 1, j)
-			    + RealType(0.5) * dt_ * G_der.retarded[j];
+			retarded(n, j)
+			    = retarded(n - 1, j) + RealType(0.5) * dt_ * G_der.retarded[j];
 			for (int l = j; l <= n - 1; ++l)
 				KxG[l] = K.retarded(n, l) * retarded(l, j);
 			G_der_new.retarded[j] = -I * dt_ * trapezoid_half_edge(KxG, j, n - 1);
@@ -234,8 +248,8 @@ public:
 
 		// Left-mixing
 		for (int j = 0; j <= Ntau; ++j) {
-			left_mixing(n, j) = left_mixing(n - 1, j)
-			    + RealType(0.5) * dt_ * G_der.left_mixing[j];
+			left_mixing(n, j)
+			    = left_mixing(n - 1, j) + RealType(0.5) * dt_ * G_der.left_mixing[j];
 			for (int l = 0; l <= j; ++l)
 				KxG[l] = K.left_mixing(n, l) * matsubara_t[Ntau + l - j];
 			G_der_new.left_mixing[j] = I * dtau_ * trapezoid(KxG, 0, j);
@@ -254,8 +268,7 @@ public:
 
 		// Lesser — G^<(t_n, t_j) for j < n
 		for (int j = 0; j <= n - 1; ++j) {
-			lesser(n, j) = lesser(n - 1, j)
-			    + RealType(0.5) * dt_ * G_der.lesser[j];
+			lesser(n, j) = lesser(n - 1, j) + RealType(0.5) * dt_ * G_der.lesser[j];
 			for (int l = 0; l <= Ntau; ++l)
 				KxG[l] = K.left_mixing(n, l)
 				    * PsimagLite::conj(left_mixing(j, Ntau - l));
@@ -279,8 +292,8 @@ public:
 		// d/dt G^<(t_{n-1}, t_n) — needed for the diagonal step below
 		ComplexType G_der_lesser = -I * h[n - 1] * lesser(n - 1, n);
 		for (int l = 0; l <= Ntau; ++l)
-			KxG[l] = K.left_mixing(n - 1, l)
-			    * PsimagLite::conj(left_mixing(n, Ntau - l));
+			KxG[l]
+			    = K.left_mixing(n - 1, l) * PsimagLite::conj(left_mixing(n, Ntau - l));
 		G_der_lesser += -I * (-I) * dtau_ * trapezoid(KxG, 0, Ntau);
 		for (int l = 0; l <= n; ++l)
 			KxG[l] = K.lesser(n - 1, l) * PsimagLite::conj(retarded(n, l));
@@ -307,10 +320,13 @@ public:
 		    - RealType(0.5) * I * dt_ * K.retarded(n, n) * lesser(n, n);
 	}
 
-	// Write all four KB components to plain-text files matching the noneq-dmft
-	// reference format (Tsuji 2013).  Files are named <prefix>-retarded, etc.
-	// matsubara_t writes "tau Re Im" (reference writes only Re; imaginary part
-	// is near zero for single-band systems with time-reversal symmetry).
+	/*!
+	 * \brief dump
+	 * Write all four KB components to plain-text files matching the noneq-dmft
+	 * reference format (Aoki et al. 2014).  Files are named <prefix>-retarded, etc.
+	 * matsubara_t writes "tau Re Im" (reference writes only Re; imaginary part
+	 * is near zero for single-band systems with time-reversal symmetry).
+	 */
 	void dump(const std::string& prefix) const
 	{
 		const int Nt  = static_cast<int>(nT_);
@@ -324,9 +340,9 @@ public:
 				const RealType t = n * dt_;
 				for (int j = 0; j <= n; ++j) {
 					const RealType tp = j * dt_;
-					ofs << std::fixed << t << " " << tp
-					    << " " << retarded(n, j).real()
-					    << " " << retarded(n, j).imag() << "\n";
+					ofs << std::fixed << t << " " << tp << " "
+					    << retarded(n, j).real() << " " << retarded(n, j).imag()
+					    << "\n";
 				}
 			}
 		}
@@ -339,9 +355,9 @@ public:
 				const RealType t = n * dt_;
 				for (int j = 0; j <= Nt; ++j) {
 					const RealType tp = j * dt_;
-					ofs << std::fixed << t << " " << tp
-					    << " " << lesser(n, j).real()
-					    << " " << lesser(n, j).imag() << "\n";
+					ofs << std::fixed << t << " " << tp << " "
+					    << lesser(n, j).real() << " " << lesser(n, j).imag()
+					    << "\n";
 				}
 			}
 		}
@@ -354,9 +370,9 @@ public:
 				const RealType t = n * dt_;
 				for (int j = 0; j <= Nta; ++j) {
 					const RealType tau = j * dtau_;
-					ofs << std::fixed << t << " " << tau
-					    << " " << left_mixing(n, j).real()
-					    << " " << left_mixing(n, j).imag() << "\n";
+					ofs << std::fixed << t << " " << tau << " "
+					    << left_mixing(n, j).real() << " "
+					    << left_mixing(n, j).imag() << "\n";
 				}
 			}
 		}
@@ -367,9 +383,8 @@ public:
 			ofs.precision(10);
 			for (int j = 0; j <= Nta; ++j) {
 				const RealType tau = j * dtau_;
-				ofs << std::fixed << tau
-				    << " " << matsubara_t[j].real()
-				    << " " << matsubara_t[j].imag() << "\n";
+				ofs << std::fixed << tau << " " << matsubara_t[j].real() << " "
+				    << matsubara_t[j].imag() << "\n";
 			}
 		}
 	}
@@ -381,8 +396,11 @@ private:
 	RealType dt_   = 0;
 	RealType dtau_ = 0;
 
-	// Trapezoidal weights: w_i = w_j = 1/2, w_k = 1 for i < k < j.
-	// Returns zero when i == j (empty interval).
+	/*!
+	 * \brief trapezoid
+	 * Trapezoidal weights: w_i = w_j = 1/2, w_k = 1 for i < k < j.
+	 * Returns zero when i == j (empty interval).
+	 */
 	static ComplexType trapezoid(const VectorComplexType& f, int i, int j)
 	{
 		if (j == i)
@@ -393,7 +411,10 @@ private:
 		return s;
 	}
 
-	// Half-edge trapezoid: w_i = 1/2, w_k = 1 for k > i.
+	/*!
+	 * \brief trapezoid_half_edge
+	 * Half-edge trapezoid: w_i = 1/2, w_k = 1 for k > i.
+	 */
 	static ComplexType trapezoid_half_edge(const VectorComplexType& f, int i, int j)
 	{
 		ComplexType s = RealType(0.5) * f[i];
@@ -403,10 +424,12 @@ private:
 	}
 };
 
-// Stores d/dt G(t_n, t_j) for fixed n at the current time step.
-// Required by volterra_intdiff for the Runge-Kutta predictor-corrector.
-template <typename ComplexOrRealType>
-class KBDerivative {
+/*!
+ * \brief KBDerivative
+ * Stores d/dt G(t_n, t_j) for fixed n at the current time step.
+ * Required by volterra_intdiff for the Runge-Kutta predictor-corrector.
+ */
+template <typename ComplexOrRealType> class KBDerivative {
 
 public:
 
@@ -420,9 +443,12 @@ public:
 	    : retarded(nT + 2)
 	    , left_mixing(nTau + 1)
 	    , lesser(nT + 2)
-	{}
+	{ }
 
-	// Copy derivatives from src for all j up to n, and all imaginary-time indices.
+	/*!
+	 * \brief update
+	 * Copy derivatives from src for all j up to n, and all imaginary-time indices.
+	 */
 	void update(SizeType n, SizeType nTau, const KBDerivative& src)
 	{
 		for (SizeType i = 0; i <= n; ++i) {

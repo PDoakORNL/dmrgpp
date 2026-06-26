@@ -65,8 +65,8 @@ public:
 		return sum;
 	}
 
-	// Re(iω_n G(iω_n)) = -ω_n Im(G(iω_n)) → ⟨{c,c†}⟩ = 1 as ω_n → ∞.
-	// Averaged over the last N_AVG Matsubara points for robustness.
+	// Returns asymptotic spectral weight of G at large iω_n:
+	// lim_{ω_n→∞} -ω_n Im(G(iω_n)) → ⟨{c,c†}⟩ = 1. Averaged over the last N_AVG frequencies.
 	static RealType spectralWeight(const VectorComplexType& g, const MatsubarasType& m)
 	{
 		const SizeType n     = g.size();
@@ -97,8 +97,7 @@ public:
 		if (std::abs(sw) < RealType(1e-10))
 			err("enforceSpectralSumRule: spectral weight near zero\n");
 		const RealType factor = RealType(1) / sw;
-		std::cout << "SpectralWeight=" << sw
-		          << " NormalizationFactor=" << factor << "\n";
+		std::cout << "SpectralWeight=" << sw << " NormalizationFactor=" << factor << "\n";
 		scaleGimp(factor);
 	}
 

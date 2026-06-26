@@ -56,7 +56,7 @@ sub loadFiles
 	while (<FILE>) {
 	    if (/\\ptexReadFile\{([^\}]+)\}/) {
 		        my $file = $1;
-			if ($doc_root != "") {
+			if (defined($doc_root) && $doc_root ne "") {
 			    $file = $doc_root . "/" . $file;
 			}
 			my $ret = open(FILE2, "<", $file);
@@ -334,7 +334,7 @@ sub replaceLabels
 {
 	my ($file, $a) = @_;
 	my $fout = $file;
-	if ($out_dir != "") {
+	if (defined($out_dir) && $out_dir ne "") {
 	    $fout =~ s/.*\///; #chop the beginning of the path
 	    $fout =  $out_dir . "/" . $fout;
 	}
@@ -359,6 +359,9 @@ sub replaceLabels
 
 		if (/\\ptexReadFile\{([^\}]+)\}/) {
 			my $file=$1;
+			if (defined($doc_root) && $doc_root ne "") {
+				$file = $doc_root . "/" . $file;
+			}
 			my $label = getLabelForFile($file);
 			my $txt = getTextFromLabel($label,$a);
 			if (!defined($txt)) {

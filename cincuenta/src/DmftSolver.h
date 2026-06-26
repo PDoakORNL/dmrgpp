@@ -25,9 +25,9 @@ public:
 	using MinParamsType               = typename FitType::MinParamsType;
 	using ParamsDmftSolverType        = ParamsDmftSolver<ComplexOrRealType>;
 	using ImpuritySolverType          = ImpuritySolverBase<ComplexOrRealType>;
-	using ImpuritySolverExactDiagType  = ImpuritySolverExactDiag<ComplexOrRealType>;
-	using ImpuritySolverDmrgType       = ImpuritySolverDmrg<ComplexOrRealType>;
-	using ImpuritySolverEqLanczosType  = ImpuritySolverEqLanczos<ComplexOrRealType>;
+	using ImpuritySolverExactDiagType = ImpuritySolverExactDiag<ComplexOrRealType>;
+	using ImpuritySolverDmrgType      = ImpuritySolverDmrg<ComplexOrRealType>;
+	using ImpuritySolverEqLanczosType = ImpuritySolverEqLanczos<ComplexOrRealType>;
 	using LatticeGfType               = LatticeGf<ComplexOrRealType>;
 	using ApplicationType             = typename ImpuritySolverType::ApplicationType;
 	using AndersonFunctionType        = typename FitType::AndersonFunctionType;
@@ -84,6 +84,11 @@ public:
 			impuritySolver_->solve(
 			    fit_.result(), PsimagLite::FreqEnum::MATSUBARA, iter);
 
+			// For now this is a dependable way to
+			// make sure the we get normalized results
+			// forom the impuritySolver. This could be
+			// removed if all impurity solvers gave G with
+			// the expected weighting.
 			impuritySolver_->enforceSpectralSumRule();
 
 			this->logDebug();
@@ -229,7 +234,7 @@ private:
 		}
 	}
 
-	// Write the local lattice GF G_cluster_0(iw_n) to a file for comparison against gimp.
+	// Write the local lattice GF to a file.
 	// Format: one line per Matsubara frequency  "omega Re Im"  (no header count).
 	// For U=0 (no interactions, Sigma=0), this must equal gimp to within bath fitting error.
 	void writeLatticeGForDebug(const std::string& filename) const
@@ -238,7 +243,7 @@ private:
 		if (!fout || !fout.good())
 			err(std::string("Could not write to ") + filename + "\n");
 		const FunctionOfFrequencyType& g = latticeG_();
-		const SizeType n = g.totalMatsubaras();
+		const SizeType                 n = g.totalMatsubaras();
 		for (SizeType i = 0; i < n; ++i)
 			fout << g.omega(i) << " " << PsimagLite::real(g(i)) << " "
 			     << PsimagLite::imag(g(i)) << "\n";

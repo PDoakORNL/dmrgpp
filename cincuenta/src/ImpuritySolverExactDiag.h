@@ -71,7 +71,7 @@ public:
 	void
 	solve(const VectorRealType& bathParams, PsimagLite::FreqEnum freq_enum, SizeType iter) final
 	{
-		ModelParamsType    model_params(bathParams, io_);
+		ModelParamsType model_params(bathParams, io_);
 
 		PsimagLite::String data2 = BaseType::createGsInput(model_params, io_);
 
@@ -88,7 +88,7 @@ public:
 		                                                                      data2);
 		DmrgInputReadable                                         io(ioWriteable);
 
-		GeometryType                                              geometry(io);
+		GeometryType         geometry(io);
 		ModelSelectorType    modelSelector(io, geometry);
 		const ModelBaseType& modelPtr = modelSelector();
 		EngineType           engine(modelPtr, io);
@@ -119,9 +119,15 @@ public:
 		freq_enum_ = freq_enum;
 	}
 
-	const VectorComplexType& gimp() const { return gimp_; }
+	const VectorComplexType& gimp() const override { return gimp_; }
 
-	PsimagLite::FreqEnum freqEnum() const { return freq_enum_; }
+	PsimagLite::FreqEnum freqEnum() const override { return freq_enum_; }
+
+	void scaleGimp(RealType factor) override
+	{
+		for (SizeType i = 0; i < gimp_.size(); ++i)
+			gimp_[i] *= factor;
+	}
 
 	void scaleGimp(RealType factor) override
 	{

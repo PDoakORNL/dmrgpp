@@ -48,8 +48,6 @@ public:
 		str += "real MinParamsTolerance;\n";
 		str += "integer MinParamsMaxIter;\n";
 		str += "integer MinParamsVerbose;\n";
-		str += "string DmrgGsTemplate;\n";
-		str += "string DmrgOmegaTemplate;\n";
 		str += "string LatticeGf;\n";
 		str += "string ImpuritySolver;\n";
 		str += "real InitBathRa;\n";
@@ -80,6 +78,8 @@ public:
 		// above — do NOT re-declare them here; duplicates cause Ainur parse failures.
 		// Note: FiniteLoopsGs and FiniteLoopsTdmrg are read as raw strings;
 		// not declared here to avoid type validation conflicts with matrix format.
+
+		str += "string NeqOutputPrefix;\n"; // prefix for output Green's function files
 
 		return str;
 	}

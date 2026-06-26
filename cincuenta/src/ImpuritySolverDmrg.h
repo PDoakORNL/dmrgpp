@@ -54,7 +54,9 @@ public:
 
 	// bathParams[0-nBath-1] ==> V ==> hoppings impurity --> bath
 	// bathParams[nBath-...] ==> energies on each bath site
-	void solve(const VectorRealType& bathParams, PsimagLite::FreqEnum freq_enum, SizeType iter)
+	void solve(const VectorRealType& bathParams,
+	           PsimagLite::FreqEnum  freq_enum,
+	           SizeType              iter) override
 	{
 		ModelParamsType model_params(bathParams, io_);
 		SizeType        mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
@@ -86,9 +88,9 @@ public:
 		PsimagLite::MPI::barrier(PsimagLite::MPI::COMM_WORLD);
 	}
 
-	const VectorComplexType& gimp() const { return gimp_; }
+	const VectorComplexType& gimp() const override { return gimp_; }
 
-	PsimagLite::FreqEnum freqEnum() const { return freq_enum_; }
+	PsimagLite::FreqEnum freqEnum() const override { return freq_enum_; }
 
 private:
 
