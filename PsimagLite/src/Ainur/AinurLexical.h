@@ -37,10 +37,7 @@ private:
 		return String(begin, end);
 	}
 
-	static bool allowedChar(unsigned char c)
-	{
-		return true;
-	}
+	static bool allowedChar(unsigned char c) { return true; }
 
 	static bool isWhitespace(char c) { return (c == ' ' || c == '\t'); }
 
