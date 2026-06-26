@@ -35,6 +35,9 @@ The implementation aims to be as fast as possible, so that it compiles natively,
 the DMRG++ code base and its shared memory parallelization (pthreads), 
 and MPI for running different frequencies in parallel in different compute nodes.
 
+Non equilibrium features are strictly experimnental and under
+development.
+
 ## Papers used
 
 TBW
