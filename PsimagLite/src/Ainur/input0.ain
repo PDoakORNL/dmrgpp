@@ -5,6 +5,9 @@ DegreesOfFreedom=1;
 GeometryKind=chain;
 GeometryOptions="ConstantValues";
 
+# This comment tests Unicode characters
+# α is the first letter
+# β is the second letter
 dir0:Connectors=[1.0];
 
 hubbardU=[1.0, ...];
