@@ -9,6 +9,12 @@
 #ifndef PSIMAG_BLAS
 #define PSIMAG_BLAS
 #include "AllocatorCpu.h"
+#include "PsimagLiteConfig.h"
+
+#ifdef PSIMAGLITE_USE_KOKKOS
+#include <kokkos_gemm.h>
+#endif
+
 #include <complex>
 
 /** \file BLAS.h
@@ -1263,7 +1269,11 @@ namespace BLAS {
 	                 float*             z,
 	                 IntegerForBlasType sz)
 	{
+#ifdef PSIMAGLITE_USE_KOKKOS
+		kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
+#else
 		sgemm_(&c1, &c2, &sX, &sY, &sZ, &a, x, &sx, y, &sy, &b, z, &sz);
+#endif
 	}
 
 	inline void GEMM(char               c1,
@@ -1280,7 +1290,11 @@ namespace BLAS {
 	                 double*            z,
 	                 IntegerForBlasType sz)
 	{
+#ifdef PSIMAGLITE_USE_KOKKOS
+		kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
+#else
 		dgemm_(&c1, &c2, &sX, &sY, &sZ, &a, x, &sx, y, &sy, &b, z, &sz);
+#endif
 	}
 
 	inline void GEMM(char                       c1,
@@ -1297,7 +1311,11 @@ namespace BLAS {
 	                 std::complex<float>*       z,
 	                 IntegerForBlasType         sz)
 	{
+#ifdef PSIMAGLITE_USE_KOKKOS
+		kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
+#else
 		cgemm_(&c1, &c2, &sX, &sY, &sZ, &a, x, &sx, y, &sy, &b, z, &sz);
+#endif
 	}
 
 	inline void GEMM(char                        c1,
@@ -1327,8 +1345,11 @@ namespace BLAS {
 				throw PsimagLite::RuntimeError("GEMM lda < max(1, k)\n");
 			}
 		}
-
+#ifdef PSIMAGLITE_USE_KOKKOS
+		kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
+#else
 		zgemm_(&c1, &c2, &sX, &sY, &sZ, &a, x, &sx, y, &sy, &b, z, &sz);
+#endif
 	}
 
 	// ***************************************************************************
