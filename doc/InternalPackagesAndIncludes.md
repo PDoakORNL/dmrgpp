@@ -59,7 +59,10 @@ The name PsimagLite can be dropped, and maybe Utilities can be dropped also.
 These includes are allowed:
 
 ```cpp
-#include <Utilities/Matrix.h>
+#include <PsimagLite/Utilities/Matrix.h>
+```
+This is bad
+```cpp
 #include <Matrix.h>
 #include <IoNg.h>
 ```
