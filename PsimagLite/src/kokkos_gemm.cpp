@@ -5,6 +5,10 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include <kokkos_gemm.h>
+
+namespace {
+
 // The scalar types that are floating point types and their corresponding std::complex types.
 // We need to map std::complex to Kokkos::complex while keeping all the other types which is what
 // KokkosType does.
@@ -18,20 +22,22 @@ struct KokkosType<T> {
 	using type = Kokkos::complex<typename T::value_type>;
 };
 
+}
+
 template <typename Scalar, typename IntegerForBlasType>
-inline void kokkos_gemm(char               transa,
-                        char               transb,
-                        IntegerForBlasType m,
-                        IntegerForBlasType n,
-                        IntegerForBlasType k,
-                        const Scalar&      alpha,
-                        const Scalar*      A,
-                        IntegerForBlasType lda,
-                        const Scalar*      B,
-                        IntegerForBlasType ldb,
-                        const Scalar&      beta,
-                        Scalar*            C,
-                        IntegerForBlasType ldc)
+inline void PsimagLite::kokkos_gemm(char               transa,
+                                    char               transb,
+                                    IntegerForBlasType m,
+                                    IntegerForBlasType n,
+                                    IntegerForBlasType k,
+                                    const Scalar&      alpha,
+                                    const Scalar*      A,
+                                    IntegerForBlasType lda,
+                                    const Scalar*      B,
+                                    IntegerForBlasType ldb,
+                                    const Scalar&      beta,
+                                    Scalar*            C,
+                                    IntegerForBlasType ldc)
 {
 	Kokkos::Profiling::ScopedRegion scoped_region("kokkos_gemm");
 	int                             M      = static_cast<int>(m);
@@ -96,19 +102,19 @@ inline void kokkos_gemm(char               transa,
 }
 
 #define PSIMAGLITE_INSTANTIATE_KOKKOS_GEMM(SCALAR, INTEGER)                                        \
-	template void kokkos_gemm(char          transa,                                            \
-	                          char          transb,                                            \
-	                          INTEGER       m,                                                 \
-	                          INTEGER       n,                                                 \
-	                          INTEGER       k,                                                 \
-	                          const SCALAR& alpha,                                             \
-	                          const SCALAR* A,                                                 \
-	                          INTEGER       lda,                                               \
-	                          const SCALAR* B,                                                 \
-	                          INTEGER       ldb,                                               \
-	                          const SCALAR& beta,                                              \
-	                          SCALAR*       C,                                                 \
-	                          INTEGER       ldc)
+	template void PsimagLite::kokkos_gemm(char          transa,                                \
+	                                      char          transb,                                \
+	                                      INTEGER       m,                                     \
+	                                      INTEGER       n,                                     \
+	                                      INTEGER       k,                                     \
+	                                      const SCALAR& alpha,                                 \
+	                                      const SCALAR* A,                                     \
+	                                      INTEGER       lda,                                   \
+	                                      const SCALAR* B,                                     \
+	                                      INTEGER       ldb,                                   \
+	                                      const SCALAR& beta,                                  \
+	                                      SCALAR*       C,                                     \
+	                                      INTEGER       ldc)
 
 #ifndef PSI_BLAS_64
 PSIMAGLITE_INSTANTIATE_KOKKOS_GEMM(double, int);

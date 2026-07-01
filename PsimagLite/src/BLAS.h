@@ -1270,7 +1270,7 @@ namespace BLAS {
 	                 IntegerForBlasType sz)
 	{
 #ifdef PSIMAGLITE_USE_KOKKOS
-		kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
+		PsimagLite::kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
 #else
 		sgemm_(&c1, &c2, &sX, &sY, &sZ, &a, x, &sx, y, &sy, &b, z, &sz);
 #endif
@@ -1291,7 +1291,7 @@ namespace BLAS {
 	                 IntegerForBlasType sz)
 	{
 #ifdef PSIMAGLITE_USE_KOKKOS
-		kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
+		PsimagLite::kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
 #else
 		dgemm_(&c1, &c2, &sX, &sY, &sZ, &a, x, &sx, y, &sy, &b, z, &sz);
 #endif
@@ -1312,7 +1312,7 @@ namespace BLAS {
 	                 IntegerForBlasType         sz)
 	{
 #ifdef PSIMAGLITE_USE_KOKKOS
-		kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
+		PsimagLite::kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
 #else
 		cgemm_(&c1, &c2, &sX, &sY, &sZ, &a, x, &sx, y, &sy, &b, z, &sz);
 #endif
@@ -1346,7 +1346,7 @@ namespace BLAS {
 			}
 		}
 #ifdef PSIMAGLITE_USE_KOKKOS
-		kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
+		PsimagLite::kokkos_gemm(c1, c2, sX, sY, sZ, a, x, sx, y, sy, b, z, sz);
 #else
 		zgemm_(&c1, &c2, &sX, &sY, &sZ, &a, x, &sx, y, &sy, &b, z, &sz);
 #endif

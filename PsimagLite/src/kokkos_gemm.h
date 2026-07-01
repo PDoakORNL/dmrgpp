@@ -1,6 +1,7 @@
 #ifndef PSIMAG_KOKKOS_GEMM_H
 #define PSIMAG_KOKKOS_GEMM_H
 
+namespace PsimagLite {
 template <typename Scalar, typename IntegerForBlasType>
 void kokkos_gemm(char               transa,
                  char               transb,
@@ -15,5 +16,6 @@ void kokkos_gemm(char               transa,
                  const Scalar&      beta,
                  Scalar*            C,
                  IntegerForBlasType ldc);
+} // namespace PsimagLite
 
 #endif // PSIMAG_KOKKOS_GEMM_H
