@@ -52,14 +52,11 @@ These examples for package dmrg are all incorrect:
 #include "LanczosPlusPlus/YetAnotherFile.hpp"
 ```
 
-## Exceptions
-
-### PsimagLite
-The name PsimagLite can be dropped, and maybe Utilities can be dropped also.
 These includes are allowed:
 
 ```cpp
 #include <PsimagLite/Utilities/Matrix.h>
+#include <PsimagLite/Io/IoNg.h>
 ```
 This is bad
 ```cpp
