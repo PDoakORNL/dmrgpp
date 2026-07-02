@@ -19,6 +19,8 @@
 #include "PsimagLite.h"
 #include "Vector.h"
 
+#include "CrsMatrix.h"
+
 #include <algorithm>
 #include <cassert>
 #include <limits>
@@ -83,6 +85,7 @@ public:
 	using WordType               = LanczosPlusPlus::LanczosGlobals::WordType;
 	using PairIntType            = LanczosPlusPlus::LanczosGlobals::PairIntType;
 	using LanczosSolverForGSType = PsimagLite::LanczosSolver<InternalProductStoredType>;
+	using CrsMatrixComplexType   = PsimagLite::CrsMatrix<ComplexType>;
 
 	ImpuritySolverNeqGBEK(const ParamsNeqType& params, typename InputNgType::Readable& io)
 	    : bathRank_(params.neqBathRank)
@@ -253,6 +256,11 @@ private:
 		buildFockLookup(*bNm1, upWordsNm1_, dnWordsNm1_, dim1Nm1_);
 		buildFockLookup(*bNp1, upWordsNp1_, dnWordsNp1_, dim1Np1_);
 
+		// Build CSR sparse matrices for H_ext and validate against applyHext
+		buildHextCSR(upWordsNm1_, dnWordsNm1_, dim1Nm1_, csrNm1_, varNm1_);
+		buildHextCSR(upWordsNp1_, dnWordsNp1_, dim1Np1_, csrNp1_, varNp1_);
+		checkApplyHextEquivalence();
+
 		// Allocate history arrays
 		const SizeType nSteps = params_.nT + 1;
 		PsiHist_.assign(nSteps, VectorComplexType(bNm1->size(), ComplexType(0)));
@@ -334,6 +342,159 @@ private:
 		dnWords.resize(dim2);
 		for (SizeType y = 0; y < dim2; ++y)
 			dnWords[y] = basis(y * dim1, spinDn);
+	}
+
+	// ========== Precomputed CSR sparse Hamiltonian ==========
+
+	// Position and update info for one second-bath variable entry in the CSR matrix.
+	struct VarEntry {
+		int      nnzIdx; // index into CrsMatrix values array (matches setValues arg type)
+		SizeType p; // second-bath rank index
+		bool     isConj; // true → store conj(vMid[p])*sign, false → vMid[p]*sign
+		int      sign; // Jordan-Wigner sign (±1)
+	};
+
+	// Build the CSR sparse matrix for H_ext in one sector.
+	// Fixed entries (diagonal + first-bath hops) go directly into matrix values.
+	// Variable entries (second-bath hops, time-dependent) are stored as zero initially;
+	// their positions are recorded in varEntries for O(1) update at each time step.
+	// Asserts that no (row,col) slot is simultaneously fixed and variable.
+	void buildHextCSR(const std::vector<WordType>& upWords,
+	                  const std::vector<WordType>& dnWords,
+	                  SizeType                     dim1,
+	                  CrsMatrixComplexType&        csr,
+	                  std::vector<VarEntry>&       varEntries) const
+	{
+		const SizeType dim2   = dnWords.size();
+		const SizeType dim    = dim1 * dim2;
+		const SizeType spinUp = LanczosPlusPlus::LanczosGlobals::SPIN_UP;
+
+		struct TripletEntry {
+			SizeType    row, col;
+			ComplexType fixedVal;
+			bool        isVar;
+			SizeType    p;
+			bool        isConj;
+			int         sign;
+		};
+
+		std::vector<TripletEntry> triplets;
+		triplets.reserve(dim * (1 + 2 * (2 * nBath_ + 4 * bathRank_)));
+
+		for (SizeType m = 0; m < dim; ++m) {
+			const SizeType y    = m / dim1;
+			const SizeType x    = m % dim1;
+			const WordType up_m = upWords[x];
+			const WordType dn_m = dnWords[y];
+
+			// Diagonal term
+			RealType diag = 0;
+			if ((up_m & WordType(1)) && (dn_m & WordType(1)))
+				diag += params_.uFinal;
+			for (SizeType i = 0; i < nsites_ext_; ++i) {
+				if ((up_m >> i) & WordType(1))
+					diag += potPost_[i];
+				if ((dn_m >> i) & WordType(1))
+					diag += potPost_[i];
+			}
+			if (diag != RealType(0))
+				triplets.push_back({ m, m, ComplexType(diag), false, 0, false, 1 });
+
+			for (SizeType spin = 0; spin < 2; ++spin) {
+				const WordType w       = (spin == spinUp) ? up_m : dn_m;
+				const WordType w_other = (spin == spinUp) ? dn_m : up_m;
+
+				auto tryHop = [&](SizeType    from,
+				                  SizeType    to,
+				                  bool        isVar,
+				                  SizeType    p,
+				                  bool        isConj,
+				                  ComplexType fixedT)
+				{
+					if (!((w >> from) & WordType(1)))
+						return;
+					if ((w >> to) & WordType(1))
+						return;
+					const WordType new_w
+					    = (w & ~(WordType(1) << from)) | (WordType(1) << to);
+					const WordType new_up = (spin == spinUp) ? new_w : w_other;
+					const WordType new_dn = (spin == spinUp) ? w_other : new_w;
+					const SizeType m_new  = lookupIndex(
+                                            new_up, new_dn, upWords, dnWords, dim1, dim2);
+					if (m_new == std::numeric_limits<SizeType>::max())
+						return;
+					const int         sign = computeJWSign(w, from, to);
+					const ComplexType val
+					    = isVar ? ComplexType(0) : fixedT * ComplexType(sign);
+					triplets.push_back(
+					    { m_new, m, val, isVar, p, isConj, sign });
+				};
+
+				// First bath (fixed, real hoppings V_α)
+				for (SizeType a = 0; a < nBath_; ++a) {
+					const ComplexType Va(firstBathHop_[a]);
+					tryHop(0, a + 1, false, 0, false, Va);
+					tryHop(a + 1, 0, false, 0, false, Va);
+				}
+
+				// Second bath (variable: hop ↔ empty-site, ↔ occupied-site)
+				for (SizeType p = 0; p < bathRank_; ++p) {
+					const SizeType emptyS = 1 + nBath_ + p;
+					const SizeType occS   = 1 + nBath_ + bathRank_ + p;
+					tryHop(0, emptyS, true, p, false, ComplexType(0));
+					tryHop(emptyS, 0, true, p, true, ComplexType(0));
+					tryHop(0, occS, true, p, false, ComplexType(0));
+					tryHop(occS, 0, true, p, true, ComplexType(0));
+				}
+			}
+		}
+
+		// Sort by (row, col) so we can build row-major CSR.
+		std::sort(triplets.begin(),
+		          triplets.end(),
+		          [](const TripletEntry& a, const TripletEntry& b)
+		          { return a.row < b.row || (a.row == b.row && a.col < b.col); });
+
+		// Assert no fixed/var collision at the same (row,col) slot.
+		for (SizeType i = 1; i < triplets.size(); ++i) {
+			if (triplets[i].row == triplets[i - 1].row
+			    && triplets[i].col == triplets[i - 1].col)
+				assert(false
+				       && "buildHextCSR: fixed and variable hop collide at same "
+				          "(row,col)");
+		}
+
+		varEntries.clear();
+		csr.resize(dim, dim);
+		csr.reserve(triplets.size());
+
+		int      nnzCounter = 0;
+		SizeType tripletIdx = 0;
+		for (SizeType row = 0; row < dim; ++row) {
+			csr.setRow(row, nnzCounter);
+			while (tripletIdx < triplets.size() && triplets[tripletIdx].row == row) {
+				const TripletEntry& t = triplets[tripletIdx];
+				csr.pushCol(t.col);
+				csr.pushValue(t.fixedVal);
+				if (t.isVar)
+					varEntries.push_back({ nnzCounter, t.p, t.isConj, t.sign });
+				++nnzCounter;
+				++tripletIdx;
+			}
+		}
+		csr.setRow(dim, nnzCounter);
+	}
+
+	// Overwrite second-bath (variable) CSR entries with current midpoint hoppings.
+	// All other entries retain their fixed values from buildHextCSR.
+	void updateCSR(CrsMatrixComplexType&           csr,
+	               const std::vector<VarEntry>&    varEntries,
+	               const std::vector<ComplexType>& vMid) const
+	{
+		for (const VarEntry& ve : varEntries) {
+			const ComplexType Vp = ve.isConj ? std::conj(vMid[ve.p]) : vMid[ve.p];
+			csr.setValues(ve.nnzIdx, Vp * ComplexType(ve.sign));
+		}
 	}
 
 	// ========== Time propagation ==========
@@ -445,6 +606,127 @@ private:
 				result[i] += c * Q[j][i];
 		}
 		return result;
+	}
+
+	// Krylov approximation using precomputed CSR sparse matrix.
+	// Caller must call updateCSR before this to load current vMid values.
+	// Identical algorithm to krylovExpmv; SpMV replaces applyHext.
+	VectorComplexType krylovExpmvCSR(const VectorComplexType&    psi,
+	                                 const CrsMatrixComplexType& csr,
+	                                 RealType                    dt,
+	                                 int                         m = 40) const
+	{
+		const SizeType dim   = psi.size();
+		const RealType norm0 = std::sqrt(std::real(innerProduct(psi, psi)));
+		if (norm0 < RealType(1e-14))
+			return psi;
+
+		std::vector<VectorComplexType> Q;
+		Q.reserve(m + 1);
+		Q.push_back(psi);
+		scaleVec(Q[0], ComplexType(RealType(1) / norm0));
+
+		std::vector<RealType> alpha, beta;
+		VectorComplexType     Hq(dim, ComplexType(0));
+		int                   mUsed = 0;
+
+		for (int j = 0; j < m; ++j) {
+			std::fill(Hq.begin(), Hq.end(), ComplexType(0));
+			csr.matrixVectorProduct(Hq, Q[j]);
+
+			alpha.push_back(std::real(innerProduct(Q[j], Hq)));
+			VectorComplexType w = Hq;
+			axpy(w, -ComplexType(alpha[j]), Q[j]);
+			if (j > 0)
+				axpy(w, -ComplexType(beta[j - 1]), Q[j - 1]);
+
+			const RealType b = std::sqrt(std::real(innerProduct(w, w)));
+			mUsed            = j + 1;
+			if (b < RealType(1e-10)) {
+				std::cout << "  krylov CSR early-exit at j=" << j << " / " << m
+				          << "\n";
+				break;
+			}
+
+			beta.push_back(b);
+			Q.push_back(w);
+			scaleVec(Q.back(), ComplexType(RealType(1) / b));
+		}
+
+		MatrixComplexType Tc(mUsed, mUsed, ComplexType(0));
+		for (int j = 0; j < mUsed; ++j)
+			Tc(j, j) = ComplexType(alpha[j]);
+		for (int j = 0; j < mUsed - 1; ++j) {
+			Tc(j + 1, j) = ComplexType(beta[j]);
+			Tc(j, j + 1) = ComplexType(beta[j]);
+		}
+
+		VectorRealType eigsTm;
+		PsimagLite::diag(Tc, eigsTm, 'V');
+
+		VectorComplexType expCoeff(mUsed, ComplexType(0));
+		for (int k = 0; k < mUsed; ++k) {
+			const ComplexType phase  = std::exp(ComplexType(0, -eigsTm[k] * dt));
+			const ComplexType factor = std::conj(Tc(0, k)) * phase;
+			for (int j = 0; j < mUsed; ++j)
+				expCoeff[j] += factor * Tc(j, k);
+		}
+
+		VectorComplexType result(dim, ComplexType(0));
+		for (int j = 0; j < mUsed; ++j) {
+			const ComplexType c = norm0 * expCoeff[j];
+			for (SizeType i = 0; i < dim; ++i)
+				result[i] += c * Q[j][i];
+		}
+		return result;
+	}
+
+	// One-shot equivalence check: assert max|applyHext(v) - CSR*v| < tol for both sectors.
+	// Called once in solveLplus after buildHextCSR to validate the CSR construction.
+	// Uses a non-zero artificial vMid to exercise the variable second-bath entries.
+	void checkApplyHextEquivalence() const
+	{
+		if (upWordsNm1_.empty() || upWordsNp1_.empty())
+			return;
+
+		// Artificial non-zero vMid so variable entries are non-trivially tested.
+		std::vector<ComplexType> vMid(bathRank_);
+		for (SizeType p = 0; p < bathRank_; ++p)
+			vMid[p] = ComplexType(RealType(0.3) + RealType(0.1) * p,
+			                      RealType(0.2) - RealType(0.05) * p);
+
+		auto checkSector = [&](const std::string&           name,
+		                       const std::vector<WordType>& upWords,
+		                       const std::vector<WordType>& dnWords,
+		                       SizeType                     dim1,
+		                       CrsMatrixComplexType&        csr,
+		                       const std::vector<VarEntry>& varEntries)
+		{
+			const SizeType dim = upWords.size() * dnWords.size();
+			// Normalised unit vector as test input.
+			VectorComplexType testV(
+			    dim, ComplexType(RealType(1) / std::sqrt(RealType(dim))));
+
+			updateCSR(csr, varEntries, vMid);
+
+			VectorComplexType hvRef(dim, ComplexType(0));
+			applyHext(testV, hvRef, vMid, upWords, dnWords, dim1);
+
+			VectorComplexType hvCsr(dim, ComplexType(0));
+			csr.matrixVectorProduct(hvCsr, testV);
+
+			RealType maxDiff = 0;
+			for (SizeType i = 0; i < dim; ++i)
+				maxDiff = std::max(maxDiff, std::abs(hvRef[i] - hvCsr[i]));
+
+			std::cout << "  checkApplyHextEquivalence [" << name << "]: dim=" << dim
+			          << "  max|applyHext - CSR*v| = " << maxDiff << "\n";
+			assert(maxDiff < RealType(1e-12)
+			       && "applyHextCSR disagrees with applyHext — CSR build error");
+		};
+
+		checkSector("N-1", upWordsNm1_, dnWordsNm1_, dim1Nm1_, csrNm1_, varNm1_);
+		checkSector("N+1", upWordsNp1_, dnWordsNp1_, dim1Np1_, csrNp1_, varNp1_);
 	}
 
 	// ========== Fock-space Hamiltonian matrix-vector product ==========
@@ -758,6 +1040,11 @@ private:
 	mutable std::vector<VectorComplexType> PsiHist_; // N-1 sector
 	mutable std::vector<VectorComplexType> PhiHist_; // N+1 sector
 	mutable int                            propagatedThrough_;
+
+	// Precomputed CSR sparse matrices for H_ext (N-1 and N+1 sectors).
+	// Built once in solveLplus; variable second-bath entries updated per time step.
+	mutable CrsMatrixComplexType csrNm1_, csrNp1_;
+	std::vector<VarEntry>        varNm1_, varNp1_;
 };
 
 } // namespace Dmft
