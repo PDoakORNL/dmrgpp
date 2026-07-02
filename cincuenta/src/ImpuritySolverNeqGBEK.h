@@ -521,10 +521,11 @@ private:
 			vMid[p]                 = RealType(0.5) * (vPrev + vCurr);
 		}
 
-		PsiHist_[n] = krylovExpmv(
-		    PsiHist_[n - 1], vMid, upWordsNm1_, dnWordsNm1_, dim1Nm1_, params_.dt);
-		PhiHist_[n] = krylovExpmv(
-		    PhiHist_[n - 1], vMid, upWordsNp1_, dnWordsNp1_, dim1Np1_, params_.dt);
+		updateCSR(csrNm1_, varNm1_, vMid);
+		updateCSR(csrNp1_, varNp1_, vMid);
+
+		PsiHist_[n] = krylovExpmvCSR(PsiHist_[n - 1], csrNm1_, params_.dt);
+		PhiHist_[n] = krylovExpmvCSR(PhiHist_[n - 1], csrNp1_, params_.dt);
 	}
 
 	// Krylov (Lanczos) approximation to exp(-i H dt) |psi⟩.
