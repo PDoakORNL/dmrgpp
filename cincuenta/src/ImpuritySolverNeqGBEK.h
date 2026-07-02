@@ -1045,6 +1045,8 @@ private:
 	// Built once in solveLplus; variable second-bath entries updated per time step.
 	mutable CrsMatrixComplexType csrNm1_, csrNp1_;
 	std::vector<VarEntry>        varNm1_, varNp1_;
+
+	friend struct GBEKTestAccessor;
 };
 
 } // namespace Dmft
