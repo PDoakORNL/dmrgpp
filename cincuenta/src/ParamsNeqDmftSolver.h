@@ -44,6 +44,14 @@ template <typename ComplexOrRealType> struct ParamsNeqDmftSolver {
 		} catch (std::exception&) { }
 
 		try {
+			io.readline(quenchShape, "QuenchShape=");
+		} catch (std::exception&) { }
+
+		try {
+			io.readline(quenchDuration, "QuenchDuration=");
+		} catch (std::exception&) { }
+
+		try {
 			io.readline(neqOutputPrefix, "NeqOutputPrefix=");
 		} catch (std::exception&) { }
 	}
@@ -72,6 +80,12 @@ template <typename ComplexOrRealType> struct ParamsNeqDmftSolver {
 	// Hopping quench: Bethe lattice bandwidth for t > 0.
 	// 0 (default) means no quench — use the equilibrium bandwidth from LatticeGf.
 	RealType bandwidthFinal = 0;
+
+	// Shape of the bandwidth ramp: "step" (default), "cosine", "tanh".
+	std::string quenchShape = "step";
+
+	// Duration of the ramp in real time. 0 means instantaneous step at t=0.
+	RealType quenchDuration = 0;
 
 	// Optional prefix for output Green's function files.
 	// Empty (default) → "green-retarded" etc.  Non-empty → "{prefix}-green-retarded" etc.

@@ -4,9 +4,9 @@
 #include "CincuentaInputCheck.h"
 #include "ImpuritySolverNeqBase.h"
 #include "ImpuritySolverNeqExactDiag.h"
-#include "InputCheck.h"
 #include "KadanoffBaym.h"
 #include "LanczosPlusPlus/src/Engine/DefaultSymmetry.h"
+#include "LanczosPlusPlus/src/Engine/InputCheck.h"
 #include "LanczosPlusPlus/src/Engine/InternalProductStored.h"
 #include "LanczosPlusPlus/src/Engine/LabeledOperator.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
@@ -67,13 +67,14 @@ public:
 	using MatrixType        = PsimagLite::Matrix<ComplexOrRealType>;
 
 	// LanczosPlusPlus / PsimagLite types (parallel to ImpuritySolverNeqExactDiag)
-	using DmrgInputReadable = typename PsimagLite::InputNg<Dmrg::InputCheck>::Readable;
-	using GeometryType      = PsimagLite::
-	    Geometry<ComplexOrRealType, DmrgInputReadable, LanczosPlusPlus::LanczosGlobals>;
+	using LppInputReadable =
+	    typename PsimagLite::InputNg<LanczosPlusPlus::InputCheck>::Readable;
+	using GeometryType = PsimagLite::
+	    Geometry<ComplexOrRealType, LppInputReadable, LanczosPlusPlus::LanczosGlobals>;
 	using ModelSelectorType
-	    = LanczosPlusPlus::ModelSelector<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	    = LanczosPlusPlus::ModelSelector<ComplexOrRealType, GeometryType, LppInputReadable>;
 	using ModelBaseType
-	    = LanczosPlusPlus::LanczosModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	    = LanczosPlusPlus::LanczosModelBase<ComplexOrRealType, GeometryType, LppInputReadable>;
 	using BasisBaseType       = typename ModelBaseType::BasisBaseType;
 	using DefaultSymmetryType = LanczosPlusPlus::DefaultSymmetry<GeometryType, BasisBaseType>;
 	using InternalProductStoredType
@@ -174,6 +175,12 @@ public:
 
 	const DecompType* decomposition() const { return decomp_.get(); }
 
+	void dumpPlusBath(const std::string& filename) const override
+	{
+		if (decomp_)
+			decomp_->dumpPlusBath(filename);
+	}
+
 private:
 
 	// ========== L>0 setup ==========
@@ -220,12 +227,13 @@ private:
 		const std::string inputPre = buildLanczosInput(
 		    params_.uInitial, nup_ext_, ndown_ext_, hopExt, potPre, nsites_ext_);
 
-		Dmrg::InputCheck                                          ic;
-		typename PsimagLite::InputNg<Dmrg::InputCheck>::Writeable ioW(ic, inputPre);
-		DmrgInputReadable                                         ioR(ioW);
-		GeometryType                                              geom(ioR);
-		ModelSelectorType                                         ms(ioR, geom);
-		const ModelBaseType&                                      model = ms();
+		LanczosPlusPlus::InputCheck                                          ic;
+		typename PsimagLite::InputNg<LanczosPlusPlus::InputCheck>::Writeable ioW(ic,
+		                                                                         inputPre);
+		LppInputReadable                                                     ioR(ioW);
+		GeometryType                                                         geom(ioR);
+		ModelSelectorType                                                    ms(ioR, geom);
+		const ModelBaseType&                                                 model = ms();
 
 		// Diagonalise N sector → pre-quench GS.
 		// Full diag is feasible for L=1 (dim~4900); for L>=2 (dim~63k+) use Lanczos GS.
@@ -395,8 +403,10 @@ private:
 
 			const RealType b = std::sqrt(std::real(innerProduct(w, w)));
 			mUsed            = j + 1;
-			if (b < RealType(1e-10))
+			if (b < RealType(1e-10)) {
+				std::cout << "  krylov early-exit at j=" << j << " / " << m << "\n";
 				break; // invariant subspace
+			}
 
 			beta.push_back(b);
 			Q.push_back(w);

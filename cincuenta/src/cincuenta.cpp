@@ -1,6 +1,7 @@
 #include "CincuentaInputCheck.h"
 #include "Dispersion.h"
 #include "DmftSolver.h"
+#include "ImpuritySolverNeqGBEK.h"
 #include "ImpuritySolverNeqLanczos.h"
 #include "ImpuritySolverNeqTdmrg.h"
 #include "InputPath.hpp"
@@ -217,6 +218,13 @@ int main(int argc, char** argv)
 					const std::string& p = neqParams.neqOutputPrefix;
 					tdmrgSolver.gimp().dump(p.empty() ? "green" : p + "-green");
 				}
+			} else if (neqSolverType == "gbek") {
+				std::cout << "  using ImpuritySolverNeqGBEK (two-bath GBEK)\n";
+				using GbekNeqSolverType
+				    = Dmft::NeqDmftSolver<std::complex<RealType>,
+				                          Dmft::ImpuritySolverNeqGBEK>;
+				GbekNeqSolverType neqSolver(neqParams, io);
+				runNeq(neqSolver);
 			} else if (nStatesNeq > 0) {
 				std::cout << "  using ImpuritySolverNeqLanczos with NstatesNeq="
 				          << nStatesNeq << "\n";

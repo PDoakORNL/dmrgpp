@@ -129,12 +129,6 @@ public:
 			gimp_[i] *= factor;
 	}
 
-	void scaleGimp(RealType factor) override
-	{
-		for (SizeType i = 0; i < gimp_.size(); ++i)
-			gimp_[i] *= factor;
-	}
-
 private:
 
 	void computeGreenFunction(const CollectionContFractionType& cf_collection)

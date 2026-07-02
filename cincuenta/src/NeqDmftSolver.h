@@ -6,6 +6,8 @@
 #include "KadanoffBaym.h"
 #include "NeqLatticeGf.h"
 #include "ParamsNeqDmftSolver.h"
+#include <chrono>
+#include <iomanip>
 #include <iostream>
 
 namespace Dmft {
@@ -20,7 +22,8 @@ namespace Dmft {
 //
 // ImpSolverTemplate selects the impurity solver:
 //   ImpuritySolverNeqExactDiag  — full Lehmann (default, exact for small baths)
-//   ImpuritySolverNeqLanczos       — truncated Lanczos Lehmann (larger baths)
+//   ImpuritySolverNeqLanczos    — truncated Lanczos Lehmann (larger baths)
+//   ImpuritySolverNeqGBEK       — two-bath Cholesky scheme (GEBK PRB 88, 235106)
 template <typename ComplexOrRealType,
           template <typename> class ImpSolverTemplate = ImpuritySolverNeqExactDiag>
 class NeqDmftSolver {
@@ -65,17 +68,28 @@ public:
 		// Populate t=0 (equilibrium) boundary conditions.
 		impSolver_.computeGimp(gimp_, 0);
 		latticeGf_.initialize(gimp_);
+		// Seed the Cholesky decomposition for step 0.
+		// prepareTimeStep(n) is called in the n>=1 loop; n=0 must be primed here.
+		latticeGf_.updateDelta(0, gimp_);
+		impSolver_.prepareTimeStep(0, latticeGf_.delta());
 
 		std::cout << "NeqDmftSolver: starting time propagation to t_max=" << params_.tMax
 		          << " with nT=" << params_.nT << " steps\n";
 
+		auto t_neq_start = std::chrono::steady_clock::now();
 		for (int n = 1; n <= static_cast<int>(params_.nT); ++n) {
+			auto t0 = std::chrono::steady_clock::now();
 			timeStep(n);
-			if (n % 10 == 0 || n == static_cast<int>(params_.nT))
-				std::cout << "  step " << n << " / " << params_.nT << "\n";
+			auto   t1      = std::chrono::steady_clock::now();
+			double dt_wall = std::chrono::duration<double>(t1 - t0).count();
+			std::cout << "  step " << n << " / " << params_.nT << "  (" << std::fixed
+			          << std::setprecision(1) << dt_wall << " s)\n";
 		}
-
-		std::cout << "NeqDmftSolver: done\n";
+		double neq_total
+		    = std::chrono::duration<double>(std::chrono::steady_clock::now() - t_neq_start)
+		          .count();
+		std::cout << "NeqDmftSolver: neq phase total " << std::fixed << std::setprecision(1)
+		          << neq_total << " s\n";
 	}
 
 	// Access the impurity GF (populated after solve()).
@@ -92,34 +106,41 @@ public:
 		gimp_.dump(p.empty() ? "green" : p + "-green");
 		latticeGf_.g0().dump(p.empty() ? "weiss-green" : p + "-weiss-green");
 		latticeGf_.delta().dump(p.empty() ? "weiss-delta" : p + "-weiss-delta");
+		impSolver_.dumpPlusBath(p.empty() ? "plus-bath-lesser" : p + "-plus-bath-lesser");
 	}
 
 private:
 
 	// Advance all KB components by one time step n.
-	// Inner DMFT iterations are performed until convergence or maxIter is reached.
+	//
+	// Self-consistency following GEBK Fig. 2(b) progressive scheme (PRB 88, 235106):
+	//   Predictor: computeGimp uses V[n] from the previous step (extrapolation).
+	//   Corrector iterations: updateDelta fills row n of Δ, prepareTimeStep updates
+	//   the Cholesky bath V[n] from the complete row, then computeGimp re-evaluates.
+	//   For ExactDiag/Lanczos prepareTimeStep is a no-op; NeqDmftIter correctors run.
+	//   For GBEK L>0, NeqDmftIter=2-5 converges in 1-3 correctors.
+	//   advance(n) runs after the final corrector so G^< is consistent with final V[n].
 	void timeStep(int n)
 	{
-		// Step 1: compute G_imp(n, j) for j ≤ n from the Lehmann representation.
+		// Predictor: G_imp(n,j) with V[n] inherited from the previous step.
 		impSolver_.computeGimp(gimp_, n);
 
-		// Inner self-consistency loop (for future use with a self-consistent bath).
-		// With the fixed-bath ExactDiag solver the loop always converges in 1 iter.
 		for (SizeType iter = 0; iter < params_.neqDmftIter; ++iter) {
-
-			// Step 2: Δ(n, j) = t*² G_imp(n, j)
+			// Δ(n, j) = t*² G_imp(n, j) — fills delta row n
 			latticeGf_.updateDelta(n, gimp_);
 
-			// Step 3: advance G_0(n, j) via Volterra integro-differential equation.
-			latticeGf_.advance(n);
+			// Update bath for step n using the now-complete delta row n.
+			// No-op for ExactDiag/Lanczos; updates Cholesky V[n] for GBEK.
+			impSolver_.prepareTimeStep(n, latticeGf_.delta());
 
-			// Convergence check placeholder.
-			// A full self-consistent loop would compare the new G_0 against the
-			// previous iteration and break when the difference falls below
-			// params_.neqDmftError.  For the fixed-bath ExactDiag solver, one
-			// iteration per time step is exact.
-			break;
+			// Corrector: re-evaluate G_imp with the updated bath.
+			// Always called so that advance(n) sees G^< computed with the
+			// final V[n], not the penultimate one.
+			impSolver_.computeGimp(gimp_, n);
 		}
+
+		// Advance G_0(n, j) via Volterra integro-differential equation.
+		latticeGf_.advance(n);
 	}
 
 	const ParamsNeqType& params_;

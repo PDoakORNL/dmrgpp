@@ -1,3 +1,8 @@
+add_executable(test_NeqBathDecomposition test_NeqBathDecomposition.cpp)
+target_link_libraries(test_NeqBathDecomposition PRIVATE Catch2::Catch2WithMain psimaglite)
+target_include_directories(test_NeqBathDecomposition PRIVATE ${CMAKE_SOURCE_DIR}/cincuenta/src)
+catch_discover_tests(test_NeqBathDecomposition)
+
 add_executable(test_KadanoffBaym test_KadanoffBaym.cpp)
 target_link_libraries(test_KadanoffBaym PRIVATE Catch2::Catch2WithMain psimaglite)
 target_include_directories(test_KadanoffBaym PRIVATE ${CMAKE_SOURCE_DIR}/cincuenta/src)

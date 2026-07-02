@@ -222,5 +222,3 @@ if(Python3_FOUND)
       ${ED_DIR}/green-lesser --tolerance-re 0.02 --tolerance-im 0.02)
   set_tests_properties(neqTsujiTdmrg0_compare PROPERTIES DEPENDS "neqTsujiTdmrg0;neqTsujiExactDiag0")
 endif()
-
-endif()

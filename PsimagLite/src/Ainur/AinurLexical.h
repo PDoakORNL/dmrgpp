@@ -37,12 +37,7 @@ private:
 		return String(begin, end);
 	}
 
-	static bool allowedChar(unsigned char c)
-	{
-		if (isWhitespace(c) || isEOL(c))
-			return true;
-		return (c < 33 || c > 126 || c == 96) ? false : true;
-	}
+	static bool allowedChar(unsigned char c) { return true; }
 
 	static bool isWhitespace(char c) { return (c == ' ' || c == '\t'); }
 

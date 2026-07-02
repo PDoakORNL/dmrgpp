@@ -227,7 +227,7 @@ struct LanczosGlobals {
 
 	static void doBitmask(SizeType total)
 	{
-		if (total == bitmask_.size())
+		if (total <= bitmask_.size())
 			return;
 
 		bitmask_.resize(total);
@@ -244,7 +244,7 @@ struct LanczosGlobals {
 
 	static void doCombinatorial(SizeType total)
 	{
-		if (total == comb_.size()) {
+		if (total <= comb_.size()) {
 			return;
 		}
 
