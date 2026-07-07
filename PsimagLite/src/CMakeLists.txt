@@ -15,11 +15,24 @@ add_library(
   PredicateSimple.cpp
   Ainur/AinurSpirit.cpp
   Ainur/AinurConvert.cpp)
+
+# If Kokkos support is enabled, compile in the Kokkos-based GEMM wrapper
+option(PSIMAGLITE_USE_KOKKOS "Enable Kokkos support" OFF)
+if(PSIMAGLITE_USE_KOKKOS)
+  find_package(KokkosKernels 5.1 REQUIRED)
+  target_link_libraries(psimaglite PUBLIC Kokkos::kokkoskernels Kokkos::kokkos)
+  target_sources(psimaglite PRIVATE kokkos_gemm.cpp)
+endif()
 target_include_directories(psimaglite PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/Io
                                              ${CMAKE_CURRENT_SOURCE_DIR}/Ainur)
 
 target_compile_features(psimaglite PUBLIC cxx_std_17)
 target_link_libraries(psimaglite PUBLIC loki)
+
+# Generate configuration header for PsimagLite
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/PsimagLiteConfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/PsimagLiteConfig.h @ONLY)
+# Ensure consumers can include generated header
+target_include_directories(psimaglite PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(psimaglite::psimaglite ALIAS psimaglite)
 

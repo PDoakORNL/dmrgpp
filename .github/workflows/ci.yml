@@ -47,7 +47,13 @@ jobs:
       shell: spack-bash {0}
       run: |
         spack env activate ${{github.workspace}}/source
-        cmake -S ${{github.workspace}}/source -B ${{github.workspace}}/build -GNinja -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DBUILD_SHARED_LIBS=${{matrix.shared_libs}} -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wno-unused-parameter" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        cmake -S ${{github.workspace}}/source \
+              -B ${{github.workspace}}/build \
+              -GNinja \
+              -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+              -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wno-unused-parameter" \
+              -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+              -DPSIMAGLITE_USE_KOKKOS=ON
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}

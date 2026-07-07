@@ -7,6 +7,7 @@ spack:
   - boost
   - openmpi
   - hdf5 +cxx +fortran +hl +mpi ^openmpi
+  - kokkos-kernels +blas +lapack
   concretizer:
     unify: false
   config:
