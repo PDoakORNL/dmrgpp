@@ -1,7 +1,9 @@
 #ifndef NEQ_BATH_DECOMPOSITION_H
 #define NEQ_BATH_DECOMPOSITION_H
 #include "KadanoffBaym.h"
+#include "Svd.h"
 #include "Vector.h"
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <fstream>
@@ -335,46 +337,56 @@ private:
 		return qOf(muLo);
 	}
 
-	// Gaussian elimination with partial pivoting for an L×L system Ax = b.
-	static VectorComplexType solveLinear(MatrixComplexType A, VectorComplexType b, int L)
+	// Least-squares solve of A q = b (A is L×L, Hermitian in practice since
+	// it is QtQ + scalar*I, but solved generally) via SVD-based pseudo-
+	// inverse, truncating singular values below rcond*max(s) -- matching
+	// numpy.linalg.lstsq's default behavior.
+	//
+	// This replaced a plain Gaussian-elimination-with-partial-pivoting
+	// solve (skip-if-|pivot|<1e-14) that was found, via independent
+	// cross-check against cincuenta/TestSuite/gbek_reference/gbek_cholesky.py
+	// on the true atomic-limit target (Delta^- === 0 exactly, an extreme,
+	// genuinely rank-deficient seed), to silently return large-but-finite
+	// garbage on NEAR-singular (not exactly singular) systems -- exactly
+	// the "near-singular Gram matrix blowup" failure mode documented in
+	// gbek_cholesky.py's module docstring, which was fixed on the Python
+	// side (switched to np.linalg.lstsq) but never ported here. The two
+	// implementations agreed on the near-atomic (W_i=0.1) target because
+	// that target's early rows are not exactly singular, only degenerate;
+	// the true atomic limit's Delta_<(0,0)=0 exactly is a harsher seed and
+	// exposed the gap.
+	static VectorComplexType
+	solveLinear(const MatrixComplexType& A, const VectorComplexType& b, int L)
 	{
-		// Forward elimination
-		for (int col = 0; col < L; ++col) {
-			// Find pivot
-			int      pivot  = col;
-			RealType maxVal = std::abs(A(col, col));
-			for (int row = col + 1; row < L; ++row) {
-				RealType v = std::abs(A(row, col));
-				if (v > maxVal) {
-					maxVal = v;
-					pivot  = row;
-				}
-			}
-			// Swap rows
-			if (pivot != col) {
-				for (int c = 0; c < L; ++c)
-					std::swap(A(col, c), A(pivot, c));
-				std::swap(b[col], b[pivot]);
-			}
-			if (std::abs(A(col, col)) < 1e-14)
-				continue; // singular, skip
-			// Eliminate
-			for (int row = col + 1; row < L; ++row) {
-				const ComplexType factor = A(row, col) / A(col, col);
-				for (int c = col; c < L; ++c)
-					A(row, c) -= factor * A(col, c);
-				b[row] -= factor * b[col];
-			}
-		}
-		// Back substitution
+		MatrixComplexType            u(A);
+		VectorRealType               s;
+		MatrixComplexType            vt;
+		PsimagLite::Svd<ComplexType> svd;
+		svd('S', u, s, vt);
+
+		// rcond=1e-10 matches gbek_cholesky.py::_solve_optimal_update's
+		// np.linalg.lstsq(A, Qta, rcond=1e-10) exactly -- deliberately far
+		// looser than machine-epsilon truncation, since the near-singular
+		// directions here are not noise but genuinely poorly-determined
+		// combinations that must be dropped, not merely rounding error.
+		const RealType sMax
+		    = (s.empty()) ? RealType(0) : *std::max_element(s.begin(), s.end());
+		const RealType rcond  = RealType(1e-10);
+		const RealType thresh = rcond * sMax;
+
+		// x = V * diag(1/s_i, truncated) * U^H * b
+		VectorComplexType uhB(L, ComplexType(0));
+		for (int i = 0; i < L; ++i)
+			for (int k = 0; k < L; ++k)
+				uhB[i] += std::conj(u(k, i)) * b[k];
+
 		VectorComplexType x(L, ComplexType(0));
-		for (int row = L - 1; row >= 0; --row) {
-			if (std::abs(A(row, row)) < 1e-14)
+		for (int i = 0; i < L; ++i) {
+			if (s[i] <= thresh)
 				continue;
-			ComplexType sum = b[row];
-			for (int c = row + 1; c < L; ++c)
-				sum -= A(row, c) * x[c];
-			x[row] = sum / A(row, row);
+			const ComplexType coeff = uhB[i] / s[i];
+			for (int c = 0; c < L; ++c)
+				x[c] += std::conj(vt(i, c)) * coeff;
 		}
 		return x;
 	}
