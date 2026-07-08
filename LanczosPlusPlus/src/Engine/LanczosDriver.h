@@ -1,6 +1,5 @@
 #ifndef LANCZOSDRIVER_H
 #define LANCZOSDRIVER_H
-#include "../../PsimagLite/src/Version.h"
 #include "../Version.h"
 #include "AllocatorCpu.h"
 #include "PsimagLite.h"
