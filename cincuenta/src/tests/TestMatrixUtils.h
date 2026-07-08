@@ -28,36 +28,48 @@ struct GBEKTestAccessor {
 	using WordType      = LanczosPlusPlus::LanczosGlobals::WordType;
 
 	// ── Const data-member accessors ──────────────────────────────────────
-	static const CrsMatrixType& csrNm1(const SolverType& s) { return s.csrNm1_; }
-	static const CrsMatrixType& csrNp1(const SolverType& s) { return s.csrNp1_; }
+	// All route through sectorAlpha_ (system alpha; identical to the old
+	// single-configuration fields when nup_==ndown_, which is what the
+	// existing tests exercise).
+	static const CrsMatrixType& csrNm1(const SolverType& s) { return s.sectorAlpha_.csrNm1; }
+	static const CrsMatrixType& csrNp1(const SolverType& s) { return s.sectorAlpha_.csrNp1; }
 	// mutable CSR exposed for updateCSR tests
-	static CrsMatrixType& csrNm1Mut(const SolverType& s) { return s.csrNm1_; }
-	static CrsMatrixType& csrNp1Mut(const SolverType& s) { return s.csrNp1_; }
+	static CrsMatrixType& csrNm1Mut(const SolverType& s) { return s.sectorAlpha_.csrNm1; }
+	static CrsMatrixType& csrNp1Mut(const SolverType& s) { return s.sectorAlpha_.csrNp1; }
 
-	static const std::vector<VarEntry>& varNm1(const SolverType& s) { return s.varNm1_; }
-	static const std::vector<VarEntry>& varNp1(const SolverType& s) { return s.varNp1_; }
+	static const std::vector<VarEntry>& varNm1(const SolverType& s)
+	{
+		return s.sectorAlpha_.varNm1;
+	}
+	static const std::vector<VarEntry>& varNp1(const SolverType& s)
+	{
+		return s.sectorAlpha_.varNp1;
+	}
 
 	static const std::vector<WordType>& upWordsNm1(const SolverType& s)
 	{
-		return s.upWordsNm1_;
+		return s.sectorAlpha_.upWordsNm1;
 	}
 	static const std::vector<WordType>& dnWordsNm1(const SolverType& s)
 	{
-		return s.dnWordsNm1_;
+		return s.sectorAlpha_.dnWordsNm1;
 	}
-	static SizeType dim1Nm1(const SolverType& s) { return s.dim1Nm1_; }
+	static SizeType dim1Nm1(const SolverType& s) { return s.sectorAlpha_.dim1Nm1; }
 
 	static const std::vector<WordType>& upWordsNp1(const SolverType& s)
 	{
-		return s.upWordsNp1_;
+		return s.sectorAlpha_.upWordsNp1;
 	}
 	static const std::vector<WordType>& dnWordsNp1(const SolverType& s)
 	{
-		return s.dnWordsNp1_;
+		return s.sectorAlpha_.dnWordsNp1;
 	}
-	static SizeType dim1Np1(const SolverType& s) { return s.dim1Np1_; }
+	static SizeType dim1Np1(const SolverType& s) { return s.sectorAlpha_.dim1Np1; }
 
-	static const std::vector<VectorComplex>& psiHist(const SolverType& s) { return s.PsiHist_; }
+	static const std::vector<VectorComplex>& psiHist(const SolverType& s)
+	{
+		return s.sectorAlpha_.PsiHist;
+	}
 	static SizeType bathRank(const SolverType& s) { return s.bathRank_; }
 
 	// ── Method delegators ────────────────────────────────────────────────

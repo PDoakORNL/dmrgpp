@@ -48,6 +48,19 @@
 //   G^<(t_j, t_n) = +i <Ψ(t_j) | Ψ(t_n)>   [N-1 sector]
 //   G^>(t_n, t_j) = -i <Φ(t_n) | Φ(t_j)>   [N+1 sector]
 // G^{Left}(t_n, τ) is reused from ImpuritySolverNeqExactDiag (Matsubara-based).
+//
+// Gα/Gβ spin-seed averaging (GBEK Eq. 70): whenever the base filling is
+// spin-imbalanced (nup_ != ndown_ -- e.g. the NeqAtomicLimit single-atom
+// seed nup=1, ndown=0), a single extended-Fock-space ground state is
+// spin-polarized and does not represent the paramagnetic, particle-hole
+// symmetric physics on its own. The paper's remedy: run the WHOLE
+// extended-system calculation twice -- once seeded as if the impurity's
+// extra electron were up (system alpha, nup_ext=nup+L, ndown_ext=ndown+L),
+// once as if it were down (system beta, nup_ext=ndown+L, ndown_ext=nup+L)
+// -- and average the resulting (always up-channel-probed) Green's
+// functions. When nup_==ndown_ (e.g. the near-atomic path's half-filled
+// multi-site bath), alpha and beta are the identical configuration, so
+// this reduces to a no-op and only one calculation is actually run.
 namespace Dmft {
 
 template <typename ComplexOrRealType>
@@ -95,11 +108,6 @@ public:
 	    , ndown_(0)
 	    , nBath_(0)
 	    , nsites_ext_(0)
-	    , nup_ext_(0)
-	    , ndown_ext_(0)
-	    , dim1Nm1_(0)
-	    , dim1Np1_(0)
-	    , propagatedThrough_(-1)
 	{
 		if (bathRank_ > 0) {
 			io.readline(nup_, "TargetElectronsUp=");
@@ -139,8 +147,13 @@ public:
 		if (decomp_)
 			decomp_->update(n, delta);
 		if (bathRank_ > 0 && n > 0) {
-			// V[n] just changed; invalidate cached PsiHist_[n] and beyond
-			propagatedThrough_ = std::min(propagatedThrough_, n - 1);
+			// V[n] just changed; invalidate cached PsiHist[n] and beyond, for
+			// both spin configurations.
+			sectorAlpha_.propagatedThrough
+			    = std::min(sectorAlpha_.propagatedThrough, n - 1);
+			if (!sameConfig_)
+				sectorBeta_.propagatedThrough
+				    = std::min(sectorBeta_.propagatedThrough, n - 1);
 		}
 	}
 
@@ -194,16 +207,42 @@ public:
 
 private:
 
+	// Position and update info for one second-bath variable entry in the CSR matrix.
+	struct VarEntry {
+		int      nnzIdx; // index into CrsMatrix values array (matches setValues arg type)
+		SizeType p; // second-bath rank index
+		bool     isConj; // true → store conj(vMid[p])*sign, false → vMid[p]*sign
+		int      sign; // Jordan-Wigner sign (±1)
+	};
+
+	// ========== Gα/Gβ per-configuration extended-Fock state ==========
+	//
+	// Everything that depends on WHICH spin the impurity's extra electron
+	// (nup_ext,ndown_ext) is seeded with. System alpha uses
+	// (nup+L, ndown+L) (impurity's extra electron is up); system beta
+	// swaps to (ndown+L, nup+L) (as if it were down). Both are always
+	// probed with the up-spin operator (see seedState/gLesserGBEKSector),
+	// matching GBEK Eq. 70's Gα_σ/Gβ_σ for σ=up.
+	struct ExtendedSector {
+		SizeType                               dim1Nm1 = 0, dim1Np1 = 0;
+		std::vector<WordType>                  upWordsNm1, dnWordsNm1;
+		std::vector<WordType>                  upWordsNp1, dnWordsNp1;
+		CrsMatrixComplexType                   csrNm1, csrNp1;
+		std::vector<VarEntry>                  varNm1, varNp1;
+		mutable std::vector<VectorComplexType> PsiHist, PhiHist;
+		mutable int                            propagatedThrough = -1;
+	};
+
 	// ========== L>0 setup ==========
 
-	// Build extended Fock space, diagonalise pre-quench H, seed PsiHist_[0]/PhiHist_[0].
+	// Build extended Fock space, diagonalise pre-quench H, seed PsiHist/PhiHist
+	// for both spin configurations (alpha always; beta only if nup_ != ndown_,
+	// since otherwise it is identical to alpha -- see class docstring).
 	void solveLplus(const VectorRealType& bathParams)
 	{
 		const SizeType L = bathRank_;
 		nBath_           = bathParams.size() / 2;
 		nsites_ext_      = nBath_ + 1 + 2 * L;
-		nup_ext_         = nup_ + L;
-		ndown_ext_       = ndown_ + L;
 
 		firstBathHop_.resize(nBath_);
 		firstBathEps_.resize(nBath_);
@@ -217,6 +256,23 @@ private:
 		potPost_[0] = -RealType(0.5) * params_.uFinal;
 		for (SizeType i = 0; i < nBath_; ++i)
 			potPost_[i + 1] = firstBathEps_[i];
+
+		sameConfig_ = (nup_ == ndown_);
+
+		buildSector(sectorAlpha_, nup_ + L, ndown_ + L, bathParams);
+		if (!sameConfig_)
+			buildSector(sectorBeta_, ndown_ + L, nup_ + L, bathParams);
+	}
+
+	// Build one spin configuration's extended Fock space, diagonalise its
+	// pre-quench Hamiltonian, and seed PsiHist[0]/PhiHist[0] -- shared logic
+	// for both system alpha and system beta (GBEK Eq. 70).
+	void buildSector(ExtendedSector&       sector,
+	                 SizeType              nupExt,
+	                 SizeType              ndownExt,
+	                 const VectorRealType& bathParams)
+	{
+		const SizeType L = bathRank_;
 
 		// Extended hoppings (real; second bath starts at 0, updated later via Cholesky)
 		VectorRealType hopExt(nBath_ + 2 * L, RealType(0));
@@ -236,7 +292,7 @@ private:
 
 		// Build extended pre-quench model
 		const std::string inputPre = buildLanczosInput(
-		    params_.uInitial, nup_ext_, ndown_ext_, hopExt, potPre, nsites_ext_);
+		    params_.uInitial, nupExt, ndownExt, hopExt, potPre, nsites_ext_);
 
 		LanczosPlusPlus::InputCheck                                          ic;
 		typename PsimagLite::InputNg<LanczosPlusPlus::InputCheck>::Writeable ioW(ic,
@@ -257,30 +313,41 @@ private:
 		}
 
 		// Build N-1 and N+1 sector bases for the extended system
-		std::unique_ptr<BasisBaseType> bNm1(model.createBasis(nup_ext_ - 1, ndown_ext_));
-		std::unique_ptr<BasisBaseType> bNp1(model.createBasis(nup_ext_ + 1, ndown_ext_));
+		std::unique_ptr<BasisBaseType> bNm1(model.createBasis(nupExt - 1, ndownExt));
+		std::unique_ptr<BasisBaseType> bNp1(model.createBasis(nupExt + 1, ndownExt));
 
 		// Build fast-lookup tables from sorted Fock words
-		buildFockLookup(*bNm1, upWordsNm1_, dnWordsNm1_, dim1Nm1_);
-		buildFockLookup(*bNp1, upWordsNp1_, dnWordsNp1_, dim1Np1_);
+		buildFockLookup(*bNm1, sector.upWordsNm1, sector.dnWordsNm1, sector.dim1Nm1);
+		buildFockLookup(*bNp1, sector.upWordsNp1, sector.dnWordsNp1, sector.dim1Np1);
 
 		// Build CSR sparse matrices for H_ext and validate against applyHext
-		buildHextCSR(upWordsNm1_, dnWordsNm1_, dim1Nm1_, csrNm1_, varNm1_);
-		buildHextCSR(upWordsNp1_, dnWordsNp1_, dim1Np1_, csrNp1_, varNp1_);
-		checkApplyHextEquivalence();
+		buildHextCSR(sector.upWordsNm1,
+		             sector.dnWordsNm1,
+		             sector.dim1Nm1,
+		             sector.csrNm1,
+		             sector.varNm1);
+		buildHextCSR(sector.upWordsNp1,
+		             sector.dnWordsNp1,
+		             sector.dim1Np1,
+		             sector.csrNp1,
+		             sector.varNp1);
+		checkApplyHextEquivalence(sector);
 
 		// Allocate history arrays
 		const SizeType nSteps = params_.nT + 1;
-		PsiHist_.assign(nSteps, VectorComplexType(bNm1->size(), ComplexType(0)));
-		PhiHist_.assign(nSteps, VectorComplexType(bNp1->size(), ComplexType(0)));
+		sector.PsiHist.assign(nSteps, VectorComplexType(bNm1->size(), ComplexType(0)));
+		sector.PhiHist.assign(nSteps, VectorComplexType(bNp1->size(), ComplexType(0)));
 
 		// Seed step 0: c_{imp,↑}|GS_pre_ext⟩ (N-1) and c†_{imp,↑}|GS_pre_ext⟩ (N+1)
-		seedState(eigvecsN, model.basis(), *bNm1, *bNp1);
-		propagatedThrough_ = 0;
+		seedState(sector, eigvecsN, model.basis(), *bNm1, *bNp1);
+		sector.propagatedThrough = 0;
 	}
 
-	// Apply c_{imp,↑} and c†_{imp,↑} to the pre-quench GS to seed PsiHist_[0]/PhiHist_[0].
-	void seedState(const MatrixType&    eigvecsN,
+	// Apply c_{imp,↑} and c†_{imp,↑} to the pre-quench GS to seed PsiHist[0]/PhiHist[0].
+	// Always the up-spin operator, regardless of whether this sector is
+	// system alpha or system beta -- see class docstring.
+	void seedState(ExtendedSector&      sector,
+	               const MatrixType&    eigvecsN,
 	               const BasisBaseType& basisN,
 	               const BasisBaseType& basisNm1,
 	               const BasisBaseType& basisNp1)
@@ -305,7 +372,7 @@ private:
 			    = basisNm1.getBraIndex(ket1, ket2, opC, impSite, spinUp, 0);
 			if (braC.first >= 0) {
 				const int sign = basisN.doSignGf(ket1, ket2, impSite, spinUp, 0);
-				PsiHist_[0][static_cast<SizeType>(braC.first)]
+				sector.PsiHist[0][static_cast<SizeType>(braC.first)]
 				    += ComplexType(sign) * amp;
 			}
 
@@ -314,7 +381,7 @@ private:
 			    = basisNp1.getBraIndex(ket1, ket2, opCdag, impSite, spinUp, 0);
 			if (braCdag.first >= 0) {
 				const int sign = basisN.doSignGf(ket1, ket2, impSite, spinUp, 0);
-				PhiHist_[0][static_cast<SizeType>(braCdag.first)]
+				sector.PhiHist[0][static_cast<SizeType>(braCdag.first)]
 				    += ComplexType(sign) * amp;
 			}
 		}
@@ -353,14 +420,6 @@ private:
 	}
 
 	// ========== Precomputed CSR sparse Hamiltonian ==========
-
-	// Position and update info for one second-bath variable entry in the CSR matrix.
-	struct VarEntry {
-		int      nnzIdx; // index into CrsMatrix values array (matches setValues arg type)
-		SizeType p; // second-bath rank index
-		bool     isConj; // true → store conj(vMid[p])*sign, false → vMid[p]*sign
-		int      sign; // Jordan-Wigner sign (±1)
-	};
 
 	// Build the CSR sparse matrix for H_ext in one sector.
 	// Fixed entries (diagonal + first-bath hops) go directly into matrix values.
@@ -510,16 +569,26 @@ private:
 	// Ensure PsiHist_[0..n] and PhiHist_[0..n] are populated with the current V values.
 	void ensurePropagated(int n) const
 	{
-		for (int k = propagatedThrough_ + 1; k <= n; ++k)
-			propagateOneStep(k);
-		if (n > propagatedThrough_)
-			propagatedThrough_ = n;
+		ensureSectorPropagated(sectorAlpha_, n);
+		if (!sameConfig_)
+			ensureSectorPropagated(sectorBeta_, n);
+	}
+
+	void ensureSectorPropagated(ExtendedSector& sector, int n) const
+	{
+		for (int k = sector.propagatedThrough + 1; k <= n; ++k)
+			propagateOneStep(sector, k);
+		if (n > sector.propagatedThrough)
+			sector.propagatedThrough = n;
 	}
 
 	// Propagate step n from step n-1 using the midpoint Hamiltonian.
-	void propagateOneStep(int n) const
+	// The midpoint second-bath hoppings V_mid come from the shared Cholesky
+	// decomposition (decomp_) -- identical for both spin configurations,
+	// since there is only one physical second bath.
+	void propagateOneStep(ExtendedSector& sector, int n) const
 	{
-		assert(n > 0 && n < static_cast<int>(PsiHist_.size()));
+		assert(n > 0 && n < static_cast<int>(sector.PsiHist.size()));
 
 		// Midpoint second-bath hoppings: V_mid = (V[n-1] + V[n]) / 2
 		std::vector<ComplexType> vMid(bathRank_);
@@ -529,11 +598,13 @@ private:
 			vMid[p]                 = RealType(0.5) * (vPrev + vCurr);
 		}
 
-		updateCSR(csrNm1_, varNm1_, vMid);
-		updateCSR(csrNp1_, varNp1_, vMid);
+		updateCSR(sector.csrNm1, sector.varNm1, vMid);
+		updateCSR(sector.csrNp1, sector.varNp1, vMid);
 
-		PsiHist_[n] = krylovExpmvCSR(PsiHist_[n - 1], csrNm1_, params_.dt);
-		PhiHist_[n] = krylovExpmvCSR(PhiHist_[n - 1], csrNp1_, params_.dt);
+		sector.PsiHist[n]
+		    = krylovExpmvCSR(sector.PsiHist[n - 1], sector.csrNm1, params_.dt);
+		sector.PhiHist[n]
+		    = krylovExpmvCSR(sector.PhiHist[n - 1], sector.csrNp1, params_.dt);
 	}
 
 	// Krylov (Lanczos) approximation to exp(-i H dt) |psi⟩.
@@ -693,9 +764,9 @@ private:
 	// One-shot equivalence check: assert max|applyHext(v) - CSR*v| < tol for both sectors.
 	// Called once in solveLplus after buildHextCSR to validate the CSR construction.
 	// Uses a non-zero artificial vMid to exercise the variable second-bath entries.
-	void checkApplyHextEquivalence() const
+	void checkApplyHextEquivalence(ExtendedSector& sector) const
 	{
-		if (upWordsNm1_.empty() || upWordsNp1_.empty())
+		if (sector.upWordsNm1.empty() || sector.upWordsNp1.empty())
 			return;
 
 		// Artificial non-zero vMid so variable entries are non-trivially tested.
@@ -734,8 +805,18 @@ private:
 			       && "applyHextCSR disagrees with applyHext — CSR build error");
 		};
 
-		checkSector("N-1", upWordsNm1_, dnWordsNm1_, dim1Nm1_, csrNm1_, varNm1_);
-		checkSector("N+1", upWordsNp1_, dnWordsNp1_, dim1Np1_, csrNp1_, varNp1_);
+		checkSector("N-1",
+		            sector.upWordsNm1,
+		            sector.dnWordsNm1,
+		            sector.dim1Nm1,
+		            sector.csrNm1,
+		            sector.varNm1);
+		checkSector("N+1",
+		            sector.upWordsNp1,
+		            sector.dnWordsNp1,
+		            sector.dim1Np1,
+		            sector.csrNp1,
+		            sector.varNp1);
 	}
 
 	// ========== Fock-space Hamiltonian matrix-vector product ==========
@@ -872,26 +953,47 @@ private:
 
 	// ========== Green's function formulas ==========
 
-	// G^<(t_n, t_j) = +i <Ψ(t_j) | Ψ(t_n)>
-	ComplexType gLesserGBEK(int n, int j) const
+	// G^<(t_n, t_j) = +i <Ψ(t_j) | Ψ(t_n)>, one spin configuration.
+	static ComplexType gLesserGBEKSector(const ExtendedSector& sector, int n, int j)
 	{
-		const SizeType dim = PsiHist_[0].size();
+		const SizeType dim = sector.PsiHist[0].size();
 		ComplexType    s(0);
 		for (SizeType k = 0; k < dim; ++k)
-			s += std::conj(PsiHist_[static_cast<SizeType>(j)][k])
-			    * PsiHist_[static_cast<SizeType>(n)][k];
+			s += std::conj(sector.PsiHist[static_cast<SizeType>(j)][k])
+			    * sector.PsiHist[static_cast<SizeType>(n)][k];
 		return ComplexType(0, 1) * s;
 	}
 
-	// G^>(t_n, t_j) = -i <Φ(t_n) | Φ(t_j)>
-	ComplexType gGreaterGBEK(int n, int j) const
+	// G^>(t_n, t_j) = -i <Φ(t_n) | Φ(t_j)>, one spin configuration.
+	static ComplexType gGreaterGBEKSector(const ExtendedSector& sector, int n, int j)
 	{
-		const SizeType dim = PhiHist_[0].size();
+		const SizeType dim = sector.PhiHist[0].size();
 		ComplexType    s(0);
 		for (SizeType k = 0; k < dim; ++k)
-			s += std::conj(PhiHist_[static_cast<SizeType>(n)][k])
-			    * PhiHist_[static_cast<SizeType>(j)][k];
+			s += std::conj(sector.PhiHist[static_cast<SizeType>(n)][k])
+			    * sector.PhiHist[static_cast<SizeType>(j)][k];
 		return ComplexType(0, -1) * s;
+	}
+
+	// Gα/Gβ average (GBEK Eq. 70): G_up = (1/2)(Gα_up + Gβ_up). When
+	// nup_==ndown_, system beta is identical to system alpha and was never
+	// built, so this reduces to just system alpha's value.
+	ComplexType gLesserGBEK(int n, int j) const
+	{
+		if (sameConfig_)
+			return gLesserGBEKSector(sectorAlpha_, n, j);
+		return RealType(0.5)
+		    * (gLesserGBEKSector(sectorAlpha_, n, j)
+		       + gLesserGBEKSector(sectorBeta_, n, j));
+	}
+
+	ComplexType gGreaterGBEK(int n, int j) const
+	{
+		if (sameConfig_)
+			return gGreaterGBEKSector(sectorAlpha_, n, j);
+		return RealType(0.5)
+		    * (gGreaterGBEKSector(sectorAlpha_, n, j)
+		       + gGreaterGBEKSector(sectorBeta_, n, j));
 	}
 
 	// ========== Vector helpers ==========
@@ -1030,30 +1132,21 @@ private:
 	// Extended system geometry
 	SizeType nBath_; // # first-bath sites
 	SizeType nsites_ext_; // total sites = nBath+1+2L
-	SizeType nup_ext_; // nup + L
-	SizeType ndown_ext_; // ndown + L
 
 	// First bath parameters (extracted from bathParams in solveLplus)
 	VectorRealType firstBathHop_;
 	VectorRealType firstBathEps_;
 
-	// Post-quench on-site potentials for the extended system
+	// Post-quench on-site potentials for the extended system (shared by both
+	// spin configurations -- U_final and first-bath epsilons don't depend on
+	// which spin the impurity's extra electron carries).
 	VectorRealType potPost_;
 
-	// Fock-basis lookup tables for N-1 and N+1 sectors (built in solveLplus)
-	SizeType              dim1Nm1_, dim1Np1_;
-	std::vector<WordType> upWordsNm1_, dnWordsNm1_; // N-1 sector (for G^<)
-	std::vector<WordType> upWordsNp1_, dnWordsNp1_; // N+1 sector (for G^>)
-
-	// Propagated state history (dim × (nT+1))
-	mutable std::vector<VectorComplexType> PsiHist_; // N-1 sector
-	mutable std::vector<VectorComplexType> PhiHist_; // N+1 sector
-	mutable int                            propagatedThrough_;
-
-	// Precomputed CSR sparse matrices for H_ext (N-1 and N+1 sectors).
-	// Built once in solveLplus; variable second-bath entries updated per time step.
-	mutable CrsMatrixComplexType csrNm1_, csrNp1_;
-	std::vector<VarEntry>        varNm1_, varNp1_;
+	// Gα (nup_ext=nup+L, ndown_ext=ndown+L) and Gβ (swapped) extended-Fock
+	// state (GBEK Eq. 70). sameConfig_ is true when nup_==ndown_, in which
+	// case sectorBeta_ is never built and is identical to sectorAlpha_.
+	mutable ExtendedSector sectorAlpha_, sectorBeta_;
+	bool                   sameConfig_ = false;
 
 	friend struct GBEKTestAccessor;
 };

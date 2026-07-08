@@ -381,3 +381,92 @@ TEST_CASE("krylovExpmvCSR preserves vector norm to 1e-10", "[GBEK][Krylov][norm]
 	INFO("N+1 sector: ||krylovExpmvCSR(e_0)|| = " << normP);
 	CHECK(std::abs(normP - 1.0) < 1e-10);
 }
+
+// ── TC-7: Gα/Gβ spin-seed averaging (GBEK Eq. 70) ──────────────────────────────
+//
+// Regression test for a real bug (found and fixed 2026-07-08): a
+// spin-imbalanced base filling (nup != ndown, e.g. the true atomic-limit
+// single-atom seed nup=1, ndown=0) produces a spin-polarized extended-Fock
+// ground state on its own. Without averaging Galpha (impurity's extra
+// electron up) and Gbeta (down), the up-channel occupation is frozen at
+// n=1 for all time instead of oscillating around the physically-required
+// n=1/2 -- exactly the failure this test guards against. The expected
+// value 0.5 is not a tolerance-tuned regression anchor: it follows directly
+// from GBEK Sec. VI-A (paramagnetic, particle-hole symmetric state at half
+// filling, <n_sigma>=1/2 for all t) and from the exact self-consistency
+// relation Delta(t,t)=v(t)^2 n(t) matching the paper's own Fig. 3 colorbar
+// maximum of 0.5.
+//
+// nBath=0 (true atomic limit, Delta^-=0 exactly) isolates this from the
+// separate second-bath Cholesky machinery: with an empty bathParams vector,
+// solveLplus builds nsites_ext=1+2L with no first-bath sites at all, so any
+// deviation from n=1/2 can only come from the (nup_ext,ndown_ext) seeding,
+// not from Cholesky-approximation error.
+TEST_CASE("Gimp(t,t) plateaus at 1/2 for a spin-imbalanced atomic-limit seed",
+          "[GBEK][spin-averaging]")
+{
+	static const std::string kAtomicConfig
+	    = "##Ainur1.0\n\n"
+	      "FicticiousBeta=10;\n"
+	      "ChemicalPotential=0.;\n"
+	      "Matsubaras=20;\n"
+	      "LatticeGf=\"energy,semicircular,4\";\n"
+	      "NumberOfBathPoints=1;\n"
+	      "DmftNumberOfIterations=1;\n"
+	      "DmftTolerance=1e-3;\n"
+	      "ImpuritySolver=\"exactdiag\";\n"
+	      "FitOptions=particleholesymmetric;\n"
+	      "MinParamsDelta=0.01;\n"
+	      "MinParamsDelta2=0.01;\n"
+	      "MinParamsTolerance=1e-4;\n"
+	      "MinParamsMaxIter=100;\n"
+	      "MinParamsVerbose=0;\n"
+	      "TargetElectronsUp=1;\n"
+	      "TargetElectronsDown=0;\n"
+	      "int ImpuritySite=0;\n"
+	      "real HubbardU=2.;\n"
+	      "HubbardUFinal=2.;\n"
+	      "RootOutputname=\"testGBEKAtomic\";\n"
+	      "InfiniteLoopKeptStates=20;\n"
+	      "matrix FiniteLoopsGs=[[@auto, 20, 0],[@auto, 20, 0]];\n"
+	      "real OmegaBegin=-4.;\n"
+	      "integer OmegaTotal=40;\n"
+	      "real OmegaStep=0.2;\n"
+	      "real OmegaDelta=0.2;\n"
+	      "integer TridiagSteps=100;\n"
+	      "real TridiagEps=1e-6;\n"
+	      "TruncationTolerance=\"1e-6,20\";\n"
+	      "CorrectionVectorEta=0.;\n"
+	      "GsWeight=0.1;\n"
+	      "matrix FiniteLoopsOmega=[[@auto, 20, 2],[@auto, 20, 2]];\n"
+	      "TmaxNeq=0.2;\n"
+	      "NtNeq=4;\n"
+	      "NeqDmftIter=1;\n"
+	      "NeqDmftTolerance=1e-4;\n"
+	      "NeqSolver=\"gbek\";\n"
+	      "NeqBathRank=2;\n"
+	      "BandwidthFinal=4.;\n";
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, kAtomicConfig);
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, io);
+
+	solver.solve({}); // empty bathParams: nBath=0, true atomic limit
+
+	using KBType = SolverType::KBType;
+	KBType slice(params.nT,
+	             params.eqParams.nMatsubaras,
+	             params.dt,
+	             params.eqParams.ficticiousBeta
+	                 / static_cast<RealType>(params.eqParams.nMatsubaras));
+
+	for (int n = 0; n <= static_cast<int>(params.nT); ++n) {
+		solver.computeGimp(slice, n);
+		const ComplexType g
+		    = slice.lesser(static_cast<SizeType>(n), static_cast<SizeType>(n));
+		INFO("n=" << n << " G_imp(t,t)=" << g);
+		CHECK(g.real() == Catch::Approx(0.0).margin(1e-10));
+		CHECK(g.imag() == Catch::Approx(0.5).epsilon(1e-8));
+	}
+}
