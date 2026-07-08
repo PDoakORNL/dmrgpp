@@ -128,7 +128,6 @@ public:
 		knownLabels_.push_back("TSPSites");
 		knownLabels_.push_back("TSPLoops");
 		knownLabels_.push_back("TSPProductOrSum");
-		knownLabels_.push_back("TSPEvolveGroundState");
 		knownLabels_.push_back("IsPeriodicX");
 		knownLabels_.push_back("Orbitals");
 		knownLabels_.push_back("TSPOperator");
@@ -256,7 +255,6 @@ public:
 		str += "vector.integer TSPSites;\n";
 		str += "vector.integer TSPLoops;\n";
 		str += "string TSPProductOrSum;\n";
-		str += "integer TSPEvolveGroundState = 0;\n";
 		str += "string TSPOperator;\n";
 		str += "string OperatorExpression;\n";
 		str += "integer Threads = 1;\n";

@@ -99,27 +99,17 @@ public:
 	TargetParamsTimeStep(IoInputter& io, PsimagLite::String targeting, const ModelType& model)
 	    : TimeVectorParamsType(io, targeting, model)
 	    , maxTime_(0)
-	    , evolveGroundState_(false)
 	{
 		try {
 			io.readline(maxTime_, "TSPMaxTime=");
-		} catch (std::exception&) { }
-
-		try {
-			int tmp = 0;
-			io.readline(tmp, "TSPEvolveGroundState=");
-			evolveGroundState_ = (tmp != 0);
 		} catch (std::exception&) { }
 	}
 
 	virtual RealType maxTime() const { return maxTime_; }
 
-	bool evolveGroundState() const { return evolveGroundState_; }
-
 private:
 
 	RealType maxTime_;
-	bool     evolveGroundState_;
 }; // class TargetParamsTimeStep
 
 template <typename ModelType>
