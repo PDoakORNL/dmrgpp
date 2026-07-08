@@ -75,7 +75,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 
 #include "ProgramGlobals.h"
-#include "Version.h"
+#include "../Version.h"
 
 namespace Dmrg {
 

@@ -1,10 +1,10 @@
 #ifndef PROVENANCE_H
 #define PROVENANCE_H
+#include "../Version.h"
 #include "AllocatorCpu.h"
 #include "AnsiColors.h"
 #include "GitRevision.h"
 #include "MatrixVectorKron/BatchedGemmInclude.hh"
-#include "Version.h"
 #include <iostream>
 #include <sstream>
 
