@@ -57,7 +57,7 @@ public:
 	//               obtained from the preceding equilibrium DMFT run.
 	void solve(const VectorRealType& bathParams)
 	{
-		std::cout << "NeqDmftSolver: running impurity solver setup\n";
+		std::cout << "NeqDmftSolver: running impurity solver setup" << std::endl;
 		impSolver_.solve(bathParams);
 
 		// Copy equilibrium Matsubara components from the solver's internal gimp —
@@ -74,7 +74,7 @@ public:
 		impSolver_.prepareTimeStep(0, latticeGf_.delta());
 
 		std::cout << "NeqDmftSolver: starting time propagation to t_max=" << params_.tMax
-		          << " with nT=" << params_.nT << " steps\n";
+		          << " with nT=" << params_.nT << " steps" << std::endl;
 
 		auto t_neq_start = std::chrono::steady_clock::now();
 		for (int n = 1; n <= static_cast<int>(params_.nT); ++n) {
@@ -83,7 +83,7 @@ public:
 			auto   t1      = std::chrono::steady_clock::now();
 			double dt_wall = std::chrono::duration<double>(t1 - t0).count();
 			std::cout << "  step " << n << " / " << params_.nT << "  (" << std::fixed
-			          << std::setprecision(1) << dt_wall << " s)\n";
+			          << std::setprecision(1) << dt_wall << " s)" << std::endl;
 		}
 		double neq_total
 		    = std::chrono::duration<double>(std::chrono::steady_clock::now() - t_neq_start)

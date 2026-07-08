@@ -17,26 +17,25 @@ namespace Dmft {
 
 // Shared Lanczos diagonalization and input-building utilities used by both
 // ImpuritySolverEqLanczos (equilibrium) and ImpuritySolverNeqLanczos (NEQ).
-template <typename ComplexOrRealType>
-struct LanczosImpurityUtils {
+template <typename ComplexOrRealType> struct LanczosImpurityUtils {
 
 	using RealType       = typename PsimagLite::Real<ComplexOrRealType>::Type;
 	using VectorRealType = typename PsimagLite::Vector<RealType>::Type;
 	using MatrixType     = PsimagLite::Matrix<ComplexOrRealType>;
 
 	using DmrgInputReadable = typename PsimagLite::InputNg<Dmrg::InputCheck>::Readable;
-	using GeometryType =
-	    PsimagLite::Geometry<ComplexOrRealType, DmrgInputReadable, LanczosPlusPlus::LanczosGlobals>;
-	using ModelBaseType =
-	    LanczosPlusPlus::LanczosModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
+	using GeometryType      = PsimagLite::
+	    Geometry<ComplexOrRealType, DmrgInputReadable, LanczosPlusPlus::LanczosGlobals>;
+	using ModelBaseType
+	    = LanczosPlusPlus::LanczosModelBase<ComplexOrRealType, GeometryType, DmrgInputReadable>;
 	using BasisBaseType       = typename ModelBaseType::BasisBaseType;
 	using DefaultSymmetryType = LanczosPlusPlus::DefaultSymmetry<GeometryType, BasisBaseType>;
-	using InternalProductOnTheFlyType =
-	    LanczosPlusPlus::InternalProductOnTheFly<ModelBaseType, DefaultSymmetryType>;
-	using InternalProductStoredType =
-	    LanczosPlusPlus::InternalProductStored<ModelBaseType, DefaultSymmetryType>;
-	using VectorType         = typename PsimagLite::Vector<ComplexOrRealType>::Type;
-	using VectorVectorType   = typename PsimagLite::Vector<VectorType>::Type;
+	using InternalProductOnTheFlyType
+	    = LanczosPlusPlus::InternalProductOnTheFly<ModelBaseType, DefaultSymmetryType>;
+	using InternalProductStoredType
+	    = LanczosPlusPlus::InternalProductStored<ModelBaseType, DefaultSymmetryType>;
+	using VectorType           = typename PsimagLite::Vector<ComplexOrRealType>::Type;
+	using VectorVectorType     = typename PsimagLite::Vector<VectorType>::Type;
 	using ParametersSolverType = PsimagLite::ParametersForSolver<RealType>;
 	using LanczosSolverType    = PsimagLite::LanczosSolver<InternalProductOnTheFlyType>;
 
@@ -118,28 +117,36 @@ struct LanczosImpurityUtils {
 			uStr += ", 0.";
 		uStr += "]";
 
-		std::string connStr = "[";
+		// A single site (no bath) has no bonds at all; the Ainur vector
+		// grammar cannot parse an empty "[]" literal, so NumberOfTerms=0 is
+		// used instead to skip the Connectors read entirely rather than
+		// trying to serialize a zero-length vector.
+		const bool  hasHoppings = (hoppings.size() > 0);
+		std::string connStr     = "[";
 		for (SizeType i = 0; i < hoppings.size(); ++i) {
-			if (i > 0) connStr += ",";
+			if (i > 0)
+				connStr += ",";
 			connStr += ttos(hoppings[i]);
 		}
 		connStr += "]";
 
 		std::string potStr = "[";
 		for (SizeType i = 0; i < nsites; ++i) {
-			if (i > 0) potStr += ",";
+			if (i > 0)
+				potStr += ",";
 			potStr += ttos(potV[i]);
 		}
 		potStr += ",";
 		for (SizeType i = 0; i < nsites; ++i) {
-			if (i > 0) potStr += ",";
+			if (i > 0)
+				potStr += ",";
 			potStr += ttos(potV[i]);
 		}
 		potStr += "]";
 
 		std::string s = "##Ainur1.0\n\n";
 		s += "TotalNumberOfSites=" + ttos(nsites) + ";\n";
-		s += "NumberOfTerms=1;\n";
+		s += "NumberOfTerms=" + std::string(hasHoppings ? "1" : "0") + ";\n";
 		s += "DegreesOfFreedom=1;\n";
 		s += "GeometryKind=star;\n";
 		s += "GeometryOptions=none;\n";
@@ -152,7 +159,8 @@ struct LanczosImpurityUtils {
 		s += "FiniteLoops=0 0 0;\n";
 		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
 		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
-		s += "dir0:Connectors=" + connStr + ";\n";
+		if (hasHoppings)
+			s += "dir0:Connectors=" + connStr + ";\n";
 		s += "potentialV=" + potStr + ";\n";
 		return s;
 	}

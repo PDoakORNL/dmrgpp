@@ -196,9 +196,26 @@ int main(int argc, char** argv)
 				io.readline(nStatesNeq, "NstatesNeq=");
 			} catch (std::exception&) { }
 
+			// NeqAtomicLimit=true: start the neq run from the atomic limit
+			// (no bath coupled at t=0), so the first bath is empty and
+			// Delta^- is identically zero, matching the setup of Gramsch,
+			// Balzer, Eckstein, Kollar, PRB 88, 235106 (2013), Sec. VI.
+			// This bypasses the equilibrium bath fit for the neq stage
+			// instead of forcing it to fit a near-zero bandwidth.
+			bool neqAtomicLimit = false;
+			try {
+				int tmp = 0;
+				io.readline(tmp, "NeqAtomicLimit=");
+				neqAtomicLimit = (tmp > 0);
+			} catch (std::exception&) { }
+
+			const PsimagLite::Vector<RealType>::Type emptyBathParams;
+			const auto&                              neqBathParams
+			    = neqAtomicLimit ? emptyBathParams : dmftSolver.bathResult();
+
 			auto runNeq = [&](auto& neqSolver)
 			{
-				neqSolver.solve(dmftSolver.bathResult());
+				neqSolver.solve(neqBathParams);
 				neqSolver.dumpGreenFunctions();
 			};
 
@@ -213,7 +230,7 @@ int main(int argc, char** argv)
 				using TdmrgImpType
 				    = Dmft::ImpuritySolverNeqTdmrg<std::complex<RealType>>;
 				TdmrgImpType tdmrgSolver(neqParams, application, io);
-				tdmrgSolver.solve(dmftSolver.bathResult());
+				tdmrgSolver.solve(neqBathParams);
 				{
 					const std::string& p = neqParams.neqOutputPrefix;
 					tdmrgSolver.gimp().dump(p.empty() ? "green" : p + "-green");

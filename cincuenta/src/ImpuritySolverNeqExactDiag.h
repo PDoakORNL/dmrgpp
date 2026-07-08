@@ -261,8 +261,12 @@ public:
 			uStr += ", 0.";
 		uStr += "]";
 
-		// star geometry connectors
-		std::string connStr = "[";
+		// star geometry connectors. A single site (no bath) has no bonds at
+		// all; the Ainur vector grammar cannot parse an empty "[]" literal,
+		// so NumberOfTerms=0 is used instead to skip the Connectors read
+		// entirely rather than trying to serialize a zero-length vector.
+		const bool  hasHoppings = (hoppings.size() > 0);
+		std::string connStr     = "[";
 		for (SizeType i = 0; i < hoppings.size(); ++i) {
 			if (i > 0)
 				connStr += ",";
@@ -287,7 +291,7 @@ public:
 
 		std::string s = "##Ainur1.0\n\n";
 		s += "TotalNumberOfSites=" + ttos(nsites) + ";\n";
-		s += "NumberOfTerms=1;\n";
+		s += "NumberOfTerms=" + std::string(hasHoppings ? "1" : "0") + ";\n";
 		s += "DegreesOfFreedom=1;\n";
 		s += "GeometryKind=star;\n";
 		s += "GeometryOptions=none;\n";
@@ -300,7 +304,8 @@ public:
 		s += "FiniteLoops=0 0 0;\n";
 		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
 		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
-		s += "dir0:Connectors=" + connStr + ";\n";
+		if (hasHoppings)
+			s += "dir0:Connectors=" + connStr + ";\n";
 		s += "potentialV=" + potStr + ";\n";
 		return s;
 	}

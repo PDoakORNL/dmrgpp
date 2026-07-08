@@ -76,6 +76,9 @@ public:
 		str += "string QuenchShape;\n"; // "step" (default), "cosine", "tanh"
 		str += "real QuenchDuration;\n"; // ramp duration t_q in real time; 0 = step quench
 		str += "string NeqOutputPrefix;\n"; // prefix for output Green's function files
+		str += "integer NeqAtomicLimit;\n"; // 1 = start neq run from the atomic limit:
+		                                    // no first bath (Delta^- = 0 exactly),
+		                                    // per GBEK Sec. VI setup
 		// TSPTimeSteps and TSPAdvanceEach are declared by Dmrg::InputCheck().import()
 		// above — do NOT re-declare them here; duplicates cause Ainur parse failures.
 		// Note: FiniteLoopsGs and FiniteLoopsTdmrg are read as raw strings;
