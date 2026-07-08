@@ -152,6 +152,7 @@ if(Python3_FOUND)
   # there is no direct comparison of tDMRG G_imp against the Weiss field G_0.
   # Instead the check is transitive:
   #   (1) u0_neq_gImpEqG0_exactdiag_check proved  ExactDiag G_imp = G_0  at U=0
+  #       (Nightly-only; not re-run here — see the dedicated reference run below)
   #   (2) u0_neq_gImpEqGcluster_tdmrg_check proves tDMRG G_imp = ExactDiag G_imp
   #   => tDMRG G_imp = G_0 = G_cluster_0 at U=0 by transitivity.
   # Run covers t = 0..2 (NtNeq=20, TmaxNeq=2), no quench (U_i = U_f = 0).
@@ -160,6 +161,19 @@ if(Python3_FOUND)
   # satisfied. The meaningful tDMRG accuracy test is neqTsujiTdmrg0_compare
   # (U=0->2 quench). Additionally, only the G^R(t,0) column is compared — the
   # full two-time structure G^R(t,t') for t'>0 is not exercised here.
+  #
+  # Dedicated ExactDiag reference run for this comparison: u0_neq_gImpEqG0_exactdiag
+  # above is LABELS "Nightly" and excluded from fast CI (-LE Nightly), so its
+  # output is not available to a fast-CI test. Run our own copy here, in its own
+  # directory, not Nightly-gated, so this check is self-contained.
+  set(U0_NEQ_ED_FOR_TDMRG_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0NeqExactDiagForTdmrgCompare)
+  file(MAKE_DIRECTORY ${U0_NEQ_ED_FOR_TDMRG_DIR})
+
+  add_test(
+    NAME u0_neq_exactdiag_reference_for_tdmrg_compare
+    COMMAND $<TARGET_FILE:cincuenta> -I ${PATH_TO_INPUTS} -f inputU0NeqExactDiag.ain
+    WORKING_DIRECTORY ${U0_NEQ_ED_FOR_TDMRG_DIR})
+
   set(U0_NEQ_TDMRG_DIR ${CMAKE_CURRENT_BINARY_DIR}/u0NeqTdmrg)
   file(MAKE_DIRECTORY ${U0_NEQ_TDMRG_DIR})
 
@@ -172,10 +186,10 @@ if(Python3_FOUND)
     NAME u0_neq_gImpEqGcluster_tdmrg_check
     COMMAND
       ${Python3_EXECUTABLE} ${PATH_TO_TESTSUITE}/compare_neq_gr.py --tdmrg-retarded ${U0_NEQ_TDMRG_DIR}/green-retarded
-      --tdmrg-lesser ${U0_NEQ_TDMRG_DIR}/green-lesser --ed-retarded ${U0_NEQ_ED_DIR}/green-retarded --ed-lesser
-      ${U0_NEQ_ED_DIR}/green-lesser --tolerance-re 0.02 --tolerance-im 0.02)
+      --tdmrg-lesser ${U0_NEQ_TDMRG_DIR}/green-lesser --ed-retarded ${U0_NEQ_ED_FOR_TDMRG_DIR}/green-retarded
+      --ed-lesser ${U0_NEQ_ED_FOR_TDMRG_DIR}/green-lesser --tolerance-re 0.02 --tolerance-im 0.02)
   set_tests_properties(u0_neq_gImpEqGcluster_tdmrg_check
-                       PROPERTIES DEPENDS "u0_neq_gImpEqGcluster_tdmrg;u0_neq_gImpEqG0_exactdiag")
+                       PROPERTIES DEPENDS "u0_neq_gImpEqGcluster_tdmrg;u0_neq_exactdiag_reference_for_tdmrg_compare")
 
 endif()
 
