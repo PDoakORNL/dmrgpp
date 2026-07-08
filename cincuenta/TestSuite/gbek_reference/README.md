@@ -1,0 +1,349 @@
+# GBEK atomic-limit reference generator
+
+Standalone reference implementation (numpy/scipy only, no dependency on
+cincuenta, Ainur, or LanczosPlusPlus) that computes the "exact"
+-i*Delta^+_<(t,t') hybridization for the atomic-limit hopping quench setup of
+
+    Gramsch, Balzer, Eckstein, Kollar, PRB 88, 235106 (2013), Sec. VI.
+
+This is the quantity plotted in the top-left panel of the paper's Fig. 3: a
+self-consistently converged Weiss field, obtained by exact diagonalization of
+a small SIAM, used as ground truth against which cincuenta's rank-L Cholesky
+second-bath approximation (`NeqBathDecomposition.h`,
+`ImpuritySolverNeqGBEK.h`) is validated.
+
+**Punch line**: this effort found and fixed a real bug in
+`NeqBathDecomposition.h`'s Cholesky "optimal update" step -- see
+"The real bug" below. It was not a rank-truncation artifact, not a
+particle-hole-symmetry issue, and not first-bath (`Delta^-`) leakage (an
+earlier hypothesis during this investigation that turned out to be wrong --
+see "A wrong turn" below, kept for the record).
+
+## Why this exists
+
+We were trying to validate cincuenta's GBEK second-bath implementation
+against Fig. 3 of the paper and found the comparison ambiguous: cincuenta's
+own "exact" reference runs go through the full Ainur/LanczosPlusPlus
+machinery, which turned out to have several incidental limitations at the
+atomic limit (empty-vector parsing, a hardcoded half-filling constraint, and
+Pauli-forbidden zero-dimensional Fock sectors when seeding the impurity with
+a single spin). None of that is fundamental physics -- the atomic-limit
+reference Green's function is a small, well-defined exact-diagonalization
+problem -- so this directory reimplements just that calculation directly,
+independent of the production C++ code, to produce a trustworthy comparison
+target.
+
+**This is not a general-purpose GBEK solver.** It only handles the one setup
+needed for this comparison: atomic-limit start (Delta^- = 0 identically, no
+first bath), a cosine hopping ramp, Bethe-lattice self-consistency, and the
+alpha/beta spin-seed averaging the paper uses to restore particle-hole
+symmetry.
+
+## Physics implemented
+
+- **Atomic limit**: no first bath. `Delta = Delta^+` entirely.
+- **Hopping (bandwidth) quench**: `v(t)` cosine ramp 0->1 over `[0, tq]`,
+  constant afterward. `U` fixed throughout (this is a hopping quench, not an
+  interaction quench).
+- **Bethe-lattice self-consistency**: `Delta(t,t') = hop(t) G(t,t') hop(t')`,
+  `hop(t) = t_star_f * v(t)`.
+- **Second bath**: `L` pairs of bath sites (one initially doubly-occupied,
+  one initially empty), coupled via a rank-`L` causal Cholesky decomposition
+  of `-i*Delta^<(t,t')` -- see `gbek_cholesky.py`, and "The real bug" below.
+- **G-sigma averaging**: `G_sigma = 1/2 (G_alpha,0sigma + G_beta,0sigma)`.
+  By the up<->down / alpha<->beta symmetry of this setup,
+  `G_beta,0sigma = G_alpha,0,-sigma`, so only the alpha (impurity seeded
+  spin-up) trajectory needs to be propagated; averaging its up- and
+  down-spin correlators gives the same result as averaging the alpha and
+  beta seeds, at half the cost.
+
+## Files
+
+- `gbek_ed.py` -- Fock-space basis construction and fermion operators
+  (bit-manipulation based, independent ED implementation).
+- `gbek_dynamics.py` -- Hamiltonian construction, real-time propagation
+  (hand-rolled truncated-Taylor-series propagator, ~5-300x faster than
+  `scipy.sparse.linalg.expm_multiply` for this problem's step sizes, with an
+  automatic fallback to the scipy routine if a step doesn't converge), and
+  two-time Green's function extraction via forward/backward propagation.
+- `gbek_cholesky.py` -- rank-`L` causal Cholesky decomposition, implemented
+  directly from the paper's Eq. 56-63 (see "The real bug" below for why
+  "directly from the paper" rather than "ported from the C++" matters
+  here). Also keeps `cholesky_causal_buggy_fixed_window()`, the old,
+  incorrect version, purely to document/regression-test against the bug.
+- `gbek_selfconsistency.py` -- wires the above into the DMFT self-consistency
+  loop and writes the result in the same `t t' Re Im` two-time-file format
+  that `compare_neq_delta_lesser.py` already reads, so the reference curve
+  can be plotted with the existing tooling.
+- `compare_reference.py` -- overlays this exact reference against
+  cincuenta's own rank-L Cholesky output
+  (`ImpuritySolverNeqGBEK::dumpPlusBath`).
+- `quantify_delta_minus_leak.py` -- computes `Delta^- = Delta - Delta^+`
+  directly from cincuenta's own dumped output. Originally written to check
+  a "Delta^- leakage" hypothesis that turned out to be wrong (see "A wrong
+  turn"); still useful as a way to compute `Delta^-` from a run's dumps, but
+  don't trust its historical framing without re-deriving what the residual
+  actually means for whatever question you're asking.
+- `check_cholesky_step.py` -- the script that actually found the real bug:
+  takes cincuenta's own dumped total `Delta`, subtracts the analytic
+  (confirmed-tiny) `Delta^-`, and feeds the result through
+  `gbek_cholesky.py`'s independent Cholesky implementation. Reproduced
+  cincuenta's actual C++ output to 1e-6 *before* the fix (proving the C++
+  was executing its algorithm correctly -- the algorithm itself was wrong)
+  and is the natural tool to re-run after any future change to the update
+  step, on real run data rather than synthetic targets.
+
+## The real bug(s): Cholesky "optimal update" step
+
+Two separate bugs were found in `NeqBathDecomposition.h::choleskyOptimalUpdate`,
+in sequence -- fixing the first exposed the second, which was much smaller
+in magnitude but still a real deviation from the paper.
+
+### Bug 1: fixed reference window
+
+`NeqBathDecomposition.h::choleskyOptimalUpdate` implements GBEK's low-rank
+causal Cholesky update (paper Eq. 62-63). For the seeding phase (`n <= L`)
+this is a standard exact Cholesky recursion and was never in question. For
+`n > L`, the paper's own equations explicitly define the least-squares
+reference matrix `Q_s` as containing **all** `s = n-1` previously-determined
+rows, growing by one row every step:
+
+    a_{s+1} = ((-iDelta^+_<)_{s+1,1}, ..., (-iDelta^+_<)_{s+1,s})^dagger    (length s)
+    minimize ||Q_s q_{s+1} - a_{s+1}||^2 + |q_{s+1}^dagger q_{s+1} - (-iDelta^+_<)_{s+1,s+1}|^2
+
+The actual code instead hardcoded the reference set to the first `L`
+seeding rows, **forever** -- never growing it as `n` increases. On an
+exactly-rank-`L` target this is invisible (the residual is zero either way
+once `L == rank`), which is exactly how it went undetected by the existing
+Catch2 tests, which only ever use exactly-rank-`L` synthetic targets. On a
+genuinely full-rank target -- which is the ordinary case for real physical
+hybridization functions -- the fixed-window version collapses the
+reconstructed diagonal toward 0 within a handful of steps past `L`, instead
+of degrading gradually as the paper describes and as the fixed,
+growing-window version actually does.
+
+### How this was found
+
+1. `compare_reference.py` showed cincuenta's actual `Delta^+` output
+   collapsing to ~0 by t~2 on the paper-matching `L=3, N=100` grid, well
+   before the paper's own claimed L=3 accuracy horizon (t~2.5).
+2. First hypothesis (wrong, see "A wrong turn"): first-bath (`Delta^-`)
+   leakage. Ruled out by directly computing the analytic `Delta^-` formula
+   from the run's own fitted equilibrium bath parameters: it's ~3e-4,
+   constant, and negligible for the entire trajectory -- nowhere close to
+   being able to explain the missing ~0.5.
+3. `check_cholesky_step.py`: fed cincuenta's own dumped total `Delta` minus
+   that (confirmed tiny) analytic `Delta^-` through an early version of
+   `gbek_cholesky.py`'s Cholesky implementation. It reproduced cincuenta's
+   actual buggy output to 1e-6 -- but that implementation was, at the time,
+   a line-for-line **port** of `NeqBathDecomposition.h`, not an independent
+   check. A faithful port reproduces whatever bug it's ported from and
+   gives false confirmation that the algorithm is correct.
+4. Rewriting `cholesky_causal()` directly from the paper's Eq. 62-63
+   (instead of from the C++ source) immediately gave different, much
+   better-tracking behavior on the same input -- exposing the fixed-vs-growing
+   reference-set bug. See `feedback_trust_the_publication.md` in the
+   assistant's memory for the general lesson this illustrates: when your
+   numerics contradict a published result, suspect your own bug before the
+   publication, and if repeated debugging keeps "confirming" your existing
+   code, reimplement the suspicious piece independently rather than
+   re-checking it against itself.
+
+### Bug 1 fix
+
+`NeqBathDecomposition.h::choleskyOptimalUpdate` now builds its Gram matrix
+and right-hand side from all `s = n-1` previously-determined rows (growing
+every step), matching `gbek_cholesky.py::cholesky_causal()` exactly. Cost
+per call goes from O(L^2) to O(s L^2), i.e. total cost O(N^2 L^2/2) instead
+of O(N L^2) across the full run -- for the ranks and step counts used here
+(L <= ~5, N ~ 100-1000) this is negligible next to the real-time
+propagation cost.
+
+### Bug 2: missing diagonal constraint
+
+After fixing bug 1, `compare_reference.py` still showed cincuenta's `Delta^+`
+decaying noticeably faster than the exact reference on the real
+paper-matching grid -- smaller than bug 1's near-total collapse, but a real,
+consistent gap (e.g. diagonal 0.478 vs the exact 0.4997 at t=0.4, growing to
+a much larger relative gap by t=2). The paper's actual objective for the
+"optimal update" (Eq. 63) is a JOINT minimization:
+
+    F(q) = 2||Q_s q - a||^2 + |q^dagger q - d|^2,   d = (-iDelta^+_<)_{s+1,s+1}
+
+not a separable "solve the linear off-diagonal fit, then match the diagonal
+separately" problem. `cholesky_causal()`, even after the bug 1 fix, still
+only solved the linear part (`Q^dagger Q q = Q^dagger a`) and never enforced
+`q^dagger q ~ d`. Directly checking `q^dagger q` against `d` after the
+linear solve showed it undershooting by ~5-15%, growing worse with `n` --
+exactly the residual gap symptom above.
+
+**The fix**: the Wirtinger stationarity condition for `F(q)` is (the factors
+of 2 cancel completely -- an early draft of this fix kept a stray factor of
+2 and got answers close to, but measurably different from, the true minimum
+found by numerically minimizing `F(q)` directly with BFGS in Python):
+
+    [Q^dagger Q + (mu - d) I] q(mu) = Q^dagger a,   mu = q(mu)^dagger q(mu)
+
+This is ONE nonlinear SCALAR equation in `mu` (not a joint multivariate
+optimization): for fixed `mu`, `q(mu)` solves a small `L x L` linear system;
+`g(mu) = ||q(mu)||^2 - mu = 0` is then a 1D root-find. At `mu = d` this
+reduces exactly to bug 2's buggy linear-only solution; `g` is decreasing as
+`mu` decreases below `d`, so the root lies in `[0, d]` and plain bisection
+there is robust -- no nonlinear-optimization library needed, which is what
+makes this practical to port to C++ (`solveOptimalUpdateJoint()`, next to
+`choleskyOptimalUpdate()`).
+
+Verified the bisection-based solve reproduces the BFGS-found true minimum of
+`F(q)` to 5+ decimal places on both a synthetic full-rank target and
+cincuenta's own real run data before porting to C++.
+
+### Incisive Catch2 tests
+
+`cincuenta/src/tests/test_NeqBathDecomposition.cpp` has a test, "Full-rank
+target: L=3 reconstruction matches the Python reference (GBEK Eq. 62-63),
+not the fixed-window bug", built specifically to distinguish all three
+variants (fixed / linear-only-bug-2 / fixed-window-bug-1) -- the existing
+exact-rank tests cannot, for the reason in the previous section. It uses an
+Ornstein-Uhlenbeck / exponential kernel target, `0.5*exp(-decay*|n-j|*dt)`
+(PSD by Bochner's theorem, and genuinely full-rank -- not reducible to any
+finite rank exactly), run for 30 steps at rank `L=3` (27 steps into the
+"optimal update" phase). Expected values were generated independently in
+Python, directly from the paper's equations (not ported from the C++), via
+the exact command documented in that test's comment block -- reproduced
+here:
+
+    cd cincuenta/TestSuite/gbek_reference
+    uv run --with numpy python3 -c "
+    import numpy as np
+    from gbek_cholesky import cholesky_causal
+    dt, decay, N = 0.2, 0.15, 31
+    target = np.zeros((N, N))
+    for n in range(N):
+        for j in range(N):
+            target[n, j] = 0.5 * np.exp(-decay * abs(n - j) * dt)
+    target[0, :] = 0.0
+    target[:, 0] = 0.0
+    V = cholesky_causal(target.astype(complex), 3)
+    diag = (V @ V.conj().T).real.diagonal()
+    for n in [1, 5, 10, 15, 20, 25, 30]:
+        print(n, repr(diag[n]))
+    "
+
+The test asserts both tight-tolerance exact-value checks (catching bug 2:
+the fully-fixed algorithm gives 0.4772 at n=10, vs 0.4723 for the
+linear-only bug-2-only version) and a loose discriminating bound
+(`diagAt(30) > 0.35`, catching bug 1: the fixed-window algorithm gives
+~0.099 at n=30, vs 0.419-0.425 for either bug-1-fixed variant). Verified
+both independently by temporarily reverting each fix in turn and confirming
+the corresponding assertions fail with values matching
+`gbek_cholesky.py`'s `cholesky_causal_buggy_fixed_window()` /
+`cholesky_causal_linear_only()` respectively.
+
+**To extend this**: any future change to `choleskyOptimalUpdate` (or a
+similar routine elsewhere) should be checked the same way -- implement the
+intended algorithm independently in Python from whatever equations it's
+supposed to follow, run it on a genuinely full-rank target for many steps
+past the seeding phase, and hardcode a handful of the resulting values
+(with `repr()` for full precision) as a Catch2 test. Exact-rank synthetic
+targets are good for basic correctness but cannot catch this class of bug.
+
+## A wrong turn: first-bath (`Delta^-`) leakage (ruled out)
+
+Earlier in this investigation, `quantify_delta_minus_leak.py` computed
+`Delta^- = Delta - Delta^+_dumped` from cincuenta's own output and appeared
+to show `Delta^-` rising to absorb the persistent field that `Delta^+`
+loses. This was a real observation but a wrong conclusion: `Delta - Delta^+_dumped`
+is not the literal physical first-bath term -- it's whatever the Cholesky
+reconstruction fails to capture, which is a different thing whenever that
+reconstruction itself is inaccurate (which, per the bug above, it was).
+Computing the actual analytic `Delta^-` formula directly from the run's
+fitted equilibrium bath parameters (`V_alpha`, `eps_alpha`) showed it is
+tiny (~3e-4) and constant for the whole trajectory -- nowhere near large
+enough to be the missing ~0.5. The real explanation was the Cholesky bug
+above. Left in this README, and the script left in the repo, as a record of
+the wrong turn and why it was wrong (see `feedback_trust_the_publication.md`).
+
+## Validation status (as of 2026-07-07)
+
+Each piece was checked against an independent exact/analytic result before
+being combined:
+
+- ED operators: atomic-limit ground-state energy = `-U/4` per site (matches
+  the paper's stated atomic-limit energy).
+- Propagation + two-time G^<: matched an analytic single-particle
+  (`U=0`, static hopping) oscillation and Green's function to machine
+  precision (~1e-16).
+- Cholesky decomposition: reproduces the existing C++ Catch2 test behavior
+  on exact-rank targets (exact reconstruction at `L = rank`, strictly worse
+  at `L < rank`, row 0 identically zero), *and* now additionally verified
+  independently from the paper's equations on a full-rank target (see "The
+  real bug").
+- Full self-consistency loop, `L=3`, `N=100`, `dt=0.04`, `tmax=4` (the exact
+  paper-matching grid): converges to `max|dLambda| < 1e-8` in ~15
+  iterations (~2 min wall time with the corrected, growing-reference-set
+  Cholesky -- slower than the original buggy version's ~45s, expected given
+  the O(N^2 L^2) vs O(N L^2) cost, still entirely practical at this scale).
+  The diagonal `-i*Delta(t,t)` is flat at its particle-hole-symmetric exact
+  value `0.5*hop(t)^2` across the *entire* time range (not just
+  asymptotically) -- this is a genuine invariant of the physics (protected
+  by particle-hole symmetry, independent of Cholesky rank `L`), and was
+  unaffected by either the Hamiltonian-construction bugs (below) or the
+  Cholesky bug (above), since it never depends on off-diagonal accuracy.
+  The full matrix is positive-semidefinite to numerical precision.
+
+### Other bugs found and fixed during validation (not just perf issues)
+
+1. **Fully dense "sparse" Hamiltonian.** The onsite interaction term was
+   built as `U * (n0up.toarray() - 0.5) * (n0dn.toarray() - 0.5)`:
+   `.toarray()` on a diagonal sparse operator produces a dense matrix of
+   mostly zeros, and subtracting a scalar from *that* turns every
+   off-diagonal zero into `-0.5`, silently manufacturing a fully dense,
+   physically wrong interaction term (spectral radius ~600 instead of O(1)).
+   Fixed by operating on `.diagonal()` directly and rebuilding via
+   `sp.diags(...)`.
+2. **Non-Hermitian time-dependent Hamiltonian for complex bath couplings.**
+   `V[n,p]` from the Cholesky decomposition is generally complex. The
+   original code pre-built each bath-coupling operator as an
+   already-Hermitian `(op + op^dag)` template and scaled it by `V[n,p]` each
+   step -- correct only when `V[n,p]` is real. This slowly broke unitarity
+   (state norm drifted from 1 to >10 over the full time grid) and broke
+   particle-hole symmetry (occupied/empty bath partners must carry `V` and
+   `conj(V)` respectively, per `<+ = (>+)*`, not the same `V`).
+3. **Wrong Hermitian-completion sign in `dump_lesser`.** `Lambda = -i*Delta^<`
+   is Hermitian (`Lambda(t,t')^* = Lambda(t',t)`) -- required for it to be
+   positive-semidefinite. The completion for `t < t'` used `-conj(...)`,
+   the *anti*-Hermitian relation that correctly applies to `Delta^<`/`G^<`
+   themselves (and which cincuenta's C++ correctly uses for
+   `gimp.lesser()`), not to `Lambda`. This produced a sign flip exactly at
+   `t=t'` in every off-diagonal slice/2D plot -- purely a plotting/output
+   bug; the actual self-consistency computation only ever reads the
+   `j <= n` triangle and was never affected.
+
+**Performance**: bugs 1 and 2 above also explained most of the original
+runtime estimate (density bug: ~330x from the Hamiltonian actually being
+sparse; hand-rolled Taylor propagator vs. scipy's general-purpose
+`expm_multiply`: another ~5x). The originally-estimated "hours" for the
+full grid dropped to under a minute once both were fixed (before the
+Cholesky reference-set fix increased per-run cost again, to the still
+entirely practical ~2 min noted above).
+
+## Usage
+
+    cd cincuenta/TestSuite/gbek_reference
+    uv run --with numpy --with scipy python3 gbek_selfconsistency.py --probe
+    uv run --with numpy --with scipy python3 gbek_selfconsistency.py \
+        --L 3 --N 100 --dt 0.04 --U 2.0 --tq 0.25 --out gbek-atomic-limit-exact-lesser
+
+    # compare against cincuenta's own rank-L Cholesky approximation:
+    uv run --with numpy --with scipy --with matplotlib python3 compare_reference.py \
+        gbek-atomic-limit-exact-lesser /path/to/gebk-fig3-L3-plus-bath-lesser --tmax 4.0
+
+    # check the Cholesky update step itself against a run's own dumped data:
+    uv run --with numpy --with scipy python3 check_cholesky_step.py \
+        /path/to/gebk-fig3-L3-weiss-delta-lesser /path/to/gebk-fig3-L3-plus-bath-lesser \
+        --V <fitted V_alpha, comma-separated> --eps <fitted eps_alpha, comma-separated> \
+        --beta <FicticiousBeta> --L 3
+
+    # or, plot the exact reference alone with the existing tooling:
+    python3 ../compare_neq_delta_lesser.py gbek-atomic-limit-exact-lesser \
+        --tmax 4.0 --title "GEBK Fig. 3: exact -i Lambda^<_+ (atomic limit reference)"
