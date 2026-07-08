@@ -1,0 +1,19 @@
+generated: atomic_limit_2d_rank_comparison.png
+git commit: 0c4a26e3e83dce09d4b33ae5f92ab5577bf9fcac
+git branch: neq_dmft_merge_master_dev
+working tree dirty: yes
+dirty files (git status --porcelain):
+M cincuenta/src/ImpuritySolverNeqBase.h
+ M cincuenta/src/ImpuritySolverNeqGBEK.h
+ M cincuenta/src/NeqBathDecomposition.h
+ M cincuenta/src/NeqDmftSolver.h
+
+content hashes (sha256, first 16 hex chars) of files relevant to this computation:
+  0cc58b2a333acb74  gbek_ed.py
+  69dd1f8af83652a2  gbek_dynamics.py
+  d46746ac3047de96  gbek_cholesky.py
+  c9e72f472a1ea89f  gbek_selfconsistency.py
+  c30e6b25c53397f4  ../../src/NeqBathDecomposition.h
+  6478e1a61bbbf0ab  ../../src/ImpuritySolverNeqGBEK.h
+  154ccddc8edeb298  /Users/Shared/ornldev/code/dmrgpp/build/atomic-limit-gbek-L3-weiss-delta-lesser
+  2730b8c0d55f1018  /Users/Shared/ornldev/code/dmrgpp/build/atomic-limit-gbek-L3-plus-bath-lesser

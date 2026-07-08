@@ -57,6 +57,11 @@ public:
 	// No-op for solvers that have no second bath.
 	virtual void dumpPlusBath(const std::string& /*filename*/) const { }
 
+	// Write the raw Cholesky factor V_(n,p) itself (not the reconstructed
+	// product) to file, for row-by-row comparison against an independent
+	// offline trace. No-op for solvers that have no second bath.
+	virtual void dumpV(const std::string& /*filename*/) const { }
+
 	/*!
 	 * \brief gimp
 	 * Access the last-computed two-time impurity GF.

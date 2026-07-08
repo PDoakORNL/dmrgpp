@@ -184,6 +184,14 @@ public:
 			decomp_->dumpPlusBath(filename);
 	}
 
+	// Raw Cholesky factor V_(n,p), for row-by-row comparison against an
+	// independent offline trace (see NeqBathDecomposition::dumpV).
+	void dumpV(const std::string& filename) const override
+	{
+		if (decomp_)
+			decomp_->dumpV(filename);
+	}
+
 private:
 
 	// ========== L>0 setup ==========

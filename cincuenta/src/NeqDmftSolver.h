@@ -107,6 +107,7 @@ public:
 		latticeGf_.g0().dump(p.empty() ? "weiss-green" : p + "-weiss-green");
 		latticeGf_.delta().dump(p.empty() ? "weiss-delta" : p + "-weiss-delta");
 		impSolver_.dumpPlusBath(p.empty() ? "plus-bath-lesser" : p + "-plus-bath-lesser");
+		impSolver_.dumpV(p.empty() ? "cholesky-V" : p + "-cholesky-V");
 	}
 
 private:

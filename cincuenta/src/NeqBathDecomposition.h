@@ -177,6 +177,25 @@ public:
 		}
 	}
 
+	// Dump the raw Cholesky factor V_(n,p) itself (not the reconstructed
+	// product), for row-by-row comparison against an independent offline
+	// trace (see cincuenta/TestSuite/gbek_reference -- the online-vs-offline
+	// discrepancy diagnosis). File columns: n  p  Re(V)  Im(V)
+	void dumpV(const std::string& filename) const
+	{
+		std::ofstream f(filename);
+		// Full double precision: this comparison is used to diagnose
+		// near-singular seeding rows where the default 6-sig-fig ostream
+		// precision would itself be the dominant source of error.
+		f.precision(17);
+		for (SizeType n = 0; n <= nT_; ++n) {
+			for (SizeType p = 0; p < rank_; ++p) {
+				f << n << " " << p << " " << V_(n, p).real() << " "
+				  << V_(n, p).imag() << "\n";
+			}
+		}
+	}
+
 private:
 
 	// Fermi function f(ε) = 1 / (1 + exp(β(ε − μ)))
@@ -249,22 +268,35 @@ private:
 		VectorComplexType a(s);
 		for (int k = 0; k < s; ++k)
 			a[k] = -iDeltaPlusLesser(n, k + 1, delta);
-		// Gram matrix QtQ[p][p'] = Σ_{k=1}^{s} V_(k,p) conj(V_(k,p'))
+		// Gram matrix QtQ[p][p'] = Σ_{k=1}^{s} conj(V_(k,p)) V_(k,p') -- i.e.
+		// Q^H Q with Q_{kp} = V_(k,p). An earlier version of this function
+		// conjugated the WRONG factor (V_(k,p) * conj(V_(k,p')), the
+		// conjugate-transpose of the correct Gram matrix), and Qta below
+		// applied no conjugate to V at all. Both are silently well-defined
+		// (QtQ stays Hermitian either way; Qta is still some vector) so
+		// this produced no crash and no NaN, only a systematically wrong
+		// solution once V's columns carry non-trivial complex phases --
+		// found by comparing cincuenta's own dumped V_(n,p) row-by-row
+		// against gbek_cholesky.py::cholesky_causal() fed the identical
+		// (Q,a,d) inputs (see cincuenta/TestSuite/gbek_reference/compare_V_rows.py),
+		// and confirmed by reproducing cincuenta's actual (wrong) output
+		// bit-for-bit by deliberately re-introducing this exact swapped
+		// conjugation in a standalone Python replay.
 		MatrixComplexType QtQ(L, L, ComplexType(0));
 		for (int p = 0; p < L; ++p) {
 			for (int pp = 0; pp < L; ++pp) {
 				ComplexType sum(0);
 				for (int k = 1; k <= s; ++k)
-					sum += V_(k, p) * std::conj(V_(k, pp));
+					sum += std::conj(V_(k, p)) * V_(k, pp);
 				QtQ(p, pp) = sum;
 			}
 		}
 
-		// Rhs Qta[p] = Σ_{k=1}^{s} V_(k,p) a[k-1]
+		// Rhs Qta[p] = Σ_{k=1}^{s} conj(V_(k,p)) a[k-1]  (i.e. Q^H a)
 		VectorComplexType Qta(L, ComplexType(0));
 		for (int p = 0; p < L; ++p)
 			for (int k = 1; k <= s; ++k)
-				Qta[p] += V_(k, p) * a[k - 1];
+				Qta[p] += std::conj(V_(k, p)) * a[k - 1];
 
 		const RealType    d = -std::real(iDeltaPlusLesser(n, n, delta));
 		VectorComplexType q = solveOptimalUpdateJoint(QtQ, Qta, d, L);
