@@ -19,8 +19,8 @@ Please see full open source license included in file LICENSE.
 #ifndef PSICOMPLEX_H_
 #define PSICOMPLEX_H_
 
-#include "../loki/TypeTraits.h"
 #include "AllocatorCpu.h"
+#include "loki/TypeTraits.h"
 #include <complex>
 
 namespace PsimagLite {
