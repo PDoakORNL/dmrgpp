@@ -8,6 +8,12 @@
 #include "Random48.h"
 #include "TypeToString.h"
 #include "Vector.h"
+
+#include "PsimagLiteConfig.h"
+#ifdef PSIMAGLITE_USE_KOKKOS
+#include <Kokkos_Core.hpp>
+#endif
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -70,6 +76,9 @@ public:
 	    : concurrency_(argc, argv, nthreads)
 	    , appName_(basename(appName))
 	    , microArch_(MicroArchitecture().vendorId())
+#ifdef PSIMAGLITE_USE_KOKKOS
+	    , scopeGuard_(*argc, *argv)
+#endif
 	{
 		chekSizeType();
 
@@ -133,6 +142,9 @@ private:
 	String      appName_;
 	String      cmdLine_;
 	String      microArch_;
+#ifdef PSIMAGLITE_USE_KOKKOS
+	Kokkos::ScopeGuard scopeGuard_;
+#endif
 };
 
 } // namespace PsimagLite
