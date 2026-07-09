@@ -50,6 +50,7 @@ public:
 	    , nTau_(nTau)
 	    , dt_(dt)
 	    , dtau_(dtau)
+	    , maxDiagSeen_(0)
 	    , V_(nT + 1, std::max(rank, SizeType(1)), ComplexType(0))
 	{
 		const SizeType nBath = bathParams.size() / 2;
@@ -78,6 +79,9 @@ public:
 
 		const int L = static_cast<int>(rank_);
 
+		maxDiagSeen_
+		    = std::max(maxDiagSeen_, std::abs(-std::real(iDeltaPlusLesser(n, n, delta))));
+
 		if (n <= L) {
 			// Standard Cholesky: n=1 seeds col 0, n=2 seeds col 1, ..., n=L seeds col
 			// L-1. Pivot for column p lives at row p+1 (row 0 is degenerate).
@@ -88,7 +92,25 @@ public:
 			RealType d = -std::real(iDeltaPlusLesser(n, n, delta));
 			for (int k = 0; k < col; ++k)
 				d -= std::norm(V_(n, k));
-			V_(n, col) = std::sqrt(std::max(d, RealType(0)));
+			// Floor instead of clamping to exactly 0 -- see
+			// gbek_cholesky.py::cholesky_causal's docstring (2026-07-09) for
+			// the full story: the last seeding column's residual `d` is often
+			// the tiny difference of O(1)-scale terms (a genuine property of
+			// Lambda's available precision, verified via an independent
+			// 50-digit mpmath replay, not a linear-algebra artifact), so its
+			// sign is essentially undetermined noise. Clamping to EXACTLY 0
+			// there is catastrophic: it makes that column's entire row/column
+			// in every future Gram matrix identically zero, which then
+			// structurally forces every later optimal-update solve to keep
+			// that component at exactly zero forever (confirmed: this is
+			// exactly what collapsed column 4 to zero for the whole run in a
+			// real L=5 atomic-limit reconstruction). A small positive floor
+			// keeps the column numerically alive so later rows -- seeing
+			// genuine, non-noise data -- remain free to grow it into
+			// something meaningful.
+			const RealType floor
+			    = RealType(1e-10) * std::max(maxDiagSeen_, RealType(1e-300));
+			V_(n, col) = std::sqrt(std::max(d, floor));
 		} else {
 			// Optimal update: minimize ||Q q - a||² where Q_{kp} = conj(V_(k,p)),
 			// k = 1..L (reference rows 1..L; row 0 is degenerate and excluded).
@@ -320,9 +342,23 @@ private:
 	// library needed.
 	//
 	// At mu = d, this reduces exactly to the old (bug 2) linear-only
-	// solution: [QtQ] q = Qta. Verified ||q(d)||^2 <= d in every case
-	// checked; g is decreasing as mu decreases below d, so the root lies
-	// in [0, d] and bisection there is robust.
+	// solution: [QtQ] q = Qta. ||q(mu)||^2 is monotonically decreasing in mu
+	// (standard secular-equation property: A(mu) = QtQ + (mu-d)I only gains
+	// positive-definiteness as mu grows, so its inverse only shrinks), hence
+	// g(mu) = ||q(mu)||^2 - mu is strictly decreasing too. Since g(0) >= 0
+	// generically and g(mu) -> -infinity as mu -> infinity, exactly one root
+	// exists somewhere in (0, infinity) -- but NOT always in [0, d]. When
+	// g(d) >= 0 (the diagonal-unconstrained fit q(d) already has norm >= d),
+	// monotonicity forces the true root above d, not at d: bracket upward
+	// instead of returning q(d), which in that regime is not even a
+	// stationary point of Eq. 63. (Found 2026-07-09: the previous version of
+	// this function only ever searched [0, d] and silently accepted q(d) --
+	// including its norm overshooting d -- whenever the linear-only fit's
+	// norm already met or exceeded the diagonal target. This under-corrects
+	// the diagonal on targets whose off-diagonal magnitude does not decay,
+	// e.g. GBEK's true atomic-limit self-consistency target, producing a
+	// spurious diagonal overshoot distinct from the paper's own
+	// documented decay-only low-rank artifact.)
 	static VectorComplexType solveOptimalUpdateJoint(const MatrixComplexType& QtQ,
 	                                                 const VectorComplexType& Qta,
 	                                                 RealType                 d,
@@ -344,17 +380,35 @@ private:
 			return norm2 - mu;
 		};
 
-		RealType muHi = d;
-		if (gOf(muHi) >= 0)
-			return qOf(muHi);
-
-		RealType muLo = muHi;
-		RealType step = std::max(d, RealType(1.0)) * 0.5;
-		for (int iter = 0; iter < 60; ++iter) {
-			muLo = std::max(muLo - step, RealType(0.0));
-			if (gOf(muLo) >= 0 || muLo <= 0.0)
-				break;
-			step *= 1.5;
+		RealType muLo;
+		RealType muHi;
+		if (gOf(d) >= 0) {
+			// True root is above d: bracket upward.
+			muLo           = d;
+			muHi           = d;
+			RealType step  = std::max(d, RealType(1.0)) * 0.5;
+			bool     found = false;
+			for (int iter = 0; iter < 60; ++iter) {
+				muHi += step;
+				if (gOf(muHi) <= 0) {
+					found = true;
+					break;
+				}
+				step *= 1.5;
+			}
+			if (!found)
+				return qOf(d);
+		} else {
+			// True root is below d, as in the original implementation.
+			muHi          = d;
+			muLo          = d;
+			RealType step = std::max(d, RealType(1.0)) * 0.5;
+			for (int iter = 0; iter < 60; ++iter) {
+				muLo = std::max(muLo - step, RealType(0.0));
+				if (gOf(muLo) >= 0 || muLo <= 0.0)
+					break;
+				step *= 1.5;
+			}
 		}
 
 		for (int iter = 0; iter < 100; ++iter) {
@@ -363,7 +417,7 @@ private:
 				muLo = muMid;
 			else
 				muHi = muMid;
-			if (muHi - muLo < 1e-14 * std::max(d, RealType(1.0)))
+			if (muHi - muLo < 1e-14 * std::max(muHi, RealType(1.0)))
 				break;
 		}
 		return qOf(muLo);
@@ -425,6 +479,7 @@ private:
 
 	SizeType          rank_;
 	RealType          beta_, mu_, dt_, dtau_;
+	RealType          maxDiagSeen_; // running max |diag| for the seeding floor, see update()
 	SizeType          nT_, nTau_;
 	VectorRealType    hoppings_; // V_α from equilibrium bath
 	VectorRealType    bathEps_; // ε_α from equilibrium bath

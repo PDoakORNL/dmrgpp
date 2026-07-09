@@ -68,11 +68,23 @@ def _solve_optimal_update(Q, a, d, L):
     library needed, just a linear solve inside a 1D root-find.
 
     At mu = d, this reduces exactly to the plain linear-least-squares
-    solution (bug 2's buggy behavior): [Q^dagger Q] q = Q^dagger a. Verified
-    ||q(d)||^2 <= d in every case checked; g is decreasing as mu decreases
-    below d, so the root lies in [0, d] and bisection there is robust --
-    PROVIDED d >= 0 and Q^dagger Q is well-conditioned, both true for a
-    converged, physically PSD target. During self-consistency ITERATION
+    solution (bug 2's buggy behavior): [Q^dagger Q] q = Q^dagger a.
+    ||q(mu)||^2 is monotonically decreasing in mu (A(mu) = Q^dagger Q +
+    (mu-d)I only gains positive-definiteness as mu grows, shrinking its
+    inverse), so g(mu) = ||q(mu)||^2 - mu is strictly decreasing too. Since
+    g(0) >= 0 generically and g(mu) -> -infinity as mu -> infinity, exactly
+    one root exists in (0, infinity) -- but NOT always in [0, d]. When
+    g(d) >= 0 (the diagonal-unconstrained fit's norm already meets/exceeds
+    d), monotonicity forces the true root ABOVE d: this function used to
+    just return q(d) in that case (bracketing only ever searched [0, d]),
+    silently accepting an overshoot -- q(d) is not even a stationary point
+    of Eq. 63 when its norm exceeds d. Found 2026-07-09 on the atomic-limit
+    self-consistency target, whose off-diagonal magnitude does not decay
+    (it's a pure oscillating phase), unlike the decaying-ridge target this
+    bisection was originally validated against; that's why the gap went
+    unnoticed. Fixed by bracketing upward in that regime too, PROVIDED
+    d >= 0 and Q^dagger Q is well-conditioned, both true for a converged,
+    physically PSD target. During self-consistency ITERATION
     (gbek_selfconsistency.py), intermediate/not-yet-converged targets need
     not satisfy either: d can go slightly negative from numerical noise, or
     -- the actual failure hit in practice -- Q^dagger Q can be NEAR-singular
@@ -109,27 +121,39 @@ def _solve_optimal_update(Q, a, d, L):
         n2 = np.vdot(q, q).real
         return n2
 
-    n2_hi = g(d)
-    if not np.isfinite(n2_hi) or n2_hi >= d:
-        # Either the linear-only fit already meets/exceeds the diagonal
-        # target (nothing to refine -- this is the common exact-or-near-exact
-        # rank case), or it's non-finite (degenerate QtQ): either way, the
-        # safe answer is the linear-only solution.
+    n2_at_d = g(d)
+    if not np.isfinite(n2_at_d):
         return q_linear
 
-    mu_lo, mu_hi = 0.0, d
-    step  = max(d, 1.0) * 0.5
-    cur   = d
-    found = False
-    for _ in range(60):
-        cur = max(cur - step, 0.0)
-        n2  = g(cur)
-        if np.isfinite(n2) and (n2 - cur >= 0 or cur <= 0.0):
-            mu_lo, found = cur, True
-            break
-        step *= 1.5
-    if not found:
-        return q_linear
+    if n2_at_d >= d:
+        # True root lies ABOVE d (see docstring): bracket upward instead of
+        # silently accepting q(d), whose norm n2_at_d overshoots d.
+        mu_lo, mu_hi = d, d
+        step  = max(d, 1.0) * 0.5
+        found = False
+        for _ in range(60):
+            mu_hi += step
+            n2 = g(mu_hi)
+            if np.isfinite(n2) and n2 - mu_hi <= 0:
+                found = True
+                break
+            step *= 1.5
+        if not found:
+            return q_linear
+    else:
+        mu_lo, mu_hi = 0.0, d
+        step  = max(d, 1.0) * 0.5
+        cur   = d
+        found = False
+        for _ in range(60):
+            cur = max(cur - step, 0.0)
+            n2  = g(cur)
+            if np.isfinite(n2) and (n2 - cur >= 0 or cur <= 0.0):
+                mu_lo, found = cur, True
+                break
+            step *= 1.5
+        if not found:
+            return q_linear
 
     for _ in range(100):
         mu_mid = 0.5 * (mu_lo + mu_hi)
@@ -138,7 +162,7 @@ def _solve_optimal_update(Q, a, d, L):
             mu_lo = mu_mid
         else:
             mu_hi = mu_mid
-        if mu_hi - mu_lo < 1e-14 * max(d, 1.0):
+        if mu_hi - mu_lo < 1e-14 * max(mu_hi, 1.0):
             break
 
     q_final = q_of(mu_lo)
@@ -147,22 +171,62 @@ def _solve_optimal_update(Q, a, d, L):
     # is fragile near a near-singular shift): a genuine root satisfies
     # n2_final ~ mu_lo; a numerically-blown-up spurious solve does not, and
     # in any case should never wildly exceed the natural scale of the data.
-    bound = max(d, n2_linear, 1.0) * 10
+    bound = max(d, n2_linear, n2_at_d, 1.0) * 10
     if (not np.isfinite(n2_final) or n2_final > bound
             or abs(n2_final - mu_lo) > 0.05 * max(mu_lo, 1.0)):
         return q_linear
     return q_final
 
 
-def cholesky_causal(lam, L):
+def cholesky_causal(lam, L, floor_rtol=1e-10):
     """
     lam: (nT+1, nT+1) complex array, lam[n, j] = -i*Lambda^<(t_n, t_j)
       (only need j <= n filled; must be Hermitian PSD conceptually).
     L: rank.
+    floor_rtol: seeding-phase floor (see below), as a fraction of the
+      largest diagonal magnitude seen so far. Default 1e-10.
     Returns V of shape (nT+1, L).
+
+    Seeding-phase zero-clamp floor (added 2026-07-09, see
+    project_gbek_solveOptimalUpdateJoint_bug and the seeding-fragility
+    follow-on): the exact-Cholesky seeding residual `d` for column L-1 (the
+    last column, seeded from the most information-starved early row) is
+    often the tiny difference of O(1)-scale terms -- confirmed via an
+    independent 50-digit mpmath replay that this is NOT a linear-algebra
+    precision problem, it's that the true residual, given the available
+    precision of Lambda itself, genuinely sits at the edge of what's
+    resolvable. Previously this clamped hard to exactly 0 whenever it
+    rounded negative (`sqrt(max(d,0))`), which is numerically catastrophic:
+    a column seeded at EXACTLY zero makes that entire column's row/column
+    in every future Gram matrix (QtQ) identically zero, which then
+    structurally FORCES every subsequent optimal-update solve to keep that
+    component at exactly zero forever too (`(mu-d)*q[p] = 0` with mu != d
+    has no other solution) -- i.e. one unlucky sign flip on a
+    borderline-noise residual permanently kills an entire bath direction
+    for the rest of the run (confirmed: this is exactly what happened in
+    cincuenta's own C++ output at L=5, while an independent Python
+    recomputation of the identical algorithm on a very slightly different
+    (but equally valid) floating-point path did not collapse and got a
+    good rank-5 reconstruction instead).
+    A small positive floor (rather than 0) fixes this: the seeded column
+    stays numerically ALIVE (nonzero Gram row/column), so later
+    optimal-update rows -- which see genuine, non-noise data at those
+    rows -- remain free to grow that direction into something meaningful
+    instead of being locked at zero by construction. The floor's absolute
+    scale barely matters (only this one row's value is fixed; everything
+    after is re-solved from real data) -- it just needs to be nonzero and
+    small enough not to distort anything, hence tying it to a tiny
+    fraction of the run's own diagonal scale rather than a fixed constant.
+    A rank-revealing/deferred-establishment alternative (skip seeding a
+    column at low-residual rows entirely) was also tried and found NOT to
+    help (see git history around 2026-07-09): deferring forces every
+    skipped row to assert EXACTLY zero coupling in the not-yet-established
+    column, which can be just as wrong as a noisy nonzero value, and
+    measured no better overall. This floor is the narrower, verified fix.
     """
     nT = lam.shape[0] - 1
     V = np.zeros((nT + 1, L), dtype=complex)
+    max_diag_seen = 0.0
 
     def lam_at(n, j):
         # lam = -i*Delta^< is Hermitian (lam(t,t')^* = lam(t',t)); the causal
@@ -175,6 +239,7 @@ def cholesky_causal(lam, L):
         return np.conj(lam[j, n])
 
     for n in range(1, nT + 1):
+        max_diag_seen = max(max_diag_seen, abs(lam_at(n, n).real))
         if n <= L:
             # Standard (exact) Cholesky seeding phase, Eq. 56-58: column p is
             # seeded at pivot row p+1 (row 0 is degenerate, per the header
@@ -190,7 +255,8 @@ def cholesky_causal(lam, L):
             d = lam_at(n, n).real
             for k in range(col):
                 d -= abs(V[n, k]) ** 2
-            V[n, col] = np.sqrt(max(d, 0.0))
+            floor = floor_rtol * max(max_diag_seen, 1e-300)
+            V[n, col] = np.sqrt(max(d, floor))
         else:
             # Optimal update, Eq. 62-63: Q_s is the s x L matrix of ALL
             # previously-determined rows 1..s (s = n-1), growing every step
@@ -201,6 +267,194 @@ def cholesky_causal(lam, L):
             d = lam_at(n, n).real
             V[n, :] = _solve_optimal_update(Q, a, d, L)
     return V
+
+
+def cholesky_causal_pivoted_seed(lam, L, verbose=False):
+    """
+    Same algorithm as cholesky_causal() for rows n>L (Eq. 62-63 optimal
+    update, unchanged), but replaces the SEEDING phase (rows 1..L) with a
+    pivoted (rank-revealing) Cholesky decomposition of the fully-known L x L
+    Hermitian block, instead of forcing strict time-order seeding (column p
+    always from row p+1).
+
+    Motivation (2026-07-09): the paper's own text describing this step
+    ("During the first L time steps we have enough free parameters V^ch_np
+    for AN exact matrix decomposition of -iLambda^<_+ and can thus rely on
+    the Cholesky decomposition to fill up the matrix Q^L") is looser than
+    "use the same Eq. 57 recursion in strict time order": an L x L Hermitian
+    PSD matrix admits a whole family of exact square-root factorizations
+    related by unitary rotation, of which strict-time-order Cholesky is
+    only one member. Once L full timesteps have been collected, the ENTIRE
+    L x L block is already known (not a one-row-at-a-time stream), so
+    nothing about causality prevents choosing a BETTER-CONDITIONED member
+    of that family: standard pivoted/rank-revealing Cholesky, which at each
+    step seeds the next column from whichever of the L already-known rows
+    currently has the largest remaining diagonal residual, instead of
+    blindly taking them in time order.
+
+    This is NOT the same as the earlier-tried cholesky_causal_deferred()
+    (which was found NOT to help): that function deferred a column's
+    establishment to a FUTURE, not-yet-seen row, which forces every row
+    before the eventual pivot to assert an unverifiable "exactly zero"
+    coupling in that direction. Pivoting WITHIN the fully-known L x L block
+    never asserts anything about unseen data -- it only reorders among rows
+    already fully in hand, so there is no analogous "confidently wrong
+    zero" failure mode.
+
+    Returns (V, pivot_rows): V as in cholesky_causal(); pivot_rows[k] is the
+    actual time-row index (1-based, matching the rest of this module's
+    convention) chosen as the pivot for column k.
+    """
+    nT = lam.shape[0] - 1
+    V = np.zeros((nT + 1, L), dtype=complex)
+
+    def lam_at(n, j):
+        if j <= n:
+            return lam[n, j]
+        return np.conj(lam[j, n])
+
+    # Rows 1..L (row 0 is degenerate/skipped, matching cholesky_causal()).
+    rows = list(range(1, L + 1))  # actual time-row indices available to seed from
+    M = np.array([[lam_at(rows[i], rows[j]) for j in range(L)] for i in range(L)],
+                 dtype=complex)
+
+    Vblock = np.zeros((L, L), dtype=complex)  # Vblock[original block row i, column k]
+    diag_resid = np.array([M[i, i].real for i in range(L)])
+    remaining = list(range(L))
+    pivot_rows = []
+
+    for k in range(L):
+        best = max(remaining, key=lambda i: diag_resid[i])
+        remaining.remove(best)
+        pivot_val = max(diag_resid[best], 0.0)
+        Vblock[best, k] = np.sqrt(pivot_val)
+        if verbose:
+            print(f"  column {k}: pivot = row n={rows[best]} (t={rows[best]}), "
+                  f"residual={diag_resid[best]:.3e}")
+        if abs(Vblock[best, k]) >= 1e-14:
+            for i in remaining:
+                val = M[i, best]
+                for kk in range(k):
+                    val -= Vblock[i, kk] * np.conj(Vblock[best, kk])
+                Vblock[i, k] = val / np.conj(Vblock[best, k])
+            for i in remaining:
+                diag_resid[i] -= abs(Vblock[i, k]) ** 2
+        pivot_rows.append(rows[best])
+
+    for i in range(L):
+        V[rows[i], :] = Vblock[i, :]
+
+    for n in range(L + 1, nT + 1):
+        a = np.array([lam_at(n, m) for m in range(1, n)])
+        Q = V[1:n, :]
+        d = lam_at(n, n).real
+        V[n, :] = _solve_optimal_update(Q, a, d, L)
+
+    return V, pivot_rows
+
+
+def cholesky_causal_deferred(lam, L, rtol=1e-6, verbose=False):
+    """
+    Causally rank-revealing variant of cholesky_causal(): identical algebra,
+    but does NOT force column p to be seeded at row p+1 unconditionally.
+    Instead it tracks how many columns k (<=L) have been genuinely
+    established so far, and at each row n (while k<L) computes the EXACT
+    forward-substituted residual left over after explaining this row's
+    diagonal with the k already-established columns. A new column is only
+    opened (pivot_row.append(n); k += 1) if that residual exceeds
+    `rtol * (largest diagonal magnitude seen so far)`; otherwise the row is
+    left with zeros in the not-yet-established columns and processing moves
+    to row n+1, deferring establishment of column k to whenever a row
+    actually offers enough new signal. Once k reaches L, subsequent rows
+    fall back to the ordinary Eq. 63 optimal-update solve exactly as in
+    cholesky_causal(), using ALL prior rows (their already-established
+    entries, retroactively-zero not-yet-established ones included) as the
+    reference set -- causality is preserved throughout: only already-seen
+    rows are ever used to decide anything.
+
+    Motivation (found 2026-07-09, see project_gbek_solveOptimalUpdateJoint_bug
+    and the follow-on rank-scan/seeding-fragility investigation): the plain
+    causal seeding recursion computes each successive column's residual as
+    a small difference of O(1)-scale terms (observed: 3.6e-3, 1.4e-5,
+    6.5e-6, 1.4e-7, 2.1e-8 for L=5's first 5 rows on the true-atomic-limit
+    target) -- i.e. the LOCAL rank of the seeding window is genuinely much
+    smaller than L, so the later "columns" are seeded almost entirely from
+    numerical noise (confirmed via an independent 50-digit mpmath replay of
+    the identical subtraction chain: it reproduces the double-precision
+    residuals almost exactly, meaning the arithmetic itself is not the
+    problem -- the true mathematical residual, given the available
+    precision of the input Lambda, really is that small and that
+    unreliable). Baking a noise-dominated direction in as a permanent basis
+    column then measurably hurts short-time accuracy (see err^step results)
+    and, in the worst case (L=5, a residual of 2e-8), can flip sign between
+    two otherwise-equivalent implementations and collapse an entire
+    column to exactly zero for the rest of the run. Deferring establishment
+    until real signal appears avoids both failure modes without needing
+    higher-precision arithmetic (verified not to be the bottleneck here).
+
+    rtol: relative threshold (fraction of the largest diagonal magnitude
+      seen so far) below which a would-be new column's residual is treated
+      as unresolvable noise rather than real structure. Default 1e-6 sits
+      comfortably between this target's 3rd (6.5e-6) and 4th (1.4e-7)
+      column residuals -- i.e. it accepts the first 3 genuine directions
+      and defers the rest. Tune per-target if the natural residual gap
+      isn't this clean.
+    verbose: print each column-establishment decision (row, residual,
+      accepted/deferred) for diagnostic use.
+
+    Returns (V, pivot_row): V as in cholesky_causal(); pivot_row is the
+    list of row indices at which each established column was actually
+    seeded (len(pivot_row) <= L -- if less, the target's genuine local rank
+    never reached L anywhere in [0, t_max], which is a valid finding, not
+    an error).
+    """
+    nT = lam.shape[0] - 1
+    V = np.zeros((nT + 1, L), dtype=complex)
+
+    def lam_at(n, j):
+        if j <= n:
+            return lam[n, j]
+        return np.conj(lam[j, n])
+
+    pivot_row = []
+    k = 0
+    max_diag_seen = 0.0
+
+    for n in range(1, nT + 1):
+        d_nn = lam_at(n, n).real
+        max_diag_seen = max(max_diag_seen, abs(d_nn))
+
+        if k < L:
+            for p in range(k):
+                val = lam_at(n, pivot_row[p])
+                for q in range(p):
+                    val -= V[n, q] * np.conj(V[pivot_row[p], q])
+                piv = V[pivot_row[p], p]
+                V[n, p] = 0 if abs(piv) < 1e-14 else val / np.conj(piv)
+
+            r = d_nn - sum(abs(V[n, p]) ** 2 for p in range(k))
+            threshold = rtol * max(max_diag_seen, 1e-300)
+            if r > threshold:
+                V[n, k] = np.sqrt(max(r, 0.0))
+                pivot_row.append(n)
+                if verbose:
+                    print(f"  establish column {k} at row n={n}: residual={r:.3e} "
+                          f"(threshold={threshold:.3e})")
+                k += 1
+            elif verbose:
+                print(f"  defer column {k} at row n={n}: residual={r:.3e} "
+                      f"<= threshold={threshold:.3e}")
+        else:
+            a = np.array([lam_at(n, m) for m in range(1, n)])
+            Q = V[1:n, :]
+            d = d_nn
+            V[n, :] = _solve_optimal_update(Q, a, d, L)
+
+    if verbose and k < L:
+        print(f"  WARNING: only {k}/{L} columns ever established -- target's "
+              f"genuine local rank never reached L in [0, t_max={nT}*dt]")
+
+    return V, pivot_row
 
 
 def cholesky_causal_linear_only(lam, L):

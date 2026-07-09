@@ -386,6 +386,13 @@ TEST_CASE("Complex-phase target: L=3 reconstruction matches the Python reference
 	// values at every row past the seeding phase (n>3), e.g. at n=10 the
 	// two conventions differ by max|diff|~0.72 -- nowhere close to this
 	// tolerance.
+	//
+	// Regenerated 2026-07-09 after fixing solveOptimalUpdateJoint's search
+	// range (previously only searched mu in [0, d]; this target's own
+	// off-diagonal fit hits the g(d) >= 0 regime at several of these rows
+	// too, not just the flat atomic-limit target that surfaced the bug --
+	// so the pre-fix hardcoded values here were themselves computed with
+	// the buggy solver and are superseded).
 	auto checkRow = [&](SizeType             n,
 	                    std::complex<double> v0,
 	                    std::complex<double> v1,
@@ -406,19 +413,19 @@ TEST_CASE("Complex-phase target: L=3 reconstruction matches the Python reference
 	};
 
 	checkRow(4,
-	         { 0.41817682165295367, 0.3667694667434894 },
-	         { 0.6241075432239038, -0.37027392608929854 },
-	         { 0.5613639867005725, -0.5503240514523664 });
+	         { 0.45624512124050043, 0.2388855376377488 },
+	         { 0.35050035929862317, -0.18218680787739316 },
+	         { 0.32091323010696665, -0.22310456322787742 });
 	checkRow(10,
-	         { -0.08001540194061413, 0.3055494876046036 },
-	         { 0.4944008935485624, 0.27164381394501214 },
-	         { -0.2461376313737864, 0.022667304609412353 });
+	         { -0.11959237438506641, 0.30668551506322206 },
+	         { 0.01059868951816878, 0.25505641820436165 },
+	         { 0.6846832402869418, 0.18674493102306972 });
 	checkRow(20,
-	         { -0.3100160560144813, -0.2005460914636441 },
-	         { -0.13738880123846772, 0.27881033323840054 },
-	         { -0.2479905076239271, -0.19211512843932976 });
+	         { 0.16299812996013435, -0.16493118558610353 },
+	         { -0.5926393741594096, -0.33686204797635944 },
+	         { -0.18525305307786172, 0.34246465794887804 });
 	checkRow(30,
-	         { 0.4277976044626841, -0.0635889760173113 },
-	         { -0.2466804822343453, -0.27551909206951153 },
-	         { -0.21754981228850925, -0.2517900789230417 });
+	         { 0.38072274506648407, 0.18144909405709084 },
+	         { 0.2034435735220753, -0.32763904190377374 },
+	         { -0.21489728887423554, -0.2771350465182552 });
 }
