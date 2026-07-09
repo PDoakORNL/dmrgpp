@@ -18,6 +18,7 @@ if(BUILD_TESTING)
   enable_testing()
 
   include(FetchContent)
+  list(APPEND CMAKE_MESSAGE_INDENT "[Catch2] ")
   FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
@@ -25,6 +26,7 @@ if(BUILD_TESTING)
     SYSTEM FIND_PACKAGE_ARGS NAMES Catch2)
   FetchContent_MakeAvailable(Catch2)
   include(Catch)
+  list(POP_BACK CMAKE_MESSAGE_INDENT)
 endif()
 
 find_package(Python3 COMPONENTS Interpreter)
