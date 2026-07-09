@@ -163,7 +163,7 @@ To control where the project should find external dependencies installed on
 your system, you may pass `-D<PackageName>_ROOT=/path/to/package/install` to
 find a specific `<PackageName>` installed at `/path/to/package/install`.
 
-External dependencies are: `Boost`, `MPI`, `HDF5`, `GSL`, `BLAS`, and `LAPACK`.
+External dependencies are: `BLAS`, `Boost`, `GSL`, `HDF5`, `Kokkos`, `KokkosKernels`, `LAPACK` and `MPI`.
 
 Example: `-DBoost_ROOT=/path/to/boost`
 

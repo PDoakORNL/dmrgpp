@@ -9,10 +9,7 @@
 #include "TypeToString.h"
 #include "Vector.h"
 
-#include <PsimagLite/PsimagLiteConfig.h>
-#ifdef PSIMAGLITE_USE_KOKKOS
 #include <Kokkos_Core.hpp>
-#endif
 
 #include <fstream>
 #include <iostream>
@@ -76,9 +73,7 @@ public:
 	    : concurrency_(argc, argv, nthreads)
 	    , appName_(basename(appName))
 	    , microArch_(MicroArchitecture().vendorId())
-#ifdef PSIMAGLITE_USE_KOKKOS
 	    , scopeGuard_(*argc, *argv)
-#endif
 	{
 		chekSizeType();
 
@@ -138,13 +133,11 @@ private:
 
 	static const int libSizeOfSizeType_;
 
-	Concurrency concurrency_;
-	String      appName_;
-	String      cmdLine_;
-	String      microArch_;
-#ifdef PSIMAGLITE_USE_KOKKOS
+	Concurrency        concurrency_;
+	String             appName_;
+	String             cmdLine_;
+	String             microArch_;
 	Kokkos::ScopeGuard scopeGuard_;
-#endif
 };
 
 } // namespace PsimagLite
