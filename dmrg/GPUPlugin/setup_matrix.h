@@ -1,7 +1,8 @@
 #ifndef SETUP_MATRIX_H
 #define SETUP_MATRIX_H
 
-#include "Vector.h"
+#include "PsimagLite/Vector.h"
+
 #include "dmrg_types.h"
 
 typedef PsimagLite::Vector<SizeType>::Type VectorSizeType;

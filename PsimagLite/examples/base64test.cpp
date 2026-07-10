@@ -34,7 +34,7 @@ René Nyffenegger rene.nyffenegger@adp-gmbh.ch
 ***** ATTENTION: This code has been modified from the original *****
 */
 
-#include "PsiBase64.h"
+#include "PsimagLite/PsiBase64.h"
 #include <iostream>
 
 int main()

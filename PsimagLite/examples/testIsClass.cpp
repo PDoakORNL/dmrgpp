@@ -1,4 +1,5 @@
-#include "IsClass.h"
+#include "PsimagLite/IsClass.h"
+
 #include <vector>
 
 class A { };

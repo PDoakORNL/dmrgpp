@@ -1,7 +1,8 @@
 #ifndef KADANOFFBAYM_H
 #define KADANOFFBAYM_H
-#include "Matrix.h"
-#include "Vector.h"
+#include "PsimagLite/Matrix.h"
+#include "PsimagLite/Vector.h"
+
 #include <algorithm>
 #include <cassert>
 #include <fstream>

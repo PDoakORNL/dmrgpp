@@ -1,8 +1,8 @@
-#include "BLAS.h"
-#include "GemmR.h"
-#include "Matrix.h"
-#include "Random48.h"
-#include "Svd.h"
+#include "PsimagLite/BLAS.h"
+#include "PsimagLite/GemmR.h"
+#include "PsimagLite/Matrix.h"
+#include "PsimagLite/Random48.h"
+#include "PsimagLite/Svd.h"
 
 typedef double RealType;
 

@@ -1,5 +1,5 @@
 #include "Ainur.h"
-#include "Matrix.h"
+#include "PsimagLite/Matrix.h"
 #include <vector>
 
 void partiallyReadSomething(const PsimagLite::Ainur& ainur)

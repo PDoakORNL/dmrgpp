@@ -18,12 +18,13 @@ Please see full open source license included in file LICENSE.
 */
 // END LICENSE BLOCK
 
-#include "ContinuedFractionCollection.h"
-#include "ContinuedFraction.h"
-#include "Io/IoSimple.h"
-#include "Matsubaras.h"
-#include "RealFrequencyRange.hh"
-#include "TridiagonalMatrix.h"
+#include "PsimagLite/ContinuedFractionCollection.h"
+#include "PsimagLite/ContinuedFraction.h"
+#include "PsimagLite/Io/IoSimple.h"
+#include "PsimagLite/Matsubaras.h"
+#include "PsimagLite/RealFrequencyRange.hh"
+#include "PsimagLite/TridiagonalMatrix.h"
+
 #include <cstdlib>
 #include <fstream>
 #include <iostream>

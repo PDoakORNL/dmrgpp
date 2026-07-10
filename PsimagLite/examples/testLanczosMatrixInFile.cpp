@@ -1,7 +1,8 @@
-#include "CrsMatrix.h"
-#include "LanczosSolver.h"
-#include "Matrix.h"
-#include "PsimagLite.h"
+#include "PsimagLite/CrsMatrix.h"
+#include "PsimagLite/LanczosSolver.h"
+#include "PsimagLite/Matrix.h"
+#include "PsimagLite/PsimagLite.h"
+
 #include <fstream>
 
 int main(int argc, char** argv)

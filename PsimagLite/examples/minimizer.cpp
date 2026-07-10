@@ -1,6 +1,5 @@
-#include "Minimizer.h"
-#include "Vector.h"
-// #include "Square.h"
+#include "PsimagLite/Minimizer.h"
+#include "PsimagLite/Vector.h"
 
 template <typename T> T square(const T& t1) { return t1 * t1; }
 

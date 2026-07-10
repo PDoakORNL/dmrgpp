@@ -79,11 +79,13 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef LANCZOS_PROGRAM_LIMITS_H
 #define LANCZOS_PROGRAM_LIMITS_H
-#include "BitManip.h"
+#include "PsimagLite/BitManip.h"
+#include "PsimagLite/CrsMatrix.h"
+#include "PsimagLite/TypeToString.h"
+#include "PsimagLite/Vector.h"
+
 #include "Combinatorial.hh"
-#include "CrsMatrix.h"
-#include "TypeToString.h"
-#include "Vector.h"
+
 #include <bitset>
 #include <climits>
 

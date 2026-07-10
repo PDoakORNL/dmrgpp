@@ -1,6 +1,6 @@
-#include "CrsMatrix.h"
-#include "Matrix.h"
-#include "Vector.h"
+#include "PsimagLite/CrsMatrix.h"
+#include "PsimagLite/Matrix.h"
+#include "PsimagLite/Vector.h"
 
 void testVector()
 {

@@ -1,10 +1,11 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#include "Complex.h"
-#include "GemmR.h"
 #include "KronUtil.h"
-#include "MatrixNonOwned.h"
+#include "PsimagLite/Complex.h"
+#include "PsimagLite/GemmR.h"
+#include "PsimagLite/MatrixNonOwned.h"
+
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>

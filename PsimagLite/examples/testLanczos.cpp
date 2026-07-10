@@ -1,7 +1,7 @@
-#include "CrsMatrix.h"
-#include "LanczosSolver.h"
-#include "Matrix.h"
-#include "PsimagLite.h"
+#include "PsimagLite/CrsMatrix.h"
+#include "PsimagLite/LanczosSolver.h"
+#include "PsimagLite/Matrix.h"
+#include "PsimagLite/PsimagLite.h"
 
 /* This example does Lanczos for a (small) matrix in RAM
  * using PsimagLite's Lanczos solver */

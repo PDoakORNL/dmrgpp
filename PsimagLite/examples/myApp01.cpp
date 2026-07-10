@@ -1,4 +1,4 @@
-#include "PsimagLite.h"
+#include "PsimagLite/PsimagLite.h"
 
 using namespace PsimagLite;
 

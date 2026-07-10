@@ -1,4 +1,4 @@
-#include "RedirectOutput.hh"
+#include "PsimagLite/RedirectOutput.hh"
 
 int main(int argc, char* argv[])
 {
