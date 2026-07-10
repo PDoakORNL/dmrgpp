@@ -1,0 +1,90 @@
+# Add -Wextra in the future
+add_library(
+  psimaglite
+  PsimagLite/MersenneTwister.cpp
+  PsimagLite/Matrix.cpp
+  PsimagLite/Mpi.cpp
+  PsimagLite/Concurrency.cpp
+  PsimagLite/ProgressIndicator.cpp
+  PsimagLite/MemResolv.cpp
+  PsimagLite/PsimagLite.cpp
+  PsimagLite/PsiBase64.cpp
+  PsimagLite/SpecialFunctions.cpp
+  PsimagLite/Io/TypeToH5.cpp
+  PsimagLite/TridiagonalMatrix.cpp
+  PsimagLite/PredicateSimple.cpp
+  PsimagLite/Ainur/AinurSpirit.cpp
+  PsimagLite/Ainur/AinurConvert.cpp)
+
+# If Kokkos support is enabled, compile in the Kokkos-based GEMM wrapper
+option(PSIMAGLITE_USE_KOKKOS "Enable Kokkos support" OFF)
+if(PSIMAGLITE_USE_KOKKOS)
+  find_package(KokkosKernels 5.1 REQUIRED)
+  target_link_libraries(psimaglite PUBLIC Kokkos::kokkoskernels Kokkos::kokkos)
+  target_sources(psimaglite PRIVATE kokkos_gemm.cpp)
+endif()
+target_include_directories(psimaglite PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_compile_features(psimaglite PUBLIC cxx_std_17)
+target_link_libraries(psimaglite PUBLIC loki)
+
+# Generate configuration header for PsimagLite
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/PsimagLite/PsimagLiteConfig.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/PsimagLite/PsimagLiteConfig.h @ONLY)
+# Ensure consumers can include generated header
+target_include_directories(psimaglite PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+
+add_library(psimaglite::psimaglite ALIAS psimaglite)
+
+# find_package(MPI COMPONENTS CXX)
+if(MPI_FOUND)
+  target_compile_definitions(psimaglite PUBLIC USE_MPI)
+  target_link_libraries(psimaglite PUBLIC MPI::MPI_CXX)
+
+  # Prefer HDF5 parallel when MPI is enabled
+  set(HDF5_PREFER_PARALLEL ON)
+endif()
+
+find_package(
+  HDF5 REQUIRED
+  COMPONENTS CXX HL
+  MODULE)
+if(MPI_FOUND AND NOT HDF5_IS_PARALLEL)
+  message(WARNING "HDF5 that was found \(${HDF5_DIR}\) is not parallel")
+endif()
+target_link_libraries(psimaglite PUBLIC HDF5::HDF5)
+
+find_package(Boost REQUIRED)
+target_link_libraries(psimaglite PUBLIC Boost::boost)
+
+find_package(Threads)
+if(Threads_FOUND)
+  target_compile_definitions(psimaglite PUBLIC USE_PTHREADS)
+  target_link_libraries(psimaglite PUBLIC Threads::Threads)
+endif()
+
+find_package(BLAS REQUIRED)
+find_package(LAPACK REQUIRED)
+target_link_libraries(psimaglite PUBLIC BLAS::BLAS)
+target_link_libraries(psimaglite PUBLIC LAPACK::LAPACK)
+
+find_package(GSL REQUIRED)
+target_link_libraries(psimaglite PUBLIC GSL::gsl)
+
+if(BUILD_SHARED_LIBS)
+  install(TARGETS psimaglite LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/PsimagLite/Ainur/function.txt ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+  add_executable(Ainur_Test1 PsimagLite/Ainur/test.cpp)
+  target_link_libraries(Ainur_Test1 psimaglite::psimaglite)
+  add_test(NAME Ainur_Test1 COMMAND Ainur_Test1 ${CMAKE_CURRENT_SOURCE_DIR}/Ainur/prelude.ain
+                                    ${CMAKE_CURRENT_SOURCE_DIR}/Ainur/input0.ain)
+
+  add_executable(Ainur_Test2 PsimagLite/Ainur/testReal.cpp)
+  target_link_libraries(Ainur_Test2 psimaglite::psimaglite)
+  add_test(NAME Ainur_Test2 COMMAND Ainur_Test2 ${CMAKE_CURRENT_SOURCE_DIR}/Ainur/input1.ain)
+endif()
