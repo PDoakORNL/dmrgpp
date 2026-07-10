@@ -18,9 +18,9 @@ Please see full open source license included in file LICENSE.
 */
 // END LICENSE BLOCK
 
-#include "PsimagLite/AkimaSpline.h"
-#include "PsimagLite/Concurrency.h"
-#include "PsimagLite/Vector.h"
+#include <PsimagLite/AkimaSpline.h>
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Vector.h>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>

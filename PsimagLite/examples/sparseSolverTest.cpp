@@ -18,11 +18,11 @@ Please see full open source license included in file LICENSE.
 */
 // END LICENSE BLOCK
 
-#include "PsimagLite/CrsMatrix.h"
-#include "PsimagLite/LanczosSolver.h"
-#include "PsimagLite/ParametersForSolver.h"
-#include "PsimagLite/PsimagLite.h"
-#include "PsimagLite/Random48.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/LanczosSolver.h>
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Random48.h>
 
 using namespace PsimagLite;
 

@@ -2,9 +2,9 @@
 #define UTIL_H
 
 #include "KronUtil.h"
-#include "PsimagLite/Complex.h"
-#include "PsimagLite/GemmR.h"
-#include "PsimagLite/MatrixNonOwned.h"
+#include <PsimagLite/Complex.h>
+#include <PsimagLite/GemmR.h>
+#include <PsimagLite/MatrixNonOwned.h>
 
 #include <cassert>
 #include <cstdio>

@@ -29,8 +29,8 @@ cases subdirectories are used. Here are the includes.
 PSIDOC_CONTINUE
 */
 
-#include "PsimagLite/InputCheckBase.h"
-#include "PsimagLite/InputNg.h"
+#include <PsimagLite/InputCheckBase.h>
+#include <PsimagLite/InputNg.h>
 
 /* PSIDOC_RESUME
 \end{lstlisting}

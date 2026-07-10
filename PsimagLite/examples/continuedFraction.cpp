@@ -18,9 +18,9 @@ Please see full open source license included in file LICENSE.
 */
 // END LICENSE BLOCK
 
-#include "PsimagLite/ContinuedFraction.h"
-#include "PsimagLite/Io/IoSimple.h"
-#include "PsimagLite/TridiagonalMatrix.h"
+#include <PsimagLite/ContinuedFraction.h>
+#include <PsimagLite/Io/IoSimple.h>
+#include <PsimagLite/TridiagonalMatrix.h>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>

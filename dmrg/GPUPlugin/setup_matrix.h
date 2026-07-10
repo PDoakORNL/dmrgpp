@@ -1,7 +1,7 @@
 #ifndef SETUP_MATRIX_H
 #define SETUP_MATRIX_H
 
-#include "PsimagLite/Vector.h"
+#include <PsimagLite/Vector.h>
 
 #include "dmrg_types.h"
 

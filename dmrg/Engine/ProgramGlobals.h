@@ -79,9 +79,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef PROGRAM_LIMITS_H
 #define PROGRAM_LIMITS_H
 #include "../Version.h"
-#include "PsimagLite/PsimagLite.h"
-#include "PsimagLite/Vector.h"
 #include "Utils.h"
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 
 #include <algorithm>
 #include <numeric>

@@ -1,6 +1,6 @@
-#include "PsimagLite/Svd.h"
-#include "PsimagLite/Matrix.h"
-#include "PsimagLite/Vector.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Svd.h>
+#include <PsimagLite/Vector.h>
 
 int main()
 {

@@ -1,5 +1,5 @@
-#include "PsimagLite/InterNode.h"
-#include "PsimagLite/PsimagLite.h"
+#include <PsimagLite/InterNode.h>
+#include <PsimagLite/PsimagLite.h>
 
 int main(int argc, char* argv[])
 {
