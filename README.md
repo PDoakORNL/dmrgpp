@@ -167,17 +167,24 @@ External dependencies are: `BLAS`, `Boost`, `GSL`, `HDF5`, `Kokkos`, `KokkosKern
 
 Example: `-DBoost_ROOT=/path/to/boost`
 
-> **Note on Catch2:**
-> We use the Catch2 library as our unit test framework. By default, our CMake
-> is setup to use `FetchContent` to download the library if it is not found on
+> **Note on Catch2 and Kokkos:**
+> We use the Catch2 library as our unit test framework and Kokkos as required dependency.
+> By default, our CMake is set up to use `FetchContent` to download these libraries if they aren't found on
 > your system.
 >
-> To force the use of a locally installed Catch2 and disable the automatic
-> download fallback, use the following options:
+> To force the use of a locally installed library and disable the automatic
+> download fallback, use the following options (where Catch2 serves as an example):
 >
 > ```bash
 > -DCMAKE_REQUIRE_FIND_PACKAGE_Catch2=ON -DCatch2_ROOT=/path/to/catch2
 > ```
+>
+> By default, `CMake` tries to check externally dependencies that have been installed via FetchContent for updates.
+> This can be avoided by configuring with
+> ```bash
+> -DFETCHCONTENT_UPDATES_DISCONNECTED=ON
+> ```
+> which might be especially useful when there is limited access to the internet.
 
 ### Build and Test
 After the configuration step succeeded, build using
