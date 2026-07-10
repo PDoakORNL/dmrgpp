@@ -44,6 +44,8 @@ def main():
     ap.add_argument("reference", help="exact reference file (gbek_selfconsistency.py output)")
     ap.add_argument("approx", help="cincuenta's rank-L Cholesky output (dumpPlusBath)")
     ap.add_argument("--tmax", type=float, default=None)
+    ap.add_argument("--rank", type=int, default=None,
+                    help="Cholesky rank L used for --approx, shown in its plot title")
     ap.add_argument("--out", default="gbek_reference_comparison.png")
     args = ap.parse_args()
 
@@ -60,7 +62,8 @@ def main():
 
     im1 = axes[0, 1].imshow(re_app, origin="lower", extent=[ts_app[0], ts_app[-1]] * 2,
                              vmin=-vmax, vmax=vmax, cmap="RdBu_r")
-    axes[0, 1].set_title("cincuenta rank-L Cholesky approx")
+    rank_label = f"rank-{args.rank}" if args.rank is not None else "rank-L"
+    axes[0, 1].set_title(f"cincuenta {rank_label} Cholesky approx")
     plt.colorbar(im1, ax=axes[0, 1])
 
     # Interpolate approx onto the reference grid for a residual map, if grids differ
@@ -74,8 +77,12 @@ def main():
         re_app_interp = re_app
 
     resid = re_ref - re_app_interp
+    # Symmetric about 0 (so white == no error) and on the SAME scale as the
+    # exact/approx plots to its left, so the residual's size relative to the
+    # actual values is directly visible instead of auto-scaling to whatever
+    # (typically much smaller) range the residual itself spans.
     im2 = axes[0, 2].imshow(resid, origin="lower", extent=[ts_ref[0], ts_ref[-1]] * 2,
-                             cmap="RdBu_r")
+                             vmin=-vmax, vmax=vmax, cmap="RdBu_r")
     axes[0, 2].set_title("Residual (exact - approx)")
     plt.colorbar(im2, ax=axes[0, 2])
 
