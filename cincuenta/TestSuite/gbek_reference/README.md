@@ -347,3 +347,91 @@ entirely practical ~2 min noted above).
     # or, plot the exact reference alone with the existing tooling:
     python3 ../compare_neq_delta_lesser.py gbek-atomic-limit-exact-lesser \
         --tmax 4.0 --title "GEBK Fig. 3: exact -i Lambda^<_+ (atomic limit reference)"
+
+## Seeding-timing investigation (2026-07-09/10)
+
+With the decomposition itself verified faithful to the paper (five bugs
+fixed, see "The real bug" above and `project_gbek_seeding_order_experiments`
+/ `project_gbek_solveOptimalUpdateJoint_bug` in assistant memory), our rank-3
+causal-Cholesky reconstruction still pays a much larger relative penalty
+than the paper's own quoted Fig. 3 numbers: `err[ch]/err[ev] = 7.9x` on our
+atomic-limit target vs the paper's own `0.17/0.09 = 1.9x`, despite our
+eigenvector error (0.076) being *better* than theirs (0.09) on our target --
+i.e. our target isn't unusually hard to compress in the acausal sense, the
+*causal* method specifically underperforms relative to the paper's.
+
+Two hypotheses (proposed externally by a Claude-Fable-5 instance consulted
+directly, advisor tool being unavailable this session) were tested directly
+against this codebase's own tools:
+
+1. **Target provenance** ("the paper's Fig. 3 target is a fixed point of
+   their own rank-3 loop, not a rank-independent exact target, so it's
+   already softened where causal compression would fail") -- **tested and
+   falsified** (`check_fixedpoint_residual.py`): running our own
+   `gbek_selfconsistency.py` loop (which already embeds
+   `cholesky_causal()` inside the DMFT iteration exactly as this hypothesis
+   requires) to full convergence (`max|dLambda|=1.8e-9`) and comparing its
+   err[ch]/err[ev] against our existing full-dynamics target gives
+   essentially identical numbers (7.92x vs 8.69x) -- co-generating the
+   target with the rank-3 loop does not reproduce the paper's more
+   forgiving ratio.
+   - One trap hit along the way: the first comparison run used a stale
+     cached reference file that predated the 2026-07-09 seeding-floor fix,
+     giving a misleadingly bad 52x ratio. Always check a cached reference
+     file's generation date against the current code before trusting a
+     comparison. Also separately verified our actual input parameters
+     (`inputNeqAtomicLimitGBEKL3.ain`: `QuenchDuration=0.25, TmaxNeq=4.0,
+     NtNeq=100`) already match the paper's own Fig. 3 parameters exactly,
+     ruling out a ramp/window mismatch as an alternative explanation.
+
+2. **Seeding-timing** ("column 3 should activate once a row's residual
+   clears a *target-scale* threshold, not at row 3 by strict time order; a
+   fixed-activation-time scan should show an interior minimum once genuine
+   third-direction signal, delivered by hybridization feedback, actually
+   arrives") -- **tested and confirmed, real effect** (`scan_t3_activation.py`):
+   an *earlier* rejected experiment (`gbek_cholesky.py::cholesky_causal_deferred`,
+   a noise-scale `rtol=1e-6` auto-threshold) never actually tested this,
+   because that threshold fires within a few rows of t=0.12 regardless of
+   `rtol` (our seeding residual chain, e.g. 3.6e-3, 1.4e-5, 6.5e-6, 1.4e-7,
+   2.1e-8, clears 1e-6 immediately). Forcing column 3's activation to an
+   explicit fixed row/time instead reveals a genuine, non-noisy interior
+   minimum:
+
+   ```
+   t3     err[ch]  (global, L=3 atomic-limit target, full t_max=4 window)
+   0.12   0.6018   <- current behavior (plain time-ordered seeding)
+   0.72   0.5093
+   0.88   0.3946
+   1.04   0.2765   <- minimum
+   1.20   0.2854
+   2.00   0.6313
+   ```
+
+   err[ch] drops 54% (0.60 -> 0.28), cutting the causal/eigenvector penalty
+   ratio from 7.9x to ~3.6x -- still short of 1.9x, but the largest,
+   most mechanistically-explained improvement found in this investigation.
+   See `t3_activation_scan.png`. The corresponding `err^step(t)` curve
+   (`plot_errstep_t3scan.py` -> `errstep_t3scan_comparison.png`) shows the
+   forced-t3 curve tracking the baseline almost exactly until t3, then
+   growing much more slowly through t=4 -- a flattening of the late-time
+   blowup, not a reproduction of the paper's own dip-shaped err^step. An
+   envelope check (`min(baseline, forced-t3)` pointwise) confirms this is a
+   kink/flattening rather than a true decrease-then-increase dip: a
+   plausible online activation rule can probably recover the flattening,
+   but the paper's actual dip shape may need a smoother/partial activation
+   mechanism, or come from something else in their scheme entirely.
+
+   **This used a hand-picked oracle t3, not a causal online rule.** The
+   natural next step is a real activation rule (e.g. threshold against the
+   *known final/converged* diagonal scale rather than the running max seen
+   so far, which is what made the earlier rtol-based rule fire too early)
+   that lands near this minimum without look-ahead, then re-check L=4/L=5.
+
+   Working hypothesis on why the paper's own numbers look better than even
+   our post-fix 3.6x: their method/target details aren't published in
+   enough detail to fully reproduce (closed-source, no code release), and
+   given the venue, their real optimization target was plausibly "pass
+   review," not necessarily an algorithm free of similar ad-hoc choices --
+   so exact reproduction of 1.9x is not assumed to be the right bar; closing
+   the *qualitative* gap (a real interior activation minimum, a flattened
+   late-time error) is the meaningful validation target going forward.

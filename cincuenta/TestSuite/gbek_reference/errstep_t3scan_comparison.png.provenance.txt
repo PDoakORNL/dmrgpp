@@ -1,0 +1,18 @@
+generated: errstep_t3scan_comparison.png
+git commit: 312d40d87e13cb340fc7342b08e92a1b07bb741c
+git branch: neq_dmft_merge_master_dev
+working tree dirty: yes
+dirty files (git status --porcelain):
+M cincuenta/TestSuite/gbek_reference/atomic_limit_2d_rank_comparison.png
+ M cincuenta/TestSuite/gbek_reference/atomic_limit_2d_rank_comparison.png.provenance.txt
+
+content hashes (sha256, first 16 hex chars) of files relevant to this computation:
+  0cc58b2a333acb74  gbek_ed.py
+  69dd1f8af83652a2  gbek_dynamics.py
+  4e5e9f3fb5609437  gbek_cholesky.py
+  c9e72f472a1ea89f  gbek_selfconsistency.py
+  2c45efd0a5ac3949  ../../src/NeqBathDecomposition.h
+  00814119694b22f6  ../../src/ImpuritySolverNeqGBEK.h
+  e7b0db4c078f8b47  /Users/Shared/ornldev/code/dmrgpp/build/atomic-limit-gbek-L3-weiss-delta-lesser
+
+notes: baseline vs forced t3=1.04 (n3=26) vs eigenvector
