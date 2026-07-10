@@ -1,7 +1,7 @@
 #include "KronUtil.h"
 #include "util.h"
 
-#include "PsimagLiteConfig.h"
+#include <PsimagLite/PsimagLiteConfig.h>
 
 #ifdef PSIMAGLITE_USE_KOKKOS
 #include <Kokkos_Core.hpp>

@@ -9,7 +9,7 @@
 #include "TypeToString.h"
 #include "Vector.h"
 
-#include "PsimagLiteConfig.h"
+#include <PsimagLite/PsimagLiteConfig.h>
 #ifdef PSIMAGLITE_USE_KOKKOS
 #include <Kokkos_Core.hpp>
 #endif

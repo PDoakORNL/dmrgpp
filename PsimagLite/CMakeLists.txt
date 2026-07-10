@@ -1,5 +1,5 @@
 add_subdirectory(loki)
-add_subdirectory(src/PsimagLite)
+add_subdirectory(src)
 if(BUILD_TESTING)
   add_subdirectory(examples)
 endif()

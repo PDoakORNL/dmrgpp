@@ -83,8 +83,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "ModelBase.h"
 #include "ParametersGraphene.h"
 // #include "CrsMatrix.h"
-#include "../PsimagLite/Vector.h"
 #include "ProgramGlobals.h"
+#include "PsimagLite/Vector.h"
 #include "VerySparseMatrix.h"
 #include <numeric>
 

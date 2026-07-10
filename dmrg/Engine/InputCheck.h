@@ -79,8 +79,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define DMRG_INPUT_CHECK_H
 #include "Geometry/Geometry.h"
 #include "MatrixVectorKron/BatchedGemmInclude.hh"
-#include "Options.h"
 #include "ProgramGlobals.h"
+#include <PsimagLite/Options.h>
 #include <stdexcept>
 #include <vector>
 
