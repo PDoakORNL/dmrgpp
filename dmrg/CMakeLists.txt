@@ -5,17 +5,36 @@ add_custom_command(
   COMMENT "Generating Git Revision File"
   VERBATIM)
 
+if(DMRG_BUILD_BATCHED)
+  add_subdirectory(GPUPlugin)
+  set(PLUGIN_SC ON)
+  set(FpType "double")
+  if(DMRG_BUILD_BATCHED_MAGMA)
+    set(USE_MAGMA ON)
+  endif()
+endif()
+
 add_subdirectory(KronUtil)
+
+# Generate configuration header for PsimagLite
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/GPUPlugin/DMRGConfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/GPUPlugin/DMRGConfig.h
+               @ONLY)
 
 # DMRG++ as a library so cincuenta can use it
 add_library(dmrgpp_utils ProgramGlobals.cpp Provenance.cpp Utils.cpp Su2Related.cpp Qn.cpp)
 target_sources(dmrgpp_utils PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/GitRevision.h)
-target_include_directories(dmrgpp_utils PUBLIC ${CMAKE_CURRENT_BINARY_DIR} Engine)
+target_include_directories(dmrgpp_utils PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/GPUPlugin Engine)
 target_link_libraries(dmrgpp_utils PUBLIC psimaglite::psimaglite)
+if(DMRG_BUILD_BATCHED)
+  target_link_libraries(dmrgpp_utils PUBLIC gpuplugin)
+endif()
 
 # DMRG runner
 add_library(dmrg_runner Engine/DmrgRunner.cpp)
 target_link_libraries(dmrg_runner PUBLIC dmrgpp_utils kronutil)
+if(DMRG_BUILD_BATCHED)
+  target_link_libraries(dmrg_runner PUBLIC gpuplugin)
+endif()
 
 # Dmrg executable (main executable)
 add_executable(dmrg ${instantiationFileList} dmrg.cpp)
@@ -24,7 +43,7 @@ target_include_directories(dmrg PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Observe executable
 add_executable(observe observe.cpp ObserveDriver0.cpp ObserveDriver1.cpp ObserveDriver2.cpp)
-target_link_libraries(observe dmrgpp_utils kronutil)
+target_link_libraries(observe PUBLIC dmrgpp_utils kronutil)
 
 # Toolbox executable
 add_executable(toolboxdmrg toolboxdmrg.cpp)
@@ -37,8 +56,6 @@ target_link_libraries(omegas dmrgpp_utils dmrg_runner)
 # Introspect executable
 add_executable(introspect introspect.cpp)
 target_link_libraries(introspect dmrgpp_utils dmrg_runner)
-
-add_subdirectory(GPUPlugin)
 
 if(BUILD_TESTING)
   add_subdirectory(Engine/tests)
@@ -84,6 +101,12 @@ endfunction()
 
 add_test(NAME input2 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input2.ain)
 add_lowest_eigenvalue_check_test(output2 input2 -9.51754 runForinput2.cout)
+
+if(DMRG_BUILD_BATCHED)
+  add_test(NAME input2_batchedgemm COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input2_batchedgemm.ain)
+  add_lowest_eigenvalue_check_test(output2_batchedgemm input2_batched_gemm -9.51754 runForinput2.cout)
+endif()
+
 add_test(NAME input3 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input3.ain) # energy -21.5102
 add_lowest_eigenvalue_check_test(output3 input3 -21.5102 runForinput3.cout)
 add_test(NAME input4 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input4.ain) # energy -15.9938

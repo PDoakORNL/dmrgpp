@@ -1,5 +1,6 @@
 #ifndef BATCHEDGEMMINCLUDE_HH
 #define BATCHEDGEMMINCLUDE_HH
+#include "DMRGConfig.h"
 #ifdef PLUGIN_SC
 #include "BatchedGemmPluginSc.h"
 #define BATCHED_GEMM BatchedGemmPluginSc
@@ -7,6 +8,7 @@
 #include "BatchedGemmCpu.h"
 #define BATCHED_GEMM BatchedGemmCpu
 #endif
+#include "PsimagLite.h"
 
 namespace Dmrg {
 

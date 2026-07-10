@@ -1,4 +1,5 @@
 #include "setup_sparse_batch.h"
+#include "DMRGConfig.h"
 #include "dmrg_lapack.h"
 #include "setup_nC.h"
 
@@ -220,18 +221,20 @@ void setup_sparse_batch(
   -----------------------------------
   */
 
-	T** gAbatch_ = new T*[npatches];
-	T** gBbatch_ = new T*[npatches];
+	T** gAbatch_ = dmrg_malloc<T*>(sizeof(T*) * npatches, sizeof(T*) * npatches);
+	T** gBbatch_ = dmrg_malloc<T*>(sizeof(T*) * npatches, sizeof(T*) * npatches);
+	assert(gAbatch_ != nullptr);
+	assert(gBbatch_ != nullptr);
 
 	// printf("sizeof(FbType)=%lf \n",double(sizeof(T)));
 
 	nbytes_Abatch = sizeof(T) * sum_Abatch_sizes;
 	nbytes_Bbatch = sizeof(T) * sum_Bbatch_sizes;
 
-	T* pAmem = new T[sum_Abatch_sizes];
-	T* pBmem = new T[sum_Bbatch_sizes];
-	assert(pAmem != NULL);
-	assert(pBmem != NULL);
+	T* pAmem = dmrg_malloc<T>(sizeof(T) * sum_Abatch_sizes, sizeof(T) * sum_Abatch_sizes);
+	T* pBmem = dmrg_malloc<T>(sizeof(T) * sum_Bbatch_sizes, sizeof(T) * sum_Bbatch_sizes);
+	assert(pAmem != nullptr);
+	assert(pBmem != nullptr);
 
 	{
 		SizeType ipatch = 0;
@@ -344,9 +347,7 @@ void setup_sparse_batch(
 			}; /* end for jpatch */
 
 		}; /* end for ipatch */
-
 #ifdef USE_MAGMA
-
 		{
 			IntegerType ngpu              = dmrg_get_ngpu();
 			size_t      Abatch_inc        = (sum_Abatch_sizes) / ngpu;
@@ -422,14 +423,14 @@ template <typename T> void unsetup_sparse_batch(T*** pgAbatch, T*** pgBbatch)
 	assert(pAmem != NULL);
 	assert(pBmem != NULL);
 
-	delete[] pAmem;
-	delete[] pBmem;
+	dmrg_free(pAmem);
+	dmrg_free(pBmem);
 
 	pAmem = nullptr;
 	pBmem = nullptr;
 
-	delete[] gAbatch;
-	delete[] gBbatch;
+	dmrg_free(gAbatch);
+	dmrg_free(gBbatch);
 
 	gAbatch = nullptr;
 	gBbatch = nullptr;

@@ -57,6 +57,11 @@ else()
   set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
 endif()
 
+option(DMRG_BUILD_BATCHED "Enable building with Batched support" ON)
+
+include(CMakeDependentOption)
+cmake_dependent_option(DMRG_BUILD_BATCHED_MAGMA "Enable building with Magma" OFF "DMRG_BUILD_BATCHED" OFF)
+
 add_subdirectory(util)
 
 add_subdirectory(PsimagLite)
