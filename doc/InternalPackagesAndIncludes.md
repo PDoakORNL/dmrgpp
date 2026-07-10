@@ -35,7 +35,7 @@ These examples for package LanczosPlusPlus are all incorrect:
 
 ### Package includes a file from another Package
 If a package wants to include a file from another package it must
-prepend the include with package's name and inner location **in angle brackets**. But see the exception rule at the end.
+prepend the include with package's name and inner location **in angle brackets**.
 These examples for package dmrg are correct:
 
 ```cpp
@@ -55,7 +55,7 @@ These examples for package dmrg are all incorrect:
 These includes are allowed:
 
 ```cpp
-#include <PsimagLite/Utilities/Matrix.h>
+#include <PsimagLite/Matrix.h>
 #include <PsimagLite/Io/IoNg.h>
 ```
 This is bad
