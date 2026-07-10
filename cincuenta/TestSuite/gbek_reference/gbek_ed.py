@@ -99,6 +99,13 @@ def number_operator(basis, site, spin):
     return sp.diags(n)
 
 
+def double_occupation_operator(basis, site=0):
+    """Diagonal sparse operator n_{site,up} n_{site,down}."""
+    n_up = number_operator(basis, site, 0)
+    n_dn = number_operator(basis, site, 1)
+    return sp.diags(n_up.diagonal() * n_dn.diagonal())
+
+
 if __name__ == "__main__":
     # Smoke test: isolated Hubbard atom (nsites=1), particle-hole symmetric,
     # mu = -U/2.  Ground states at half filling (nup=1,ndown=0 or 0,1) should

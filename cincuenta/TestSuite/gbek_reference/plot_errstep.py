@@ -40,7 +40,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from compare_reference import read_lesser_file
-from gbek_cholesky import cholesky_causal, reconstruct
+from gbek_cholesky import cholesky_causal, reconstruct, eigenvector_decompose
 from provenance import write_provenance
 
 DEFAULT_TARGET = "/Users/Shared/ornldev/code/dmrgpp/build/atomic-limit-gbek-L3-weiss-delta-lesser"
@@ -86,10 +86,7 @@ def global_err(lam, A):
 
 
 def eigenvector_lowrank(lam, L):
-    w, U = np.linalg.eigh(lam)
-    order = np.argsort(w)[::-1]
-    w, U = w[order], U[:, order]
-    return (U[:, :L] * w[:L]) @ U[:, :L].conj().T
+    return reconstruct(eigenvector_decompose(lam, L))
 
 
 def main():

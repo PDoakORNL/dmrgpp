@@ -27,9 +27,9 @@ import numpy as np
 from provenance import write_provenance
 import scipy.sparse as sp
 
-from gbek_ed import build_basis, c_operator, number_operator
-from gbek_dynamics import hop_operator, propagate, compute_g_lesser
-from gbek_cholesky import cholesky_causal
+from gbek_ed import build_basis, c_operator, number_operator, double_occupation_operator
+from gbek_dynamics import hop_operator, propagate, compute_g_lesser, compute_diag_observable
+from gbek_cholesky import cholesky_causal, eigenvector_decompose
 
 
 def v_ramp(t, tq):
@@ -108,7 +108,23 @@ def initial_state(nsites, L, basis, index):
     return psi0
 
 
-def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6, verbose=True):
+def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6,
+                          mode="cholesky", verbose=True, record_history=False):
+    """
+    mode: "cholesky" (default, causal rank-L decomposition of Lambda every
+      iteration) or "eigenvector" (non-causal top-L spectral decomposition
+      of the FULL Lambda every iteration) -- see gbek_cholesky.py's
+      cholesky_causal()/eigenvector_decompose() for the algorithms. Used to
+      reproduce GBEK Fig. 7/8's top-vs-bottom-panel comparison.
+    record_history: if True, additionally computes and records the
+      double occupation d_it(t) = <n0up(t) n0dn(t)> after EVERY iteration
+      (not just the converged one) in the returned docc_history list, needed
+      for Fig. 7's per-iteration curves. d(t) is computed directly from the
+      alpha trajectory phi_states with no beta-sector averaging: an
+      empirical check (check_alpha_beta_docc_symmetry.py) confirms
+      d_alpha(t) == d_beta(t) to numerical precision, consistent with this
+      module's existing G_avg alpha/beta-symmetry argument (docstring above).
+    """
     nsites = 1 + 2 * L
     ts = np.arange(N + 1) * dt
     v = np.array([v_ramp(t, tq) for t in ts])
@@ -130,11 +146,18 @@ def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6, verbo
     c0dn = c_operator(nsites, basis_N, index_N, basis_dn, index_dn, site=0, spin=1)
 
     psi0 = initial_state(nsites, L, basis_N, index_N)
+    docc_op = double_occupation_operator(basis_N, site=0) if record_history else None
 
     Lambda = np.zeros((N + 1, N + 1), dtype=complex)  # -i*Delta^<(t_n,t_j), j<=n
     history = []
+    docc_history = [] if record_history else None
     for it in range(n_iterations):
-        V = cholesky_causal(Lambda, L)  # (N+1, L); V[0,:] = 0 by construction
+        if mode == "cholesky":
+            V = cholesky_causal(Lambda, L)  # (N+1, L); V[0,:] = 0 by construction
+        elif mode == "eigenvector":
+            V = eigenvector_decompose(Lambda, L)
+        else:
+            raise ValueError(f"unknown mode {mode!r}")
         H_seq_N = make_h_seq(Uterm_N, occ_N, empty_N, V[:N, :])
         H_seq_up = make_h_seq(Uterm_up, occ_up, empty_up, V[:N, :])
         H_seq_dn = make_h_seq(Uterm_dn, occ_dn, empty_dn, V[:N, :])
@@ -143,6 +166,9 @@ def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6, verbo
         G_up = compute_g_lesser(phi_states, c0up, H_seq_up, dt)
         G_dn = compute_g_lesser(phi_states, c0dn, H_seq_dn, dt)
         G_avg = 0.5 * (G_up + G_dn)
+
+        if record_history:
+            docc_history.append(compute_diag_observable(phi_states, docc_op))
 
         Lambda_new = np.zeros_like(Lambda)
         for n in range(N + 1):
@@ -159,7 +185,7 @@ def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6, verbo
         if diff < tol:
             break
 
-    return Lambda, V, hop_t, ts, history
+    return Lambda, V, hop_t, ts, history, docc_history
 
 
 def dump_lesser(path, Lambda, dt):
@@ -194,7 +220,7 @@ def _probe():
 
     for L in (1, 2, 3):
         print(f"\n=== L={L} ===")
-        Lambda, V, hop_t, ts, history = run_self_consistency(
+        Lambda, V, hop_t, ts, history, _ = run_self_consistency(
             L, N, dt, U, tstar_f, tq, n_iterations=10, tol=1e-8, verbose=False)
         print("Convergence history:", [f"{h:.2e}" for h in history])
 
@@ -237,7 +263,7 @@ def main():
         return
 
     t0 = time.time()
-    Lambda, V, hop_t, ts, history = run_self_consistency(
+    Lambda, V, hop_t, ts, history, _ = run_self_consistency(
         args.L, args.N, args.dt, args.U, args.tstar_f, args.tq,
         n_iterations=args.iterations, tol=args.tol, verbose=True)
     print(f"\nWall time: {time.time()-t0:.1f} s")

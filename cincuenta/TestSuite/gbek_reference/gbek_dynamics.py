@@ -136,6 +136,14 @@ def compute_g_lesser(phi_states, c_op, H_seq_minus, dt):
     return G
 
 
+def compute_diag_observable(states, diag_op):
+    """states: list of state vectors (e.g. phi_states from propagate()).
+    diag_op: sparse diagonal operator (e.g. from double_occupation_operator).
+    Returns real array, one expectation value per state."""
+    diag = diag_op.diagonal()
+    return np.array([np.vdot(psi, diag * psi).real for psi in states])
+
+
 if __name__ == "__main__":
     # Validation: U=0, static hopping V between 2 sites (impurity + 1 bath),
     # single spin-up electron.  Exact single-particle result: with H_1p =
@@ -182,3 +190,17 @@ if __name__ == "__main__":
     print("max |G_numeric - G_exact| (lower triangle):", err_g)
     assert err_g < 1e-8, "two-time G^< does not match analytic single-particle result"
     print("OK: two-time G^< matches analytic single-particle formula")
+
+    # Validate compute_diag_observable / double_occupation_operator: this
+    # sector has no down-spin electron at all (nup=1, ndown=0), so d(t) must
+    # be exactly 0 for every t -- a minimal smoke test before wiring the
+    # observable into the full self-consistency loop (see also
+    # check_alpha_beta_docc_symmetry.py for the alpha/beta symmetry check,
+    # which needs the self-consistency machinery and lives in its own script).
+    from gbek_ed import double_occupation_operator
+    docc_op = double_occupation_operator(basis, site=0)
+    d_t = compute_diag_observable(states, docc_op)
+    print("max |d(t)| (expect exactly 0, no down-spin electron in this sector):",
+          np.max(np.abs(d_t)))
+    assert np.max(np.abs(d_t)) == 0.0, "double occupation must be exactly 0 with no dn electron"
+    print("OK: double_occupation_operator / compute_diag_observable smoke test passed")

@@ -8,7 +8,7 @@ V[n, p] for n=0..nT, p=0..L-1.  V[0, :] = 0 exactly (n=0 skipped, matching
 the "n==0 is skipped" fix in NeqBathDecomposition.h -- that part of the
 algorithm matches the paper and was never in question).
 
-## Two bugs this file caught, in sequence
+## Three bugs this file caught, in sequence
 
 An earlier version of this file was a line-for-line port of
 NeqBathDecomposition.h::choleskyOptimalUpdate, and "confirmed" that C++ code
@@ -38,8 +38,34 @@ true target d on realistic inputs, growing worse with n). See
 cholesky_causal_linear_only()'s docstring and _solve_optimal_update() below
 for the fix.
 
+**Bug 3 -- wrong conjugation in the optimal-update design matrix (found
+2026-07-10, chasing a ~50% double-occupation amplitude discrepancy against
+GBEK Fig. 8).** The factorization this whole module targets is
+Lambda(n,k) = sum_p V[n,p] * conj(V[k,p]) (matching reconstruct()'s
+`V @ V.conj().T`). Solving for a new row q=V[n,:] against established rows
+Q_raw=V[1:n,:] therefore means a = conj(Q_raw) @ q, i.e. the correct
+"design matrix" in the standard complex least-squares sense is conj(Q_raw),
+not Q_raw itself. `_solve_optimal_update(Q, a, d, L)` internally solves the
+standard-form normal equations `Q.conj().T @ Q @ q = Q.conj().T @ a`, which
+is only correct if its `Q` argument IS that design matrix -- but every
+call site was passing `Q = V[1:n, :]` (the raw, unconjugated established
+rows), not `V[1:n, :].conj()`. For a genuinely real-valued target this is
+invisible (conjugation is a no-op), which is exactly why every one of this
+module's own self-tests (all real-valued PSD matrices) passed throughout
+the bug's lifetime. It only bites once the target has a genuine complex
+phase -- e.g. the atomic-limit correlator's e^{iUt/2} oscillation -- where
+it silently reconstructs a garbage row instead of raising an error. Fixed
+by conjugating Q at each of the three affected call sites (cholesky_causal,
+cholesky_causal_pivoted_seed, cholesky_causal_deferred); the seeding-phase
+forward substitution (n<=L) already conjugated correctly and needed no
+change. cholesky_causal_linear_only() and cholesky_causal_buggy_fixed_window()
+are deliberately left as-is: both are historical bug-1/bug-2 regression
+artifacts, not live code paths, and buggy_fixed_window's hand-written sums
+already had the correct conjugation the other three call sites lacked.
+
 NeqBathDecomposition.h::choleskyOptimalUpdate has been fixed to match this
-file's cholesky_causal() (both bugs).
+file's cholesky_causal() (bugs 1 and 2 only, prior to bug 3's discovery --
+check whether bug 3 also needs porting there).
 """
 import numpy as np
 
@@ -101,25 +127,93 @@ def _solve_optimal_update(Q, a, d, L):
     values instead of dividing by them, which is exactly the failure mode
     here. d is also clamped to be non-negative for the same
     intermediate-estimate reason.
+
+    Bug 4 (found 2026-07-10, chasing a real accuracy gap against GBEK's own
+    Cholesky results -- our L=2/Lbath=4 causal reconstruction was breaking
+    down around t~0.7, roughly half the paper's own horizon of t~1.2-1.3 at
+    the same nominal rank). q_of(mu) used to solve `[QtQ+(mu-d)I] q = Qta`
+    via a FRESH `np.linalg.lstsq(A, Qta, rcond=1e-10)` call at every `mu`
+    tried during bisection. That's fine when QtQ is well-conditioned, but at
+    low L it's common for one just-established column to carry almost no
+    signal yet (observed: QtQ eigenvalues [1.1e-8, 7.4], condition number
+    ~7e8) -- and as `mu` varies, the shifted near-zero eigenvalue crosses in
+    and out of lstsq's rank-detection threshold, making the numerically
+    computed g(mu) behave non-monotonically/discontinuously instead of the
+    smooth, strictly-decreasing function the bisection assumes. Confirmed by
+    comparing our solver's answer against a brute-force numerical
+    minimization of F(q) at exactly such a row: our solver returned an
+    answer with ||q||^2 substantially undershooting d (the diagonal
+    constraint essentially unenforced in the near-null direction) and a
+    measurably higher F(q) than the true minimum -- bug 2's undershoot
+    symptom recurring via a different mechanism, not caught by the earlier
+    fix because that fix was validated against a decaying-ridge/atomic-limit
+    target whose QtQ never got this ill-conditioned.
+
+    Fixed by diagonalizing QtQ ONCE (Hermitian, so real eigenvalues) and
+    evaluating g(mu) via the resulting exact secular-equation form
+    g(mu) = sum_i |b_i|^2/(lambda_i+mu-d)^2 - mu, where b = W^dagger Qta in
+    QtQ's eigenbasis. This is an explicit algebraic function of mu with no
+    linear solve (hence no rcond-driven rank flips) at every trial mu --
+    provably strictly decreasing everywhere the shift keeps QtQ+(mu-d)I
+    positive definite, i.e. for mu > d - lambda_min(QtQ), matching this
+    docstring's original monotonicity argument exactly, just evaluated
+    exactly instead of through a numerically fragile repeated solve.
     """
+    d = max(d, 0.0)
     QtQ = Q.conj().T @ Q
     Qta = Q.conj().T @ a
-    I = np.eye(L)
+    lam, W = np.linalg.eigh(QtQ)   # ascending real eigenvalues, unitary W
+    b = W.conj().T @ Qta
 
     def q_of(mu):
-        A = QtQ + (mu - d) * I
-        return np.linalg.lstsq(A, Qta, rcond=1e-10)[0]
+        denom = lam + (mu - d)
+        return W @ (b / denom)
 
-    d = max(d, 0.0)
+    def g(mu):
+        denom = lam + (mu - d)
+        return np.sum(np.abs(b) ** 2 / denom ** 2)
+
+    # Hard case (trust-region-subproblem terminology): if QtQ's smallest
+    # eigenvalue is tiny AND Qta has negligible projection onto its
+    # eigenvector, that direction is a near-free parameter for the linear
+    # (off-diagonal) fit -- contributes ~0 to it regardless of value -- but
+    # still counts fully toward ||q||^2 = d. g(mu) then has a genuine pole
+    # at mu = d - lam_min, and the true root can sit within ~1e-12 of that
+    # pole: far too delicate for bisection, which either overflows evaluating
+    # g there or has its result rejected by the final sanity check below,
+    # silently falling back to the diagonal-undershooting q_linear (bug 2's
+    # symptom recurring via a different mechanism -- found 2026-07-10 chasing
+    # a real accuracy gap against GBEK's own Cholesky results). Handled
+    # directly instead of via the generic secular-equation search: build q
+    # from the well-conditioned directions alone (equivalent to evaluating
+    # them at mu -> d - lam_min, i.e. denom -> lam_i there since lam_min~0),
+    # then set the near-null direction's magnitude to whatever hits
+    # ||q||^2=d exactly, using b's own (tiny but nonzero) phase as the
+    # natural choice -- it's the direction q(mu) actually approaches as mu
+    # nears the pole, and the linear term is insensitive to phase there
+    # anyway (|b|~0 means F(q) barely depends on it).
+    hard_mask = lam < 1e-6 * lam[-1]
+    if hard_mask.any() and np.sum(np.abs(b[hard_mask]) ** 2) < 1e-6 * max(d, 1.0):
+        soft = ~hard_mask
+        c = np.zeros_like(b)
+        c[soft] = b[soft] / lam[soft]
+        remainder = d - np.sum(np.abs(c[soft]) ** 2)
+        if remainder > 0:
+            idx = np.where(hard_mask)[0]
+            tau = np.sqrt(remainder / len(idx))
+            for i in idx:
+                phase = b[i] / abs(b[i]) if abs(b[i]) > 0 else 1.0
+                c[i] = tau * phase
+            q_hard = W @ c
+            if np.isfinite(q_hard).all():
+                n2_hard = np.vdot(q_hard, q_hard).real
+                if abs(n2_hard - d) < 1e-6 * max(d, 1.0):
+                    return q_hard
+
     q_linear = q_of(d)
     n2_linear = np.vdot(q_linear, q_linear).real
     if not np.isfinite(n2_linear):
         return np.zeros(L, dtype=complex)  # QtQ itself is degenerate; give up safely
-
-    def g(mu):
-        q  = q_of(mu)
-        n2 = np.vdot(q, q).real
-        return n2
 
     n2_at_d = g(d)
     if not np.isfinite(n2_at_d):
@@ -263,7 +357,7 @@ def cholesky_causal(lam, L, floor_rtol=1e-10):
             # (bug 1's fix). Solve the JOINT off-diagonal + diagonal
             # objective exactly via _solve_optimal_update (bug 2's fix).
             a = np.array([lam_at(n, k) for k in range(1, n)])  # length s, ALL prior rows
-            Q = V[1:n, :]                                       # (s, L), ALL prior rows
+            Q = V[1:n, :].conj()  # (s, L), ALL prior rows, conjugated (bug 3 fix)
             d = lam_at(n, n).real
             V[n, :] = _solve_optimal_update(Q, a, d, L)
     return V
@@ -346,7 +440,7 @@ def cholesky_causal_pivoted_seed(lam, L, verbose=False):
 
     for n in range(L + 1, nT + 1):
         a = np.array([lam_at(n, m) for m in range(1, n)])
-        Q = V[1:n, :]
+        Q = V[1:n, :].conj()  # bug 3 fix, see module docstring
         d = lam_at(n, n).real
         V[n, :] = _solve_optimal_update(Q, a, d, L)
 
@@ -446,7 +540,7 @@ def cholesky_causal_deferred(lam, L, rtol=1e-6, verbose=False):
                       f"<= threshold={threshold:.3e}")
         else:
             a = np.array([lam_at(n, m) for m in range(1, n)])
-            Q = V[1:n, :]
+            Q = V[1:n, :].conj()  # bug 3 fix, see module docstring
             d = d_nn
             V[n, :] = _solve_optimal_update(Q, a, d, L)
 
@@ -546,6 +640,30 @@ def cholesky_causal_buggy_fixed_window(lam, L):
 
 def reconstruct(V):
     return V @ V.conj().T
+
+
+def eigenvector_decompose(lam, L):
+    """
+    Non-causal rank-L factor: top-L eigenvectors/eigenvalues of the full
+    Lambda matrix (using every t_n up to t_max at once), unlike
+    cholesky_causal()'s row-by-row causal build. Returns V of shape
+    (nT+1, L) such that V @ V.conj().T is the best rank-L Frobenius
+    approximation to lam (Eckart-Young) -- the same reconstruction
+    plot_errstep.py's eigenvector_lowrank() computes directly, just stopping
+    one step short of forming the product, so this factor can be plugged
+    into make_h_seq() (gbek_selfconsistency.py) exactly like
+    cholesky_causal()'s V.
+
+    Mirrors eigenvector_lowrank()'s np.linalg.eigh(lam) call exactly (no
+    manual Hermitian completion): eigh only reads one triangle by default
+    (UPLO='L'), so this works whether or not lam's upper triangle is filled,
+    identically to the function it replaces.
+    """
+    w, U = np.linalg.eigh(lam)
+    order = np.argsort(w)[::-1]
+    w, U = w[order], U[:, order]
+    w = np.clip(w[:L], 0, None)
+    return U[:, :L] * np.sqrt(w)
 
 
 if __name__ == "__main__":
