@@ -21,7 +21,7 @@ option(PSIMAGLITE_USE_KOKKOS "Enable Kokkos support" OFF)
 if(PSIMAGLITE_USE_KOKKOS)
   find_package(KokkosKernels 5.1 REQUIRED)
   target_link_libraries(psimaglite PUBLIC Kokkos::kokkoskernels Kokkos::kokkos)
-  target_sources(psimaglite PRIVATE kokkos_gemm.cpp)
+  target_sources(psimaglite PRIVATE PsimagLite/kokkos_gemm.cpp)
 endif()
 target_include_directories(psimaglite PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
