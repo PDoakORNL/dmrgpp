@@ -12,6 +12,8 @@ https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#rs-incform
 DMRG++ is composed of the following packages: PsimagLite, LanczosPlusPlus,
 dmrg, and cincuenta. TODO: Maybe names should all be capitalized.
 
+![Packages](codemap.png)
+
 ## How includes should be done
 ### Package includes one of its files
 If package (say LanczosPlusPlus) wants to include a file
