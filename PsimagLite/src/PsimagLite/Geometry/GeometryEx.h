@@ -1,7 +1,7 @@
 #ifndef GEOMETRY_EX_H
 #define GEOMETRY_EX_H
 
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 #include <cassert>
 
 #ifndef USE_MS_GEOMETRY

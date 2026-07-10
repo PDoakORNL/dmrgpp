@@ -77,8 +77,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef GEOMETRY_DIR_H
 #define GEOMETRY_DIR_H
-#include "Io/IoSerializerStub.h"
-#include "Matrix.h"
+#include <PsimagLite/Io/IoSerializerStub.h>
+#include <PsimagLite/Matrix.h>
 #include <cassert>
 
 namespace PsimagLite {
