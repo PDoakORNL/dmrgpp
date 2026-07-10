@@ -12,7 +12,7 @@
 #include <PsimagLite/PsimagLiteConfig.h>
 
 #ifdef PSIMAGLITE_USE_KOKKOS
-#include <kokkos_gemm.h>
+#include "kokkos_gemm.h"
 #endif
 
 #include <complex>
