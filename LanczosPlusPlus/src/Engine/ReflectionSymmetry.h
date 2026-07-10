@@ -18,10 +18,10 @@ Please see full open source license included in file LICENSE.
 
 #ifndef REFLECTION_SYMM_H
 #define REFLECTION_SYMM_H
-#include "CrsMatrix.h"
 #include "LanczosGlobals.h"
-#include "ProgressIndicator.h"
-#include "Vector.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Vector.h>
 #include <iostream>
 
 namespace LanczosPlusPlus {

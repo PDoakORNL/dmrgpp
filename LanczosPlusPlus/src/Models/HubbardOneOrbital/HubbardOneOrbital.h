@@ -5,12 +5,12 @@
 #define HUBBARDLANCZOS_H
 
 #include "BasisHubbardLanczos.h"
-#include "BitManip.h"
 #include "HubbardHelper.h"
 #include "LanczosGlobals.h"
 #include "LanczosModelBase.hpp"
 #include "ParametersModelHubbard.h"
-#include "TypeToString.h"
+#include <PsimagLite/BitManip.h>
+#include <PsimagLite/TypeToString.h>
 
 namespace LanczosPlusPlus {
 

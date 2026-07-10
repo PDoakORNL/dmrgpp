@@ -20,8 +20,8 @@ Please see full open source license included in file LICENSE.
 
 #ifndef PARTITIONS_H
 #define PARTITIONS_H
-#include "BitManip.h"
-#include "Matrix.h"
+#include <PsimagLite/BitManip.h>
+#include <PsimagLite/Matrix.h>
 
 namespace LanczosPlusPlus {
 

@@ -5,12 +5,12 @@
 #define LANCZOS_KITAEV_H
 
 #include "BasisKitaev.h"
-#include "BitManip.h"
-#include "CrsMatrix.h"
 #include "LanczosModelBase.hpp"
 #include "ParametersKitaev.h"
-#include "SparseRow.h"
-#include "TypeToString.h"
+#include <PsimagLite/BitManip.h>
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/SparseRow.h>
+#include <PsimagLite/TypeToString.h>
 
 namespace LanczosPlusPlus {
 

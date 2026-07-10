@@ -81,7 +81,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef InternalProductStored_HEADER_H
 #define InternalProductStored_HEADER_H
 
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 #include <vector>
 
 namespace LanczosPlusPlus {

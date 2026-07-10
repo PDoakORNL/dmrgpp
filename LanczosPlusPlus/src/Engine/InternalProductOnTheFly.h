@@ -80,8 +80,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef INTERNALPRODUCT_OTF_H
 #define INTERNALPRODUCT_OTF_H
 
-#include "Matrix.h"
-#include "Vector.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Vector.h>
 #include <cassert>
 #include <vector>
 

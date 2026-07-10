@@ -18,8 +18,8 @@ Please see full open source license included in file LICENSE.
 
 #ifndef LANCZOS_REDUCED_DM_H
 #define LANCZOS_REDUCED_DM_H
-#include "Matrix.h"
-#include "Vector.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Vector.h>
 
 namespace LanczosPlusPlus {
 

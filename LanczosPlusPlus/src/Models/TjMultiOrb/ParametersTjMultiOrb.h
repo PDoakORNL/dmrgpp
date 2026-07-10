@@ -79,7 +79,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef LANCZOS_PARAMS_TJ_MULTIORB_H
 #define LANCZOS_PARAMS_TJ_MULTIORB_H
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 #include <stdexcept>
 
 namespace LanczosPlusPlus {

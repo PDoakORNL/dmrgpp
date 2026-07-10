@@ -1,6 +1,6 @@
 #ifndef COMBINATORIAL_HH
 #define COMBINATORIAL_HH
-#include "Matrix.h"
+#include <PsimagLite/Matrix.h>
 
 namespace LanczosPlusPlus {
 

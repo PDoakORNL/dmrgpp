@@ -5,13 +5,13 @@
 #define HUBBARDRASHBASOC_H
 
 #include "BasisRashbaSOC.h"
-#include "BitManip.h"
 #include "HubbardHelper.h"
 #include "LanczosGlobals.h"
 #include "LanczosModelBase.hpp"
 #include "ParametersModelHubbard.h"
-#include "SparseRow.h"
-#include "TypeToString.h"
+#include <PsimagLite/BitManip.h>
+#include <PsimagLite/SparseRow.h>
+#include <PsimagLite/TypeToString.h>
 
 namespace LanczosPlusPlus {
 
