@@ -2,10 +2,10 @@
 #define FIT_H
 #include "AndersonFunction.h"
 #include "FitFunction.hpp"
-#include "MersenneTwister.h"
 #include "MinParams.h"
-#include "Minimizer.h"
-#include "PsimagLite.h"
+#include <PsimagLite/MersenneTwister.h>
+#include <PsimagLite/Minimizer.h>
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmft {
 

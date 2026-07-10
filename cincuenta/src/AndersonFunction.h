@@ -1,7 +1,7 @@
 #ifndef ANDERSONFUNCTION_H
 #define ANDERSONFUNCTION_H
 #include "FunctionOfFrequency.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmft {
 

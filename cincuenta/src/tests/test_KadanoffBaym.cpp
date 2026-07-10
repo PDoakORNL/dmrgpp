@@ -1,5 +1,5 @@
 #include "KadanoffBaym.h"
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 #include <catch2/catch_test_macros.hpp>
 
 using Dmft::KadanoffBaym;

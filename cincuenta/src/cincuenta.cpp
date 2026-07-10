@@ -1,11 +1,11 @@
 #include "CincuentaInputCheck.h"
 #include "Dispersion.h"
 #include "DmftSolver.h"
-#include "InputPath.hpp"
 #include "NeqDmftSolver.h"
 #include "ProgramGlobals.h"
 #include "Provenance.h"
-#include "PsimagLite.h"
+#include <PsimagLite/InputPath.hpp>
+#include <PsimagLite/PsimagLite.h>
 #include <unistd.h>
 
 std::streambuf* GlobalCoutBuffer = 0;

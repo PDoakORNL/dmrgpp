@@ -5,9 +5,9 @@
 #include "ImpuritySolverBase.h"
 #include "ImpuritySolverDmrg.h"
 #include "ImpuritySolverExactDiag.h"
-#include "InputNg.h"
 #include "LatticeGf.h"
 #include "ParamsDmftSolver.h"
+#include <PsimagLite/InputNg.h>
 
 namespace Dmft {
 

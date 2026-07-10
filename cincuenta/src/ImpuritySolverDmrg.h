@@ -3,18 +3,18 @@
 
 #include "CmdLineOptions.hh"
 #include "DmrgRunner.h"
-#include "Geometry/Star.h"
 #include "ImpuritySolverBase.h"
 #include "InputCheck.h"
-#include "LanczosSolver.h"
 #include "ManyOmegas.h"
-#include "Matsubaras.h"
 #include "ModelParams.h"
 #include "ParamsDmftSolver.h"
 #include "ProcOmegas.h"
-#include "PsiBase64.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/Geometry/Star.h>
+#include <PsimagLite/LanczosSolver.h>
+#include <PsimagLite/Matsubaras.h>
+#include <PsimagLite/PsiBase64.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmft {
 

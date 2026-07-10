@@ -1,8 +1,8 @@
 #include "FunctionOfFrequency.h"
 #include "InputCheck.h"
-#include "InputNg.h"
-#include "Matsubaras.h"
 #include "ParamsDmftSolver.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/Matsubaras.h>
 
 template <typename ComplexType>
 void computeGamma(

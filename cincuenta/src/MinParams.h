@@ -1,6 +1,6 @@
 #ifndef MINPARAMS_H
 #define MINPARAMS_H
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmft {
 

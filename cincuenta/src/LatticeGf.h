@@ -3,8 +3,8 @@
 #include "DensityOfStates.h"
 #include "Dispersion.h"
 #include "FunctionOfFrequency.h"
-#include "Integrator.h"
-#include "PsimagLite.h"
+#include <PsimagLite/Integrator.h>
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmft {
 
