@@ -435,3 +435,32 @@ against this codebase's own tools:
    so exact reproduction of 1.9x is not assumed to be the right bar; closing
    the *qualitative* gap (a real interior activation minimum, a flattened
    late-time error) is the meaningful validation target going forward.
+
+3. **Does the effect generalize to L=4, L=5?** (`scan_t3_t4_t5.py`) --
+   **partially confirmed, not a clean cascade.** Generalized the forced-
+   activation-time idea to a multi-column version (`cholesky_forced_multi`,
+   arbitrary list of forced activation rows per column) and ran a greedy
+   sequential scan: optimize t3 first (columns 4.. still at plain-seeding
+   positions immediately after), then fix t3 and scan t4, then (L=5) fix
+   t3,t4 and scan t5.
+   - **L=4**: baseline ratio 11.64x -> 8.46x with t3 delayed to row 22
+     (t=0.88) and t4 following almost immediately after (row 24, t=0.96) --
+     same mechanism as L=3, smaller magnitude improvement.
+   - **L=5**: baseline ratio 29.51x -> only 28.73x -- essentially no
+     improvement from this greedy search. Forcing t4/t5 to immediately
+     trail a delayed t3 apparently costs about as much as the delay
+     gains, i.e. **the joint activation-time optimum is not decomposable
+     one-column-at-a-time** the way the L=3/L=4 single-variable scans
+     found it. A real fix at L=5 likely needs a joint (not greedy)
+     search over (t3,t4,t5), or a smarter per-column online rule that
+     doesn't force downstream columns to activate immediately after
+     whichever column was just delayed.
+   - One implementation bug caught and fixed during this scan: an
+     indexing error in the general forward-substitution routine (used
+     the wrong pivot row in the inner subtraction loop) produced
+     nonsense million-scale `err[ch]` values on the first attempt --
+     caught by cross-checking the plain-seeding baseline case against
+     the already-validated `cholesky_causal()` (exact agreement after
+     the fix, `max|V1-V2|=0.0`). A reminder to always sanity-check a new
+     routine's baseline/degenerate case against a known-good
+     implementation before trusting its scan results.
