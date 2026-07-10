@@ -81,10 +81,10 @@ if(BUILD_TESTING)
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/PsimagLite/Ainur/function.txt ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
   add_executable(Ainur_Test1 PsimagLite/Ainur/test.cpp)
   target_link_libraries(Ainur_Test1 psimaglite::psimaglite)
-  add_test(NAME Ainur_Test1 COMMAND Ainur_Test1 ${CMAKE_CURRENT_SOURCE_DIR}/Ainur/prelude.ain
-                                    ${CMAKE_CURRENT_SOURCE_DIR}/Ainur/input0.ain)
+  add_test(NAME Ainur_Test1 COMMAND Ainur_Test1 ${CMAKE_CURRENT_SOURCE_DIR}/PsimagLite/Ainur/prelude.ain
+                                    ${CMAKE_CURRENT_SOURCE_DIR}/PsimagLite/Ainur/input0.ain)
 
   add_executable(Ainur_Test2 PsimagLite/Ainur/testReal.cpp)
   target_link_libraries(Ainur_Test2 psimaglite::psimaglite)
-  add_test(NAME Ainur_Test2 COMMAND Ainur_Test2 ${CMAKE_CURRENT_SOURCE_DIR}/Ainur/input1.ain)
+  add_test(NAME Ainur_Test2 COMMAND Ainur_Test2 ${CMAKE_CURRENT_SOURCE_DIR}/PsimagLite/Ainur/input1.ain)
 endif()
