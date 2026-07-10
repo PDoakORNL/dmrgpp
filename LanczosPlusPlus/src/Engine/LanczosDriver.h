@@ -3,6 +3,7 @@
 #include "../Version.h"
 #include <PsimagLite/AllocatorCpu.h>
 #include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Version.h>
 #include <cstdlib>
 #include <getopt.h>
 #include <unistd.h>

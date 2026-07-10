@@ -1,10 +1,14 @@
 #ifndef PROVENANCE_H
 #define PROVENANCE_H
+
+#include <PsimagLite/AllocatorCpu.h>
+#include <PsimagLite/AnsiColors.h>
+#include <PsimagLite/Version.h>
+
 #include "../Version.h"
 #include "GitRevision.h"
 #include "MatrixVectorKron/BatchedGemmInclude.hh"
-#include <PsimagLite/AllocatorCpu.h>
-#include <PsimagLite/AnsiColors.h>
+
 #include <iostream>
 #include <sstream>
 
