@@ -464,3 +464,99 @@ against this codebase's own tools:
      the fix, `max|V1-V2|=0.0`). A reminder to always sanity-check a new
      routine's baseline/degenerate case against a known-good
      implementation before trusting its scan results.
+
+## Bugs 3 and 4: conjugation swap and ill-conditioned Gram matrix (2026-07-10)
+
+Found while building tooling to reproduce GBEK Fig. 7/8 (double occupation
+vs. DMFT iteration / `L_bath`) at `U=5` -- our converged results were
+diverging from the paper's own Fig. 8 curves at roughly half the paper's
+reported time horizon at the same nominal rank (`t*~0.68` vs. the paper's
+precisely-measured `t*~1.2-1.3` for `Lbath=4`).
+
+**Bug 3 (conjugation swap).** `cholesky_causal`'s optimal-update step
+builds its least-squares system from previously-established `V` rows. The
+factorization this module targets is `Lambda(n,k) = sum_p V(n,p) *
+conj(V(k,p))`, so those established rows need to be conjugated before use
+as the design matrix -- every call site passed them in unconjugated
+instead. Invisible on any real-valued target (every prior self-test in
+this file), since conjugation is a no-op there; only bites once the
+target has genuine complex phase, e.g. the atomic-limit correlator's
+`e^{iUt/2}` oscillation. Confirmed via a minimal synthetic complex rank-1
+target: the buggy code reconstructed it with error 1.2 where the true
+answer is exact to machine precision.
+
+The identical bug existed in `NeqBathDecomposition.h`, with an ironic
+history: a 2026-07-08 session (commit `5a058f4d`) found this C++ function
+disagreeing with `gbek_cholesky.py`'s solver on a complex-phase target,
+correctly diagnosed a conjugation mismatch, but concluded Python was
+correct and "fixed" C++ to match it -- except Python had the identical bug
+at the time, so a previously-correct C++ implementation got broken to
+match a broken reference. Reverting that change makes C++ agree with
+today's fixed Python to ~1e-9.
+
+**Bug 4 (ill-conditioned Gram matrix / trust-region "hard case").** Even
+after fixing bug 3, `_solve_optimal_update`'s bisection search evaluated
+`q(mu)` via a fresh `np.linalg.lstsq(..., rcond=1e-10)` call at every trial
+`mu`. At low rank it's common for a just-established column to carry
+almost no signal yet (observed on real data: Gram-matrix eigenvalues
+`[1.1e-8, 7.4]`, condition number `~7e8`). As `mu` varies, the shifted
+near-zero eigenvalue crosses `lstsq`'s rank-detection threshold
+inconsistently, breaking the bisection's assumed smooth monotonicity and
+silently returning a diagonal-undershooting wrong answer -- confirmed by
+comparing against a brute-force numerical minimization of the true
+objective, which found a materially better solution. This is the classic
+"hard case" from trust-region-subproblem theory: the near-null Gram
+direction is a free parameter for the linear (off-diagonal) fit but still
+counts fully toward `||q||^2 = d`, and the generic secular equation has a
+genuine pole there that the true root can sit within `~1e-12` of.
+
+Fixed by diagonalizing the Gram matrix once (turning `g(mu)` into an
+explicit, provably monotonic algebraic function with no per-`mu` linear
+solve) and adding an explicit closed-form hard-case construction: use the
+well-conditioned directions normally, then set the near-null direction's
+magnitude to whatever hits `||q||^2=d` exactly, using its own (tiny but
+nonzero) phase as the natural, continuous choice. Verified to match a
+brute-force minimization to 9 decimal places. Ported to
+`NeqBathDecomposition::solveOptimalUpdateJoint` using `PsimagLite::diag`
+(LAPACK `zheev`); end-to-end verified by running the actual `cincuenta`
+binary against `inputNeqAtomicLimitGBEKL2_U5.ain` (added alongside this
+fix) and comparing its dumped Cholesky `V` factor against the fixed Python
+reference: agreement to `5.7e-5` across the whole run despite Gram-matrix
+condition numbers as high as `1e11`.
+
+Together, both fixes move the `L=2` (`Lbath=4`) agreement horizon from
+`t*~0.68` to `t*~1.16-1.2`, landing next to the paper's own `~1.2-1.3`.
+See `gbek_cholesky.py`'s and `NeqBathDecomposition.h`'s own docstrings
+for the full derivations.
+
+## Regenerating plots
+
+**No `.png`, `.npz`, or `.provenance.txt` file in this directory is
+committed to the repo** (see `.gitignore` here) -- binary blobs don't
+diff/review usefully and bit-rot in git history; the source (scripts +
+parameters) is what's checked in. Regenerate anything you need locally:
+
+    ./regenerate_plots.sh            # everything
+    ./regenerate_plots.sh --group-a  # just Fig. 7/8 (pure Python, fast)
+    ./regenerate_plots.sh --group-b  # the older C++-dependent validation
+                                      # plots (builds+runs cincuenta if the
+                                      # prerequisite dumps aren't already
+                                      # in build/)
+
+Group A (`fig7_docc.png`, `fig8_docc.png`) is pure Python:
+`run_fig7_scan.py --L 2`, `run_fig7_scan.py --L 4`, `run_fig8_scan.py`,
+`investigate_L4_tmax4.py`, then `plot_docc_scan.py --figure 7 --L 2,4` /
+`--figure 8`.
+
+Group B depends on actual `cincuenta` C++ dumps existing in `build/`
+first: `inputNeqAtomicLimitGBEKL3.ain` produces the
+`build/atomic-limit-gbek-L3-*` files used by `plot_atomic_limit_2d.py`,
+`plot_collapse_evidence_summary.py`, `plot_errstep_t3scan.py`,
+`scan_t3_activation.py`, and (as the `approx` argument) `compare_reference.py`;
+`inputNeqGBEKFig3L3.ain` produces the `build/gebk-fig3-L3-*` files used by
+`plot_fig3l3_post_fix.py`, `plot_collapse_evidence_summary.py`, and (as
+the `prefix` argument) `quantify_delta_minus_leak.py`. `compare_reference.py`
+also needs the pure-Python exact reference (`gbek_selfconsistency.py --L 3
+--N 100 --dt 0.04 --U 2.0 --tq 0.25 --out gbek-atomic-limit-exact-lesser`,
+also in `regenerate_plots.sh`). See each script's own header for its exact
+expected inputs.

@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# Regenerate every plot this directory's tooling can produce.
+#
+# None of these .png files are committed to the repo (see the "Regenerating
+# plots" section of README.md for why) -- this script is the documented,
+# reproducible way to get them back locally. Run from anywhere; it cds into
+# this directory itself.
+#
+# Two families of plots:
+#   (A) Pure Python, no C++ build needed: Fig. 7/8 double-occupation
+#       reproduction (fig7_docc.png, fig8_docc.png) and their prerequisite
+#       .npz data.
+#   (B) Depend on actual cincuenta C++ runs having produced dump files in
+#       build/ first (the GBEK Fig. 3 causal-Cholesky-vs-eigenvector
+#       validation plots from the earlier seeding-timing investigation).
+#       This script builds cincuenta and runs the two prerequisite .ain
+#       inputs if their dumps aren't already present in build/.
+#
+# Usage:
+#   ./regenerate_plots.sh            # regenerate everything
+#   ./regenerate_plots.sh --group-a  # just the Fig. 7/8 tooling (fast)
+#   ./regenerate_plots.sh --group-b  # just the C++-dependent plots (slower,
+#                                     # builds cincuenta and runs it if needed)
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
+REPO_ROOT="$(cd ../../.. && pwd)"
+BUILD_DIR="$REPO_ROOT/build"
+UV_NUMPY="uv run --with numpy --with scipy --with matplotlib python3"
+
+GROUP_A=1
+GROUP_B=1
+if [ "${1:-}" = "--group-a" ]; then GROUP_B=0; fi
+if [ "${1:-}" = "--group-b" ]; then GROUP_A=0; fi
+
+# ---------------------------------------------------------------------------
+# Group A: Fig. 7/8 double-occupation reproduction (pure Python)
+# ---------------------------------------------------------------------------
+if [ "$GROUP_A" = "1" ]; then
+	echo "=== Group A: Fig. 7/8 reproduction ==="
+
+	if [ ! -f fig7_docc_L2_cholesky.npz ]; then
+		$UV_NUMPY run_fig7_scan.py --L 2
+	fi
+	if [ ! -f fig7_docc_L4_cholesky.npz ]; then
+		$UV_NUMPY run_fig7_scan.py --L 4
+	fi
+	$UV_NUMPY plot_docc_scan.py --figure 7 --L 2,4
+
+	if [ ! -f fig8_docc_A_cholesky.npz ]; then
+		$UV_NUMPY run_fig8_scan.py
+	fi
+	if [ ! -f fig8_docc_E_cholesky.npz ]; then
+		$UV_NUMPY investigate_L4_tmax4.py
+	fi
+	$UV_NUMPY plot_docc_scan.py --figure 8
+
+	echo "Group A done: fig7_docc.png, fig8_docc.png"
+fi
+
+# ---------------------------------------------------------------------------
+# Group B: plots depending on actual cincuenta C++ dumps
+# ---------------------------------------------------------------------------
+if [ "$GROUP_B" = "1" ]; then
+	echo "=== Group B: C++-dependent validation plots ==="
+
+	AL_PREFIX="$BUILD_DIR/atomic-limit-gbek-L3"       # inputNeqAtomicLimitGBEKL3.ain
+	FIG3_PREFIX="$BUILD_DIR/gebk-fig3-L3"             # inputNeqGBEKFig3L3.ain
+
+	need_cincuenta_run() {
+		local prefix="$1"
+		[ ! -f "${prefix}-weiss-delta-lesser" ] || [ ! -f "${prefix}-plus-bath-lesser" ]
+	}
+
+	if need_cincuenta_run "$AL_PREFIX" || need_cincuenta_run "$FIG3_PREFIX"; then
+		echo "Missing prerequisite cincuenta dumps -- building cincuenta..."
+		cmake --build "$BUILD_DIR" --target cincuenta -j4
+	fi
+
+	if need_cincuenta_run "$AL_PREFIX"; then
+		echo "Running inputNeqAtomicLimitGBEKL3.ain to produce ${AL_PREFIX}-*..."
+		( cd "$BUILD_DIR" && ./cincuenta/src/cincuenta \
+			-f "$REPO_ROOT/cincuenta/TestSuite/inputs/inputNeqAtomicLimitGBEKL3.ain" )
+	fi
+	if need_cincuenta_run "$FIG3_PREFIX"; then
+		echo "Running inputNeqGBEKFig3L3.ain to produce ${FIG3_PREFIX}-*..."
+		( cd "$BUILD_DIR" && ./cincuenta/src/cincuenta \
+			-f "$REPO_ROOT/cincuenta/TestSuite/inputs/inputNeqGBEKFig3L3.ain" )
+	fi
+
+	if [ ! -f gbek-atomic-limit-exact-lesser ]; then
+		echo "Generating the pure-Python exact atomic-limit reference..."
+		$UV_NUMPY gbek_selfconsistency.py \
+			--L 3 --N 100 --dt 0.04 --U 2.0 --tq 0.25 --out gbek-atomic-limit-exact-lesser
+	fi
+
+	# Each of these has its input paths hardcoded as module-level constants
+	# pointing at $BUILD_DIR/atomic-limit-gbek-L3-* or
+	# $BUILD_DIR/gebk-fig3-L3-* -- see each script's own header if you need
+	# to point it elsewhere.
+	$UV_NUMPY plot_atomic_limit_2d.py
+	$UV_NUMPY plot_collapse_evidence_summary.py
+	$UV_NUMPY plot_errstep_t3scan.py
+	$UV_NUMPY plot_fig3l3_post_fix.py
+	$UV_NUMPY scan_t3_activation.py
+	$UV_NUMPY compare_reference.py \
+		gbek-atomic-limit-exact-lesser "${AL_PREFIX}-plus-bath-lesser" \
+		--tmax 4.0 --out atomic_limit_true_comparison.png
+	$UV_NUMPY compare_reference.py \
+		gbek-atomic-limit-exact-lesser "${AL_PREFIX}-plus-bath-lesser" \
+		--tmax 4.0 --out gbek_reference_comparison.png
+	$UV_NUMPY quantify_delta_minus_leak.py "$FIG3_PREFIX"
+
+	echo "Group B done: atomic_limit_2d_rank_comparison.png,"
+	echo "  atomic_limit_true_comparison.png, collapse_evidence_summary.png,"
+	echo "  delta_minus_leak_check.png, errstep_t3scan_comparison.png,"
+	echo "  fig3L3_near_atomic_post_fix.png, gbek_reference_comparison.png,"
+	echo "  t3_activation_scan.png"
+fi
