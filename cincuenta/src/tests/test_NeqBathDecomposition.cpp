@@ -382,17 +382,21 @@ TEST_CASE("Complex-phase target: L=3 reconstruction matches the Python reference
 	// conjugation convention) on the identical target -- command:
 	//   python3 -c "from gbek_cholesky import cholesky_causal; ..." with
 	//   the target built as above (decay=0.4, omega=1.2, dt=0.2).
-	// The pre-fix (swapped-conjugate) code gives dramatically different
-	// values at every row past the seeding phase (n>3), e.g. at n=10 the
-	// two conventions differ by max|diff|~0.72 -- nowhere close to this
-	// tolerance.
 	//
-	// Regenerated 2026-07-09 after fixing solveOptimalUpdateJoint's search
-	// range (previously only searched mu in [0, d]; this target's own
-	// off-diagonal fit hits the g(d) >= 0 regime at several of these rows
-	// too, not just the flat atomic-limit target that surfaced the bug --
-	// so the pre-fix hardcoded values here were themselves computed with
-	// the buggy solver and are superseded).
+	// Regenerated 2026-07-10 (see choleskyOptimalUpdate's bug-3 comment):
+	// the previous set of hardcoded values here (from 2026-07-09) was
+	// itself generated from a gbek_cholesky.py that had the SAME swapped-
+	// conjugate bug this test's name warns about -- both that Python
+	// snapshot and this file's pre-2026-07-10 C++ used the same wrong
+	// convention, so they agreed with each other while both being wrong.
+	// These values are from the actually-correct convention, verified
+	// three independent ways (exact rank-1 atomic-limit reconstruction,
+	// lambda-scaling convergence to an analytic O(v^2) benchmark, and
+	// landing within a few percent of GBEK Fig. 8's quoted peak). The
+	// OLD (2026-07-09) hardcoded values differ dramatically from these at
+	// every row past the seeding phase (n>3), e.g. at n=30 the two
+	// conventions differ by max|diff|~0.2 -- nowhere close to this
+	// tolerance, exactly the signature bug 3 produces.
 	auto checkRow = [&](SizeType             n,
 	                    std::complex<double> v0,
 	                    std::complex<double> v1,
@@ -413,19 +417,19 @@ TEST_CASE("Complex-phase target: L=3 reconstruction matches the Python reference
 	};
 
 	checkRow(4,
-	         { 0.45624512124050043, 0.2388855376377488 },
-	         { 0.35050035929862317, -0.18218680787739316 },
-	         { 0.32091323010696665, -0.22310456322787742 });
+	         { 0.4208631578224682, 0.36912556596604357 },
+	         { 0.16775833438485793, 0.08733680808421918 },
+	         { 0.35551055925393726, 0.08699937184079912 });
 	checkRow(10,
-	         { -0.11959237438506641, 0.30668551506322206 },
-	         { 0.01059868951816878, 0.25505641820436165 },
-	         { 0.6846832402869418, 0.18674493102306972 });
+	         { -0.25222285556232754, 0.3773515074833713 },
+	         { 0.12378637598989402, -0.3399544834009459 },
+	         { -0.034962857490067334, 0.3188882144219492 });
 	checkRow(20,
-	         { 0.16299812996013435, -0.16493118558610353 },
-	         { -0.5926393741594096, -0.33686204797635944 },
-	         { -0.18525305307786172, 0.34246465794887804 });
+	         { -0.06106508225086797, -0.39761179617963466 },
+	         { 0.15398515251391467, 0.3720793521156658 },
+	         { 0.13205440664592072, 0.1802101423453549 });
 	checkRow(30,
-	         { 0.38072274506648407, 0.18144909405709084 },
-	         { 0.2034435735220753, -0.32763904190377374 },
-	         { -0.21489728887423554, -0.2771350465182552 });
+	         { 0.2776917711887221, 0.22309940380070978 },
+	         { -0.08896792402662543, -0.04153868424300278 },
+	         { -0.41272431535331866, -0.08229556453955512 });
 }

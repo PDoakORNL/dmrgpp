@@ -263,9 +263,9 @@ private:
 	// (s = n-1), growing by one row every step, and d = -iΔ⁺_<(t_n,t_n) is
 	// the target diagonal value.
 	//
-	// Two bugs, fixed in sequence (see
+	// Three bugs, fixed in sequence (see
 	// cincuenta/TestSuite/gbek_reference/gbek_cholesky.py for the
-	// independent Python implementation both were caught against):
+	// independent Python implementation all three were caught against):
 	//
 	//  1. Fixed reference window: an earlier version of this function
 	//     hardcoded the reference set to the first L seeding rows forever,
@@ -279,6 +279,38 @@ private:
 	//     since F(q) couples them. This systematically undershoots the
 	//     diagonal by a smaller but still real amount (verified: ~5-15% on
 	//     realistic full-rank targets, growing worse with n).
+	//  3. Conjugation direction (found 2026-07-10, then REVERTED here on
+	//     2026-07-10 after further investigation -- see below). The
+	//     factorization this class targets is
+	//     Lambda(n,k) = Sum_p V(n,p) * conj(V(k,p)), so solving a new row
+	//     q=V(n,:) against established rows Q_raw(k,p)=V(k,p) means
+	//     a = conj(Q_raw) @ q, i.e. the correct design matrix in the
+	//     standard complex least-squares sense is conj(Q_raw), giving
+	//     QtQ = Q_raw^T @ conj(Q_raw) = Sum_k V(k,p)*conj(V(k,pp)) and
+	//     Qta = Q_raw^T @ a = Sum_k V(k,p)*a[k-1] (NO conjugate on V here).
+	//     That is exactly what this function computed originally. A
+	//     2026-07-08 session (commit 5a058f4d) found this function's
+	//     output disagreeing with gbek_cholesky.py's Python
+	//     `_solve_optimal_update` on a genuinely complex-phased target and
+	//     "fixed" C++ to match Python -- but Python had the mirror-image
+	//     bug at the time (its call sites passed the raw, unconjugated
+	//     Q_raw into a solver that internally computes the standard
+	//     Q^H Q / Q^H a form, which needs Q_raw pre-conjugated to be
+	//     correct). Cross-validating two implementations that share the
+	//     same bug confirms nothing (see gbek_cholesky.py's own module
+	//     docstring for the general version of this lesson) -- in this
+	//     case it actively made things worse, since the ORIGINAL C++ here
+	//     was right and got swapped to match the wrong one. Re-derived
+	//     2026-07-10 while chasing a ~50%-then-confirmed amplitude
+	//     discrepancy against GBEK Fig. 8's double occupation, verified via
+	//     (a) an exactly-solvable atomic-limit rank-1 target reconstructing
+	//     to machine precision only with THIS convention, (b) a
+	//     lambda-scaling test converging to the analytic O(v^2) benchmark
+	//     only with THIS convention, and (c) the actual paper comparison
+	//     landing within a few percent of Fig. 8's quoted peak only with
+	//     THIS convention. The 2026-07-08 Catch2 regression test's
+	//     hardcoded reference values were generated from the
+	//     then-also-buggy Python and have been regenerated to match.
 	//
 	// a[k] = -iΔ⁺_<(t_n, t_{k+1}) for k = 0..s-1 (row k+1), one entry per
 	// row of Q_s.
@@ -290,35 +322,26 @@ private:
 		VectorComplexType a(s);
 		for (int k = 0; k < s; ++k)
 			a[k] = -iDeltaPlusLesser(n, k + 1, delta);
-		// Gram matrix QtQ[p][p'] = Σ_{k=1}^{s} conj(V_(k,p)) V_(k,p') -- i.e.
-		// Q^H Q with Q_{kp} = V_(k,p). An earlier version of this function
-		// conjugated the WRONG factor (V_(k,p) * conj(V_(k,p')), the
-		// conjugate-transpose of the correct Gram matrix), and Qta below
-		// applied no conjugate to V at all. Both are silently well-defined
-		// (QtQ stays Hermitian either way; Qta is still some vector) so
-		// this produced no crash and no NaN, only a systematically wrong
-		// solution once V's columns carry non-trivial complex phases --
-		// found by comparing cincuenta's own dumped V_(n,p) row-by-row
-		// against gbek_cholesky.py::cholesky_causal() fed the identical
-		// (Q,a,d) inputs (see cincuenta/TestSuite/gbek_reference/compare_V_rows.py),
-		// and confirmed by reproducing cincuenta's actual (wrong) output
-		// bit-for-bit by deliberately re-introducing this exact swapped
-		// conjugation in a standalone Python replay.
+		// Gram matrix QtQ[p][p'] = Sum_{k=1}^{s} V_(k,p) * conj(V_(k,p')).
+		// See the bug-3 discussion above -- this is NOT literally "Q^H Q"
+		// with Q_{kp}=V_(k,p); it's Q_raw^T @ conj(Q_raw), which is what
+		// the underlying Hermitian factorization actually requires.
 		MatrixComplexType QtQ(L, L, ComplexType(0));
 		for (int p = 0; p < L; ++p) {
 			for (int pp = 0; pp < L; ++pp) {
 				ComplexType sum(0);
 				for (int k = 1; k <= s; ++k)
-					sum += std::conj(V_(k, p)) * V_(k, pp);
+					sum += V_(k, p) * std::conj(V_(k, pp));
 				QtQ(p, pp) = sum;
 			}
 		}
 
-		// Rhs Qta[p] = Σ_{k=1}^{s} conj(V_(k,p)) a[k-1]  (i.e. Q^H a)
+		// Rhs Qta[p] = Sum_{k=1}^{s} V_(k,p) * a[k-1]  (i.e. Q_raw^T @ a,
+		// NO conjugate on V -- see bug-3 discussion above).
 		VectorComplexType Qta(L, ComplexType(0));
 		for (int p = 0; p < L; ++p)
 			for (int k = 1; k <= s; ++k)
-				Qta[p] += std::conj(V_(k, p)) * a[k - 1];
+				Qta[p] += V_(k, p) * a[k - 1];
 
 		const RealType    d = -std::real(iDeltaPlusLesser(n, n, delta));
 		VectorComplexType q = solveOptimalUpdateJoint(QtQ, Qta, d, L);
@@ -359,26 +382,121 @@ private:
 	// e.g. GBEK's true atomic-limit self-consistency target, producing a
 	// spurious diagonal overshoot distinct from the paper's own
 	// documented decay-only low-rank artifact.)
+	//
+	// Bug 4 (found 2026-07-10, ported from gbek_cholesky.py's
+	// _solve_optimal_update -- see that function's docstring for the full
+	// derivation and the brute-force-optimization verification): qOf(mu)
+	// used to solve [QtQ+(mu-d)I]q=Qta via a FRESH SVD-based solveLinear()
+	// call at every mu tried during bisection. Fine when QtQ is
+	// well-conditioned, but at low rank it's common for a just-established
+	// column to carry almost no signal yet (observed on real GBEK data:
+	// QtQ eigenvalues [1.1e-8, 7.4], condition number ~7e8). As mu varies,
+	// the shifted near-zero eigenvalue crosses solveLinear's rcond
+	// threshold inconsistently, making the numerically computed g(mu)
+	// behave non-monotonically instead of the smooth, strictly-decreasing
+	// function bisection assumes -- confirmed by comparing against a
+	// brute-force numerical minimization of F(q): the old solver's answer
+	// had ||q||^2 substantially undershooting d (bug 2's symptom recurring
+	// via a different mechanism) and a measurably higher F(q) than the true
+	// minimum. Fixed by diagonalizing QtQ ONCE (Hermitian, real eigenvalues)
+	// and evaluating g(mu) via the exact secular-equation form
+	// g(mu) = sum_i |b_i|^2/(lambda_i+mu-d)^2 - mu, b = W^H Qta in QtQ's
+	// eigenbasis -- an explicit algebraic function of mu with no linear
+	// solve (hence no rcond-driven rank flips) per trial mu. Also handles
+	// the classic trust-region-subproblem "hard case" explicitly: when the
+	// smallest eigenvalue AND its b-component are both negligible, that
+	// direction is a near-free parameter for the linear fit but still
+	// counts fully toward ||q||^2=d, and the generic secular equation has a
+	// genuine pole there that bisection cannot resolve reliably (the true
+	// root can sit within ~1e-12 of it). Handled by building q from the
+	// well-conditioned directions alone, then setting the near-null
+	// direction's magnitude to whatever hits ||q||^2=d exactly, using b's
+	// own (tiny but nonzero) phase as the natural choice.
 	static VectorComplexType solveOptimalUpdateJoint(const MatrixComplexType& QtQ,
 	                                                 const VectorComplexType& Qta,
 	                                                 RealType                 d,
 	                                                 int                      L)
 	{
+		MatrixComplexType W(QtQ); // zheev overwrites W with eigenvectors (columns)
+		VectorRealType    lam; // ascending eigenvalues
+		PsimagLite::diag(W, lam, 'V');
+
+		VectorComplexType b(L, ComplexType(0));
+		for (int i = 0; i < L; ++i)
+			for (int k = 0; k < L; ++k)
+				b[i] += std::conj(W(k, i)) * Qta[k];
+
 		auto qOf = [&](RealType mu)
 		{
-			MatrixComplexType A = QtQ;
-			for (int p = 0; p < L; ++p)
-				A(p, p) += ComplexType(mu - d, 0);
-			return solveLinear(A, Qta, L);
+			VectorComplexType q(L, ComplexType(0));
+			for (int i = 0; i < L; ++i) {
+				const ComplexType c = b[i] / ComplexType(lam[i] + mu - d, 0);
+				for (int p = 0; p < L; ++p)
+					q[p] += W(p, i) * c;
+			}
+			return q;
 		};
 		auto gOf = [&](RealType mu)
 		{
-			VectorComplexType q     = qOf(mu);
-			RealType          norm2 = 0;
-			for (int p = 0; p < L; ++p)
-				norm2 += std::norm(q[p]);
-			return norm2 - mu;
+			RealType sum = 0;
+			for (int i = 0; i < L; ++i) {
+				const RealType denom = lam[i] + mu - d;
+				sum += std::norm(b[i]) / (denom * denom);
+			}
+			return sum - mu;
 		};
+
+		// Hard-case check (see docstring above).
+		{
+			const RealType    lamMax = lam[L - 1];
+			std::vector<bool> hard(L, false);
+			RealType          hardNorm2 = 0;
+			int               nHard     = 0;
+			for (int i = 0; i < L; ++i) {
+				if (lam[i] < 1e-6 * lamMax) {
+					hard[i] = true;
+					hardNorm2 += std::norm(b[i]);
+					++nHard;
+				}
+			}
+			if (nHard > 0 && hardNorm2 < 1e-6 * std::max(d, RealType(1.0))) {
+				RealType softNorm2 = 0;
+				for (int i = 0; i < L; ++i)
+					if (!hard[i])
+						softNorm2 += std::norm(b[i]) / (lam[i] * lam[i]);
+				const RealType remainder = d - softNorm2;
+				if (remainder > 0) {
+					const RealType    tau = std::sqrt(remainder / nHard);
+					VectorComplexType q(L, ComplexType(0));
+					for (int i = 0; i < L; ++i) {
+						ComplexType c;
+						if (hard[i]) {
+							const RealType    absB  = std::abs(b[i]);
+							const ComplexType phase = (absB > 0)
+							    ? (b[i] / absB)
+							    : ComplexType(1, 0);
+							c = ComplexType(tau, 0) * phase;
+						} else {
+							c = b[i] / ComplexType(lam[i], 0);
+						}
+						for (int p = 0; p < L; ++p)
+							q[p] += W(p, i) * c;
+					}
+					RealType n2Hard    = 0;
+					bool     allFinite = true;
+					for (int p = 0; p < L; ++p) {
+						if (!std::isfinite(q[p].real())
+						    || !std::isfinite(q[p].imag()))
+							allFinite = false;
+						n2Hard += std::norm(q[p]);
+					}
+					if (allFinite
+					    && std::abs(n2Hard - d)
+					        < 1e-6 * std::max(d, RealType(1.0)))
+						return q;
+				}
+			}
+		}
 
 		RealType muLo;
 		RealType muHi;
