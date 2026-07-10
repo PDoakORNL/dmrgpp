@@ -80,7 +80,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define DENSITY_MATRIX_BASE_H
 
 #include "BlockDiagonalMatrix.h"
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmrg {
 template <typename TargetingType> class DensityMatrixBase {

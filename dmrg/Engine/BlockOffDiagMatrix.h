@@ -1,8 +1,8 @@
 #ifndef BLOCKOFFDIAGMATRIX_H
 #define BLOCKOFFDIAGMATRIX_H
 #include "BlockDiagonalMatrix.h"
-#include "CrsMatrix.h"
-#include "GemmR.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/GemmR.h>
 
 namespace Dmrg {
 

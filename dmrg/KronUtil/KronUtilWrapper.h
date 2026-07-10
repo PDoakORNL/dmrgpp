@@ -4,8 +4,8 @@
 #ifndef DO_NOT_USE_KRON_UTIL
 #include "KronUtil.h"
 #else
-#include "Matrix.h"
 #include "ProgramGlobals.h"
+#include <PsimagLite/Matrix.h>
 
 template <typename ComplexOrRealType>
 void csr_kron_mult(const char transA,

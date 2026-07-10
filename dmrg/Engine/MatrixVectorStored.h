@@ -81,7 +81,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define MatrixVectorStored_HEADER_H
 
 #include "MatrixVectorBase.h"
-#include "ProgressIndicator.h"
+#include <PsimagLite/ProgressIndicator.h>
 #include <vector>
 
 namespace Dmrg {

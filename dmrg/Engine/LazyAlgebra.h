@@ -1,6 +1,6 @@
 #ifndef LAZYALGEBRA_H
 #define LAZYALGEBRA_H
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

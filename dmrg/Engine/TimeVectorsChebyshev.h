@@ -79,13 +79,13 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #ifndef TIME_VECTORS_CHEBYSHEV
 #define TIME_VECTORS_CHEBYSHEV
-#include "NoPthreadsNg.h"
 #include "ParallelTriDiag.h"
-#include "Parallelizer.h"
-#include "PredicateAwesome.h"
 #include "ScaledHamiltonian.h"
-#include "Sort.h"
 #include "TimeVectorsBase.h"
+#include <PsimagLite/NoPthreadsNg.h>
+#include <PsimagLite/Parallelizer.h>
+#include <PsimagLite/PredicateAwesome.h>
+#include <PsimagLite/Sort.h>
 #include <iostream>
 #include <vector>
 

@@ -80,13 +80,13 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define DMRG_RECOVER_H
 
 #include "Checkpoint.h"
-#include "Io/IoNg.h"
 #include "OutputFileOrNot.h"
-#include "PredicateAwesome.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/Io/IoNg.h>
+#include <PsimagLite/PredicateAwesome.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 #include <dirent.h>
 #include <fstream>
 #include <sys/types.h>

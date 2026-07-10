@@ -80,15 +80,15 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define DMRG_TRUNCATION_H
 
 #include "BasisWithOperators.h"
-#include "Concurrency.h"
 #include "DensityMatrixLocal.h"
 #include "DensityMatrixSvd.h"
-#include "Io/IoNg.h"
 #include "OutputFileOrNot.h"
-#include "PredicateAwesome.h"
-#include "Profiling.h"
-#include "Sort.h"
 #include "TruncationControl.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Io/IoNg.h>
+#include <PsimagLite/PredicateAwesome.h>
+#include <PsimagLite/Profiling.h>
+#include <PsimagLite/Sort.h>
 namespace Dmrg {
 
 template <typename ParametersType, typename TargetingType> class Truncation {

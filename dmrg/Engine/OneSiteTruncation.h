@@ -1,11 +1,11 @@
 #ifndef ONESITETRUNCATION_H
 #define ONESITETRUNCATION_H
 #include "InputCheck.h"
-#include "InputNg.h"
 #include "OutputFileOrNot.h"
-#include "PackIndices.h"
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/PackIndices.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

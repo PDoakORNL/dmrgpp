@@ -1,7 +1,7 @@
 #ifndef KETFORTARGETINGEXPRESSION_HH
 #define KETFORTARGETINGEXPRESSION_HH
 #include "FactorForTargetingExpression.hh"
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmrg {
 

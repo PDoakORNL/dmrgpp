@@ -80,9 +80,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef VECTOR_WITH_OFFSETS_H
 #define VECTOR_WITH_OFFSETS_H
-#include "Complex.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
+#include <PsimagLite/Complex.h>
+#include <PsimagLite/ProgressIndicator.h>
 #include <cassert>
 #include <typeinfo>
 

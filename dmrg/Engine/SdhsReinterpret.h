@@ -1,6 +1,6 @@
 #ifndef SDHSREINTERPRET_H
 #define SDHSREINTERPRET_H
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

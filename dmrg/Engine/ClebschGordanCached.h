@@ -81,7 +81,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define CLEBSCH_GORDANCACHED_H
 
 #include "ClebschGordan.h"
-#include "ProgressIndicator.h"
+#include <PsimagLite/ProgressIndicator.h>
 
 namespace Dmrg {
 

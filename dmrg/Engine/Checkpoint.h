@@ -85,10 +85,10 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "DiskOrMemoryStack.h"
 #include "DiskStackNg.h"
 #include "FiniteLoop.h"
-#include "Io/IoSelector.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
-#include "Stack.h"
+#include <PsimagLite/Io/IoSelector.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Stack.h>
 
 namespace Dmrg {
 

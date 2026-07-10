@@ -80,8 +80,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef PARAMETERSMODELHUBBARD_H
 #define PARAMETERSMODELHUBBARD_H
 #include "InputCheck.h"
-#include "InputNg.h"
 #include "ParametersModelBase.h"
+#include <PsimagLite/InputNg.h>
 
 namespace Dmrg {
 //! Hubbard Model Parameters

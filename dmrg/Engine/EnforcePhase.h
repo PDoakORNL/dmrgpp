@@ -1,6 +1,6 @@
 #ifndef ENFORCEPHASE_H
 #define ENFORCEPHASE_H
-#include "Matrix.h"
+#include <PsimagLite/Matrix.h>
 
 namespace Dmrg {
 

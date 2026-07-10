@@ -82,8 +82,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef TARGET_PARAMS_CORRECTION_V_H
 #define TARGET_PARAMS_CORRECTION_V_H
 
-#include "FreqEnum.h"
 #include "TargetParamsCommon.h"
+#include <PsimagLite/FreqEnum.h>
 
 namespace Dmrg {
 // Coordinates reading of TargetSTructure from input file

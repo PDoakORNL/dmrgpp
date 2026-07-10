@@ -77,8 +77,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef TARGET_PARAMS_BASE_H
 #define TARGET_PARAMS_BASE_H
-#include "FreqEnum.h"
-#include "MemResolv.h"
+#include <PsimagLite/FreqEnum.h>
+#include <PsimagLite/MemResolv.h>
 #include <stdexcept>
 #include <vector>
 

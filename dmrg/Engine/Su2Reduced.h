@@ -72,9 +72,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef SU2_REDUCED_HEADER_H
 #define SU2_REDUCED_HEADER_H
 
-#include "Map.h"
-#include "Sort.h"
 #include "Su2SymmetryGlobals.h"
+#include <PsimagLite/Map.h>
+#include <PsimagLite/Sort.h>
 
 /** \ingroup DMRG */
 /*@{*/

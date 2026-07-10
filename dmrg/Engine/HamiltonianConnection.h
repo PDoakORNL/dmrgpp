@@ -77,19 +77,19 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef HAMILTONIAN_CONNECTION_H
 #define HAMILTONIAN_CONNECTION_H
 
-#include "Concurrency.h"
 #include "CookInputExpression.hh"
-#include "CrsMatrix.h"
 #include "HamiltonianAbstract.h"
 #include "ManyToTwoConnection.h"
 #include "OperatorStorage.h"
 #include "OperatorsCached.h"
 #include "OpsForLink.hh"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
 #include "SuperOpHelperBase.h"
-#include "Vector.h"
 #include "VerySparseMatrix.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Vector.h>
 #include <cassert>
 
 namespace Dmrg {

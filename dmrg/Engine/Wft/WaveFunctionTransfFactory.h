@@ -81,12 +81,12 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #ifndef WFT_FACTORY_H
 #define WFT_FACTORY_H
-#include "Io/IoSelector.h"
-#include "ProgressIndicator.h"
-#include "Random48.h"
 #include "Utils.h"
 #include "WaveFunctionTransfLocal.h"
 #include "WaveStructCombined.h"
+#include <PsimagLite/Io/IoSelector.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Random48.h>
 
 namespace Dmrg {
 template <typename LeftRightSuperType_,

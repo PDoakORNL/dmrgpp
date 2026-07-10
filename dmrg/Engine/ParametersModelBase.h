@@ -1,6 +1,6 @@
 #ifndef PARAMETERSMODELBASE_H
 #define PARAMETERSMODELBASE_H
-#include "Io/IoNg.h"
+#include <PsimagLite/Io/IoNg.h>
 
 namespace Dmrg {
 

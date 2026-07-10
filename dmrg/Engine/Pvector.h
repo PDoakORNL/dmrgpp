@@ -1,6 +1,6 @@
 #ifndef PVECTOR_H
 #define PVECTOR_H
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 #include <cstdlib>
 
 namespace Dmrg {

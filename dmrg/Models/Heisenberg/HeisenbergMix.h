@@ -86,8 +86,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "../../Engine/Utils.h"
 #include "../../Engine/VerySparseMatrix.h"
 #include "Aklt.h"
-#include "CrsMatrix.h"
 #include "ParametersModelHeisenberg.h"
+#include <PsimagLite/CrsMatrix.h>
 #include <algorithm>
 
 namespace Dmrg {

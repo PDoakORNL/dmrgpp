@@ -78,8 +78,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef PARAMS_HUBBARD_HOLSTEIN_SPINLESS_H
 #define PARAMS_HUBBARD_HOLSTEIN_SPINLESS_H
-#include "Matrix.h"
 #include "ParametersModelBase.h"
+#include <PsimagLite/Matrix.h>
 #include <stdexcept>
 #include <vector>
 

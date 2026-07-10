@@ -1,5 +1,5 @@
-#include "PsimagLite.h"
 #include "util.h"
+#include <PsimagLite/PsimagLite.h>
 
 template <typename ComplexOrRealType>
 void csr_submatrix(const PsimagLite::CrsMatrix<ComplexOrRealType>& a,

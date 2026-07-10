@@ -1,11 +1,11 @@
 #include "InputCheck.h"
 #include "InputFromDataOrNot.h"
-#include "InputNg.h"
 #include "ParametersDmrgSolver.h"
 #include "ProgramGlobals.h"
-#include "PsimagLite.h"
 #include "Qn.h"
 #include "ToolBox.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/PsimagLite.h>
 #include <iostream>
 
 #ifndef USE_FLOAT

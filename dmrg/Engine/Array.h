@@ -1,7 +1,7 @@
 #ifndef ARRAY_H
 #define ARRAY_H
-#include "AllocatorCpu.h"
-#include "Vector.h"
+#include <PsimagLite/AllocatorCpu.h>
+#include <PsimagLite/Vector.h>
 #include <cassert>
 #include <cstring>
 

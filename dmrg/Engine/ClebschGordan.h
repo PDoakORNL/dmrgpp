@@ -81,7 +81,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define CLEBSCH_GORDAN_H
 
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
+#include <PsimagLite/ProgressIndicator.h>
 
 namespace Dmrg {
 // This is a class to compute ClebschGordan Coefficients

@@ -1,8 +1,8 @@
 #ifndef OPERATORSCACHED_H
 #define OPERATORSCACHED_H
-#include "Concurrency.h"
 #include "MetaOpForConnection.hh"
 #include "ProgramGlobals.h"
+#include <PsimagLite/Concurrency.h>
 
 namespace Dmrg {
 

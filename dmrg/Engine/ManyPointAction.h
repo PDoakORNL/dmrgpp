@@ -1,6 +1,6 @@
 #ifndef MANYPOINTACTION_H
 #define MANYPOINTACTION_H
-#include "PredicateAwesome.h"
+#include <PsimagLite/PredicateAwesome.h>
 
 namespace Dmrg {
 

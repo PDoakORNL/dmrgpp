@@ -79,9 +79,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef MULTI_POINT_CORRELATIONS_H
 #define MULTI_POINT_CORRELATIONS_H
-#include "CrsMatrix.h"
 #include "VectorWithOffset.h" // for operator*
 #include "VectorWithOffsets.h" // for operator*
+#include <PsimagLite/CrsMatrix.h>
 
 namespace Dmrg {
 

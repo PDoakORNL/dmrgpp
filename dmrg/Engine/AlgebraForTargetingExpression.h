@@ -2,10 +2,10 @@
 #define ALGEBRAFORTARGETINGEXPRESSION_H
 
 #include "AuxForTargetingExpression.h"
-#include "GetBraOrKet.h"
-#include "PackIndices.h"
 #include "TermForTargetingExpression.h"
-#include "Vector.h"
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/PackIndices.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

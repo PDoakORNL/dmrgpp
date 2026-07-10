@@ -78,11 +78,11 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef TIME_VECTORS_SUZUKI_TROTTER
 #define TIME_VECTORS_SUZUKI_TROTTER
 #include "MatrixOrIdentity.h"
-#include "PackIndices.h"
-#include "Sort.h"
 #include "TimeVectorsBase.h"
 #include "Utils.h"
 #include "VectorWithOffsets.h"
+#include <PsimagLite/PackIndices.h>
+#include <PsimagLite/Sort.h>
 #include <iostream>
 
 namespace Dmrg {

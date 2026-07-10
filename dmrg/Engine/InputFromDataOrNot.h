@@ -1,8 +1,8 @@
 #ifndef INPUTFROMDATAORNOT_H
 #define INPUTFROMDATAORNOT_H
-#include "InputNg.h"
-#include "Io/IoNg.h"
-#include "Vector.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/Io/IoNg.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

@@ -74,9 +74,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 // All these includes are in PsimagLite
 #include "BasisTraits.hh"
-#include "Io/IoNg.h"
-#include "ProgressIndicator.h"
-#include "Stack.h"
+#include <PsimagLite/Io/IoNg.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Stack.h>
 #include <exception>
 
 // A disk stack, similar to std::stack but stores in disk not in memory

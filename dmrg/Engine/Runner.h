@@ -83,7 +83,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define RUNNER_HEADER_H
 
 #include "String.h"
-#include "TypeToString.h"
+#include <PsimagLite/TypeToString.h>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>

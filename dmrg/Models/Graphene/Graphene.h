@@ -82,9 +82,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "../FeAsModel/HilbertSpaceFeAs.h"
 #include "ModelBase.h"
 #include "ParametersGraphene.h"
-// #include "CrsMatrix.h"
 #include "ProgramGlobals.h"
 #include "VerySparseMatrix.h"
+#include <PsimagLite/CrsMatrix.h>
 #include <PsimagLite/Vector.h>
 #include <numeric>
 

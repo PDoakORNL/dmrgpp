@@ -2,11 +2,11 @@
 #define DMRG_QN_HASH_H
 #define USE_PTHREADS_OR_NOT_NG
 #include "Array.h"
-#include "Concurrency.h"
-#include "Parallelizer.h"
 #include "Qn.h"
-#include "Sort.h"
-#include "Vector.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Parallelizer.h>
+#include <PsimagLite/Sort.h>
+#include <PsimagLite/Vector.h>
 #include <numeric>
 #include <unordered_map>
 

@@ -6,6 +6,7 @@
 #include "Matrix.h"
 #include "ProgressIndicator.h"
 #include "Vector.h"
+
 #include <cassert>
 #include <complex>
 

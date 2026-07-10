@@ -84,14 +84,14 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #include "HamiltonianConnection.h"
 #include "InputCheck.h"
-#include "InputNg.h"
 #include "LabeledOperators.h"
 #include "ModelLinks.h"
-#include "NoPthreads.h"
-#include "Profiling.h"
-#include "ProgressIndicator.h"
-#include "Sort.h"
 #include "Su2SymmetryGlobals.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/NoPthreads.h>
+#include <PsimagLite/Profiling.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Sort.h>
 
 namespace Dmrg {
 

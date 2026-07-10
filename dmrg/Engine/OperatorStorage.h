@@ -2,8 +2,8 @@
 #define OPERATORSTORAGE_H
 #include "BlockDiagonalMatrix.h"
 #include "BlockOffDiagMatrix.h"
-#include "Io/IoNg.h"
-#include "Matrix.h"
+#include <PsimagLite/Io/IoNg.h>
+#include <PsimagLite/Matrix.h>
 
 // Selects storage for operators,
 // This can be just a CRS matrix or it can be the following.

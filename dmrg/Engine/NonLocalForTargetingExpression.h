@@ -1,9 +1,9 @@
 #ifndef NONLOCALFORTARGETINGEXPRESSION_H
 #define NONLOCALFORTARGETINGEXPRESSION_H
 #include "AuxForTargetingExpression.h"
-#include "OneOperatorSpec.h"
-#include "ProgressIndicator.h"
 #include "TargetParamsBase.h"
+#include <PsimagLite/OneOperatorSpec.h>
+#include <PsimagLite/ProgressIndicator.h>
 
 namespace Dmrg {
 

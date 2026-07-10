@@ -1,7 +1,7 @@
 #ifndef OMEGAPARAMS_H
 #define OMEGAPARAMS_H
 #include "InputCheck.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

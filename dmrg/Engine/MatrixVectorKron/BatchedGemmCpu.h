@@ -2,10 +2,10 @@
 #define BATCHED_GEMM_CPU_H
 // Don't include this file directly; use BatchedGemmInclude.hh
 
-#include "Matrix.h"
-#include "ProgressIndicator.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 #include <numeric>
 
 namespace Dmrg {

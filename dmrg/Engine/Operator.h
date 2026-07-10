@@ -81,16 +81,16 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef OPERATOR_H
 #define OPERATOR_H
-#include "CanonicalExpression.h"
-#include "CrsMatrix.h"
 #include "InputCheck.h"
-#include "InputNg.h"
-#include "Io/IoSelector.h"
-#include "Io/IoSerializerStub.h"
 #include "OperatorSpec.h"
 #include "OperatorStorage.h"
 #include "ProgramGlobals.h"
 #include "Su2Related.h"
+#include <PsimagLite/CanonicalExpression.h>
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/Io/IoSelector.h>
+#include <PsimagLite/Io/IoSerializerStub.h>
 
 namespace Dmrg {
 

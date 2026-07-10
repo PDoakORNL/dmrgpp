@@ -79,9 +79,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef HAM_SYMM_LOCAL_H
 #define HAM_SYMM_LOCAL_H
-#include "Io/IoSelector.h"
 #include "ProgramGlobals.h"
-#include "Sort.h"
+#include <PsimagLite/Io/IoSelector.h>
+#include <PsimagLite/Sort.h>
 
 namespace Dmrg {
 template <typename SparseMatrixType> class HamiltonianSymmetryLocal {

@@ -1,7 +1,7 @@
 #ifndef LABELEDOPERATORS_H
 #define LABELEDOPERATORS_H
-#include "TypeToString.h"
-#include "Vector.h"
+#include <PsimagLite/TypeToString.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

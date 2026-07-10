@@ -82,12 +82,12 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define TARGETING_BASE_H
 #include "Checkpoint.h"
 #include "Intent.h"
-#include "Io/IoSelector.h"
 #include "OneSiteSpaces.hh"
 #include "TargetHelper.h"
 #include "TargetParamsBase.h"
 #include "TargetingCommon.h"
 #include "Wft/WaveFunctionTransfFactory.h"
+#include <PsimagLite/Io/IoSelector.h>
 #include <iostream>
 
 namespace Dmrg {

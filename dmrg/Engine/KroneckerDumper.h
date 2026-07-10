@@ -1,10 +1,10 @@
 #ifndef KRONECKERDUMPER_H
 #define KRONECKERDUMPER_H
 #include "../Version.h"
-#include "Concurrency.h"
 #include "ProgramGlobals.h"
-#include "TypeToString.h"
-#include "Vector.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/TypeToString.h>
+#include <PsimagLite/Vector.h>
 #include <fstream>
 
 namespace Dmrg {

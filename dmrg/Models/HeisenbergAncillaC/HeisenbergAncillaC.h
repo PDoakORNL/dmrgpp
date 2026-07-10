@@ -80,13 +80,13 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_HEISENBERG_ANCILLAC_H
 #define DMRG_HEISENBERG_ANCILLAC_H
 
-#include "CrsMatrix.h"
 #include "ModelBase.h"
 #include "ParametersHeisenbergAncillaC.h"
 #include "ProgramGlobals.h"
 #include "SpinSquared.h"
 #include "SpinSquaredHelper.h"
 #include "VerySparseMatrix.h"
+#include <PsimagLite/CrsMatrix.h>
 #include <algorithm>
 
 namespace Dmrg {

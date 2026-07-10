@@ -83,14 +83,14 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef TARGETING_DYNAMIC_H
 #define TARGETING_DYNAMIC_H
 
-#include "Concurrency.h"
-#include "Parallelizer.h"
-#include "ParametersForSolver.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
 #include "TargetParamsDynamic.h"
 #include "TargetingBase.h"
 #include "VectorWithOffsets.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Parallelizer.h>
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/ProgressIndicator.h>
 #include <cassert>
 
 namespace Dmrg {

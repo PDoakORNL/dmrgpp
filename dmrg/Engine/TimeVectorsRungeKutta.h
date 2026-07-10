@@ -79,8 +79,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #ifndef TIME_VECTORS_RUNGE_KUTTA
 #define TIME_VECTORS_RUNGE_KUTTA
-#include "RungeKutta.h"
 #include "TimeVectorsBase.h"
+#include <PsimagLite/RungeKutta.h>
 #include <iostream>
 
 namespace Dmrg {

@@ -1,8 +1,8 @@
 #ifndef PARALLELHAMILTONIANCONNECTION_H
 #define PARALLELHAMILTONIANCONNECTION_H
-#include "Concurrency.h"
 #include "OpsForLink.hh"
-#include "Vector.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

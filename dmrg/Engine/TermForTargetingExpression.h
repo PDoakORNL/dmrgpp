@@ -3,8 +3,8 @@
 #include "AuxForTargetingExpression.h"
 #include "KetForTargetingExpression.hh"
 #include "NonLocalForTargetingExpression.h"
-#include "OneOperatorSpec.h"
-#include "Vector.h"
+#include <PsimagLite/OneOperatorSpec.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

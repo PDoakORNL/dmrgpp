@@ -79,9 +79,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #ifndef WFT_BASE_H
 #define WFT_BASE_H
-#include "PackIndices.h"
 #include "ProgramGlobals.h"
 #include "WftOptions.h"
+#include <PsimagLite/PackIndices.h>
 
 namespace Dmrg {
 

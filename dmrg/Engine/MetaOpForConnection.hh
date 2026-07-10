@@ -1,6 +1,6 @@
 #ifndef METAOPFORCONNECTION_HH
 #define METAOPFORCONNECTION_HH
-#include "AllocatorCpu.h"
+#include <PsimagLite/AllocatorCpu.h>
 
 namespace Dmrg {
 

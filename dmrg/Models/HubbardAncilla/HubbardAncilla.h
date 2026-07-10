@@ -79,8 +79,6 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef DMRG_HUBBARD_ANCILLA_H
 #define DMRG_HUBBARD_ANCILLA_H
-#include "CrsMatrix.h"
-#include "Geometry/GeometryDca.h"
 #include "HelperHubbardAncilla.h"
 #include "ModelBase.h"
 #include "ParametersHubbardAncilla.h"
@@ -88,6 +86,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "SpinSquared.h"
 #include "SpinSquaredHelper.h"
 #include "VerySparseMatrix.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Geometry/GeometryDca.h>
 #include <cstdlib>
 
 namespace Dmrg {

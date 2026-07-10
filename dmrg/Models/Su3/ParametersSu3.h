@@ -82,7 +82,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_PARAMS_SU3_H
 #define DMRG_PARAMS_SU3_H
 #include "../../Engine/ParametersModelBase.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

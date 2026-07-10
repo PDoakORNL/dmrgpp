@@ -82,7 +82,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define DMRG_PARAMS_LIOUVILLIANHEISENBERG_H
 #include "ParametersModelBase.h"
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 //! Heisenberg Model Parameters

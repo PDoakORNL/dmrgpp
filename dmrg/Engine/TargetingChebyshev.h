@@ -73,12 +73,12 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #include "BlockDiagonalMatrix.h"
 #include "OracleChebyshev.h"
-#include "ParametersForSolver.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
 #include "TargetParamsTimeStep.h"
 #include "TargetingBase.h"
 #include "TimeVectorsChebyshev.h"
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/ProgressIndicator.h>
 #include <iostream>
 
 namespace Dmrg {

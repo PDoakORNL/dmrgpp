@@ -80,8 +80,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef VECTOR_WITH_OFFSET_H
 #define VECTOR_WITH_OFFSET_H
-#include "ProgressIndicator.h"
-#include "Vector.h"
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Vector.h>
 #include <typeinfo>
 
 namespace Dmrg {

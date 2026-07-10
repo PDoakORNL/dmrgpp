@@ -83,9 +83,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "../../Engine/ProgramGlobals.h"
 #include "../../Engine/Utils.h"
 #include "../../Engine/VerySparseMatrix.h"
-#include "CrsMatrix.h"
 #include "ParametersSu3.h"
 #include "Su3RepresentationP1.h"
+#include <PsimagLite/CrsMatrix.h>
 #include <algorithm>
 
 namespace Dmrg {

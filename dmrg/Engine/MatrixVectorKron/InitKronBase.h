@@ -79,8 +79,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define INITKRON_BASE_H
 #include "ArrayOfMatStruct.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
-#include "Vector.h"
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

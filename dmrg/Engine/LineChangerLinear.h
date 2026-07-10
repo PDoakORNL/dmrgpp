@@ -83,7 +83,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define LINE_CHANGER_LINEAR_H
 
 #include "String.h"
-#include "TypeToString.h"
+#include <PsimagLite/TypeToString.h>
 #include <vector>
 
 namespace Dmrg {

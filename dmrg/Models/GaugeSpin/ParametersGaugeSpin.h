@@ -82,7 +82,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_PARAMS_MODEL_GAUGESPIN_H
 #define DMRG_PARAMS_MODEL_GAUGESPIN_H
 #include "ParametersModelBase.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 //! Heisenberg Model Parameters

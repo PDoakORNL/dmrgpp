@@ -1,9 +1,9 @@
 #ifndef RestartStruct_H
 #define RestartStruct_H
 
-#include "InputNg.h"
-#include "Io/IoSerializerStub.h"
-#include "Vector.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/Io/IoSerializerStub.h>
+#include <PsimagLite/Vector.h>
 #include <iostream>
 
 namespace Dmrg {

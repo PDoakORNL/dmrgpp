@@ -1,9 +1,9 @@
 #ifndef MATRIXDENSEORSPARSE_H
 #define MATRIXDENSEORSPARSE_H
-#include "CrsMatrix.h"
 #include "KronUtilWrapper.h"
-#include "Matrix.h"
-#include "Vector.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

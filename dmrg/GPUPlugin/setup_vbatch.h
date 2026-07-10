@@ -3,7 +3,6 @@
 
 #include "DMRGConfig.h"
 #include "Vector.h"
-#include "dmrg_types.h"
 
 typedef PsimagLite::Vector<SizeType>::Type VectorSizeType;
 

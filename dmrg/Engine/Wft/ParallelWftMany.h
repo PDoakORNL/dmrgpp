@@ -76,8 +76,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_PARALLEL_WFT_MANY_H
 #define DMRG_PARALLEL_WFT_MANY_H
 
-#include "Concurrency.h"
-#include "Vector.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

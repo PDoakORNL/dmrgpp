@@ -1,7 +1,7 @@
 #ifndef ALGEBRAICSTRINGTONUMBER_H
 #define ALGEBRAICSTRINGTONUMBER_H
-#include "CanonicalExpression.h"
-#include "Vector.h"
+#include <PsimagLite/CanonicalExpression.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

@@ -2,7 +2,6 @@
 #define DMRGRUNNER_H
 #include "BasisWithOperators.h"
 #include "CmdLineOptions.hh"
-#include "CrsMatrix.h"
 #include "DmrgSolver.h"
 #include "InputCheck.h"
 #include "Introspect.hh"
@@ -14,12 +13,13 @@
 #include "ModelSelector.h"
 #include "ParametersDmrgSolver.h"
 #include "ProgramGlobals.h"
-#include "PsimagLite.h"
 #include "Qn.h"
-#include "RedirectOutput.hh"
 #include "RunFinished.h"
 #include "SuperGeometry.h"
 #include "VectorWithOffset.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/RedirectOutput.hh>
 
 namespace Dmrg {
 

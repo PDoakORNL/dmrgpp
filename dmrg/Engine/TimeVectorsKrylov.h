@@ -80,10 +80,10 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef TIME_VECTORS_KRYLOV
 #define TIME_VECTORS_KRYLOV
 #include "KrylovHelper.h"
-#include "NoPthreadsNg.h"
 #include "ParallelTriDiag.h"
-#include "Parallelizer.h"
 #include "TimeVectorsBase.h"
+#include <PsimagLite/NoPthreadsNg.h>
+#include <PsimagLite/Parallelizer.h>
 #include <iostream>
 #include <vector>
 

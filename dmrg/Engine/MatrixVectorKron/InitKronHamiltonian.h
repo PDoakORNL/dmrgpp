@@ -79,9 +79,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define INITKRON_HAMILTONIAN_H
 #include "InitKronBase.h"
 #include "OpsForLink.hh"
-#include "Profiling.h"
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/Profiling.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

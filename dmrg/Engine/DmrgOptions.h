@@ -1,7 +1,7 @@
 #ifndef DMRG_OPTIONS_H
 #define DMRG_OPTIONS_H
 #include "ProgramGlobals.h"
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 #include <algorithm>
 #include <cctype>
 #include <numeric>
