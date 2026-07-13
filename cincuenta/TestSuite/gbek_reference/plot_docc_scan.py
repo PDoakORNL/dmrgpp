@@ -70,13 +70,21 @@ def plot_figure7(args):
 
     for row, L in enumerate(L_list):
         n_iter = data[(L, "cholesky")]["docc_history"].shape[0]
-        colors = plt.cm.viridis(np.linspace(0.1, 0.9, n_iter))
+        # Match the paper's own Fig. 7 convention: earlier (not-yet-converged)
+        # iterations are dashed, in a color gradient; the final, most-converged
+        # iteration is a solid red line that stands out from the rest.
+        colors = plt.cm.viridis(np.linspace(0.1, 0.9, n_iter - 1))
         for col, mode in enumerate(MODES):
             ax = axes[row][col]
             ts = data[(L, mode)]["ts"]
             hist = data[(L, mode)]["docc_history"]
             for it in range(n_iter):
-                ax.plot(ts, hist[it], color=colors[it], lw=1.5, label=f"iter {it+1}")
+                is_final = it == n_iter - 1
+                color = "red" if is_final else colors[it]
+                linestyle = "-" if is_final else "--"
+                lw = 2.2 if is_final else 1.3
+                ax.plot(ts, hist[it], color=color, linestyle=linestyle, lw=lw,
+                        label=f"iter {it+1}")
             ax.set_ylabel("d(t)")
             ax.set_title(f"{mode}, L={L} (Lbath={2*L})")
             ax.grid(alpha=0.2)

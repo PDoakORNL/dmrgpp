@@ -16,6 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from provenance import write_provenance
+from gbek_colormap import GBEK_CMAP, GBEK_VMIN, GBEK_VMAX
 
 
 def read_lesser_file(path):
@@ -54,14 +55,17 @@ def main():
 
     fig, axes = plt.subplots(2, 3, figsize=(15, 8))
 
-    vmax = max(np.abs(re_ref).max(), np.abs(re_app).max())
+    # Use the paper's own colormap and value range (Fig. 3's colorbar spans
+    # -0.2 to 0.5, asymmetric -- not a plain symmetric vmin=-vmax) so these
+    # two panels are directly, visually comparable to the paper's own
+    # figure, not just numerically.
     im0 = axes[0, 0].imshow(re_ref, origin="lower", extent=[ts_ref[0], ts_ref[-1]] * 2,
-                             vmin=-vmax, vmax=vmax, cmap="RdBu_r")
+                             vmin=GBEK_VMIN, vmax=GBEK_VMAX, cmap=GBEK_CMAP)
     axes[0, 0].set_title("Exact reference: Re[-i Lambda^<_+(t,t')]")
     plt.colorbar(im0, ax=axes[0, 0])
 
     im1 = axes[0, 1].imshow(re_app, origin="lower", extent=[ts_app[0], ts_app[-1]] * 2,
-                             vmin=-vmax, vmax=vmax, cmap="RdBu_r")
+                             vmin=GBEK_VMIN, vmax=GBEK_VMAX, cmap=GBEK_CMAP)
     rank_label = f"rank-{args.rank}" if args.rank is not None else "rank-L"
     axes[0, 1].set_title(f"cincuenta {rank_label} Cholesky approx")
     plt.colorbar(im1, ax=axes[0, 1])
@@ -77,12 +81,15 @@ def main():
         re_app_interp = re_app
 
     resid = re_ref - re_app_interp
-    # Symmetric about 0 (so white == no error) and on the SAME scale as the
-    # exact/approx plots to its left, so the residual's size relative to the
-    # actual values is directly visible instead of auto-scaling to whatever
-    # (typically much smaller) range the residual itself spans.
+    # Symmetric about 0 (so white == no error, unlike GBEK_CMAP's own
+    # asymmetric white-point) and scaled to the same order of magnitude as
+    # the exact/approx plots to its left (GBEK_VMAX), so the residual's
+    # size relative to the actual values is directly visible instead of
+    # auto-scaling to whatever (typically much smaller) range the residual
+    # itself spans.
+    resid_scale = max(abs(GBEK_VMIN), GBEK_VMAX)
     im2 = axes[0, 2].imshow(resid, origin="lower", extent=[ts_ref[0], ts_ref[-1]] * 2,
-                             vmin=-vmax, vmax=vmax, cmap="RdBu_r")
+                             vmin=-resid_scale, vmax=resid_scale, cmap="RdBu_r")
     axes[0, 2].set_title("Residual (exact - approx)")
     plt.colorbar(im2, ax=axes[0, 2])
 
