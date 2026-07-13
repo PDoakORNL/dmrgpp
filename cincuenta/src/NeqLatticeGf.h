@@ -40,7 +40,7 @@ public:
 	    , nTau_(params.eqParams.nMatsubaras)
 	    , dtau_(params.eqParams.ficticiousBeta
 	            / static_cast<RealType>(params.eqParams.nMatsubaras))
-	    , tStar_(parseTstar(params.eqParams.latticeGf))
+	    , tStar_(params.neqAtomicLimit ? RealType(0) : parseTstar(params.eqParams.latticeGf))
 	    , tStarSq_(tStar_ * tStar_)
 	    , tStarFinal_(params.bandwidthFinal > RealType(0)
 	                      ? RealType(0.25) * params.bandwidthFinal

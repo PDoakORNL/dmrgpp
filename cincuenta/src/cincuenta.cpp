@@ -201,17 +201,13 @@ int main(int argc, char** argv)
 			// Delta^- is identically zero, matching the setup of Gramsch,
 			// Balzer, Eckstein, Kollar, PRB 88, 235106 (2013), Sec. VI.
 			// This bypasses the equilibrium bath fit for the neq stage
-			// instead of forcing it to fit a near-zero bandwidth.
-			bool neqAtomicLimit = false;
-			try {
-				int tmp = 0;
-				io.readline(tmp, "NeqAtomicLimit=");
-				neqAtomicLimit = (tmp > 0);
-			} catch (std::exception&) { }
-
+			// instead of forcing it to fit a near-zero bandwidth. Parsed
+			// once into ParamsNeqDmftSolver itself (neqParams.neqAtomicLimit)
+			// so NeqLatticeGf can also force its lattice hopping ramp to
+			// start from exactly 0 -- see that class's tStar_ construction.
 			const PsimagLite::Vector<RealType>::Type emptyBathParams;
 			const auto&                              neqBathParams
-			    = neqAtomicLimit ? emptyBathParams : dmftSolver.bathResult();
+			    = neqParams.neqAtomicLimit ? emptyBathParams : dmftSolver.bathResult();
 
 			auto runNeq = [&](auto& neqSolver)
 			{

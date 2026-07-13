@@ -54,6 +54,12 @@ template <typename ComplexOrRealType> struct ParamsNeqDmftSolver {
 		try {
 			io.readline(neqOutputPrefix, "NeqOutputPrefix=");
 		} catch (std::exception&) { }
+
+		try {
+			int tmp = 0;
+			io.readline(tmp, "NeqAtomicLimit=");
+			neqAtomicLimit = (tmp > 0);
+		} catch (std::exception&) { }
 	}
 
 	// Equilibrium DMFT parameters (beta, mu, nBath, etc.)
@@ -90,6 +96,15 @@ template <typename ComplexOrRealType> struct ParamsNeqDmftSolver {
 	// Optional prefix for output Green's function files.
 	// Empty (default) → "green-retarded" etc.  Non-empty → "{prefix}-green-retarded" etc.
 	std::string neqOutputPrefix = "";
+
+	// True atomic limit start (GBEK PRB 88, 235106 (2013), Sec. VI): no
+	// hopping at all at t=0, so the lattice hopping t*(t) ramp must start
+	// from exactly 0, not from whatever small-but-nonzero bandwidth the
+	// LatticeGf= equilibrium spec happens to use (that spec is only kept
+	// non-degenerate to keep the discarded equilibrium bath-fit minimizer
+	// well-posed; it should not leak into the real-time quench ramp's
+	// baseline -- see NeqLatticeGf's tStar_ construction).
+	bool neqAtomicLimit = false;
 };
 
 } // namespace Dmft
