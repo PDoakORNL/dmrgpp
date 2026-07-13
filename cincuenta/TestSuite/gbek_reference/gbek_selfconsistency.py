@@ -32,6 +32,52 @@ from gbek_dynamics import hop_operator, propagate, compute_g_lesser, compute_dia
 from gbek_cholesky import cholesky_causal, eigenvector_decompose
 
 
+def equilibrium_g0_lesser(taus, D):
+    """
+    g0^<(tau), tau >= 0, for the T=0, half-filled, noninteracting Bethe
+    lattice with semicircular DOS of half-bandwidth D:
+
+        g0^<(tau) = i * int_{-D}^{0} rho(eps) exp(-i*eps*tau) deps,
+        rho(eps) = (2/(pi D^2)) sqrt(D^2 - eps^2),
+
+    i.e. the analytic equilibrium Green function referenced (but not given
+    a closed form) in Eq. (71) as the initial input for the DMFT
+    self-consistency loop: Lambda_1(t,t') = v(t) g0(t,t') v(t'). Evaluated
+    by direct numerical quadrature over eps rather than the closed-form
+    Bessel expression, to avoid transcribing that formula from memory
+    incorrectly; verified to reproduce g0^<(0) = 0.5i exactly (half of the
+    total DOS weight lies below the Fermi level at half filling), which is
+    what makes Lambda_1(t,t) = 0.5*hop(t)^2 come out right -- the same
+    normalization convention already used by this module's own iterated
+    Lambda (see run_self_consistency's verbose diagonal check).
+    """
+    eps = np.linspace(-D, 0.0, 4000)
+    rho = (2.0 / (np.pi * D ** 2)) * np.sqrt(np.maximum(D ** 2 - eps ** 2, 0.0))
+    return np.array([1j * np.trapezoid(rho * np.exp(-1j * eps * tau), eps) for tau in taus])
+
+
+def equilibrium_lambda1(ts, hop_t, D=None):
+    """
+    Eq. (71)'s Lambda_1(t,t') = v(t) g0(t,t') v(t'), t,t' <= tmax, built from
+    the analytic noninteracting equilibrium Bethe-lattice Green function
+    (see equilibrium_g0_lesser). D defaults to 2*tstar_f (standard
+    Bethe-lattice relation between the hopping amplitude and the
+    semicircular band's half-bandwidth); hop_t already includes tstar_f, so
+    passing D explicitly is only needed if that convention changes.
+    Returns the lower-triangular (j <= n) Lambda_1, matching this module's
+    own Lambda storage convention.
+    """
+    if D is None:
+        D = 2.0 * hop_t[-1]
+    N = len(ts) - 1
+    g0_pos = equilibrium_g0_lesser(ts, D)  # tau = ts[0..N], tau >= 0 branch
+    Lambda1 = np.zeros((N + 1, N + 1), dtype=complex)
+    for n in range(N + 1):
+        for j in range(n + 1):
+            Lambda1[n, j] = hop_t[n] * hop_t[j] * (-1j) * g0_pos[n - j]
+    return Lambda1
+
+
 def v_ramp(t, tq):
     if tq <= 0:
         return 1.0 if t > 0 else 0.0
@@ -109,7 +155,8 @@ def initial_state(nsites, L, basis, index):
 
 
 def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6,
-                          mode="cholesky", verbose=True, record_history=False):
+                          mode="cholesky", verbose=True, record_history=False,
+                          initial_lambda=None):
     """
     mode: "cholesky" (default, causal rank-L decomposition of Lambda every
       iteration) or "eigenvector" (non-causal top-L spectral decomposition
@@ -124,6 +171,31 @@ def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6,
       empirical check (check_alpha_beta_docc_symmetry.py) confirms
       d_alpha(t) == d_beta(t) to numerical precision, consistent with this
       module's existing G_avg alpha/beta-symmetry argument (docstring above).
+    initial_lambda: seed for iteration 0's Lambda. Defaults to None, which
+      now means Lambda_1(t,t') = v(t) g0(t,t') v(t') (Eq. 71's analytic
+      noninteracting equilibrium Bethe-lattice Green function, see
+      equilibrium_lambda1()) -- the prescription Sec. VI.A actually
+      specifies. Pass the string "zero" to reproduce the OLD, WRONG
+      all-zeros bootstrap (fully decoupled atomic limit) instead, kept only
+      for regression/comparison purposes; or pass an explicit (N+1, N+1)
+      complex array (lower-triangular, j <= n) to seed with something else
+      entirely.
+
+      Bug found 2026-07-13: this function used to always bootstrap from
+      Lambda = 0, not Eq. (71)'s Lambda_1. Both are valid starting points
+      for successive substitution, but the self-consistency loop has (at
+      least) two distinct fixed points -- only the Eq.-71-seeded one
+      matches the paper's own quoted numbers for the U=2, L=3 Fig. 3
+      example (err[ch]=0.168 vs. paper's 0.17, err[ev]=0.090 vs. paper's
+      0.09, essentially exact; the all-zeros bootstrap instead converges to
+      an almost-exact-rank-3 Lambda -- err[ch]=0.32, err[ev]=0.016 -- with
+      no counterpart in the paper, which explicitly states its own Fig. 3
+      input would require rank ~100 for an exact decomposition). This was
+      found while investigating a spurious "wing" (extra off-diagonal
+      structure at small-t/large-t' or vice versa) visible in cincuenta's
+      rank-3 Cholesky reconstruction of the old all-zeros-bootstrap
+      reference but absent from the paper's own rank-3 panel; the wing
+      disappears once the correct seed is used.
     """
     nsites = 1 + 2 * L
     ts = np.arange(N + 1) * dt
@@ -148,7 +220,12 @@ def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6,
     psi0 = initial_state(nsites, L, basis_N, index_N)
     docc_op = double_occupation_operator(basis_N, site=0) if record_history else None
 
-    Lambda = np.zeros((N + 1, N + 1), dtype=complex)  # -i*Delta^<(t_n,t_j), j<=n
+    if initial_lambda is None:
+        Lambda = equilibrium_lambda1(ts, hop_t)  # Eq. (71)'s correct seed
+    elif isinstance(initial_lambda, str) and initial_lambda == "zero":
+        Lambda = np.zeros((N + 1, N + 1), dtype=complex)  # -i*Delta^<(t_n,t_j), j<=n -- OLD, WRONG bootstrap, kept for regression/comparison only
+    else:
+        Lambda = np.array(initial_lambda, dtype=complex, copy=True)
     history = []
     docc_history = [] if record_history else None
     for it in range(n_iterations):
@@ -256,6 +333,12 @@ def main():
     p.add_argument("--tol", type=float, default=1e-8)
     p.add_argument("--out", default="gbek-atomic-limit-exact-lesser",
                     help="output file, same 't t\\' Re Im' format as compare_neq_delta_lesser.py")
+    p.add_argument("--zero-seed", action="store_true",
+                    help="reproduce the OLD, WRONG all-zeros Lambda bootstrap "
+                         "instead of the correct Eq. (71) Lambda_1 = "
+                         "v(t)*g0(t,t')*v(t') seed (now the default) -- "
+                         "regression/comparison use only, see "
+                         "run_self_consistency's docstring")
     args = p.parse_args()
 
     if args.probe:
@@ -263,9 +346,12 @@ def main():
         return
 
     t0 = time.time()
+    initial_lambda = "zero" if args.zero_seed else None
+
     Lambda, V, hop_t, ts, history, _ = run_self_consistency(
         args.L, args.N, args.dt, args.U, args.tstar_f, args.tq,
-        n_iterations=args.iterations, tol=args.tol, verbose=True)
+        n_iterations=args.iterations, tol=args.tol, verbose=True,
+        initial_lambda=initial_lambda)
     print(f"\nWall time: {time.time()-t0:.1f} s")
     print("Convergence history:", [f"{h:.2e}" for h in history])
 
