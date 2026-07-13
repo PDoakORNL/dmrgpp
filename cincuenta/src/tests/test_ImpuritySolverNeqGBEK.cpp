@@ -2,6 +2,7 @@
 #include "ImpuritySolverNeqGBEK.h"
 #include "TestMatrixUtils.h"
 #include <catch2/catch_test_macros.hpp>
+#include <cmath>
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -328,10 +329,10 @@ TEST_CASE("krylovExpmvCSR agrees with krylovExpmv to 1e-10", "[GBEK][Krylov]")
 	e0[0] = ComplexType(1);
 	checkPair(e0, "e_0");
 
-	// Test vector 2: PsiHist_[0] from the completed propagation.
-	const auto& hist = Acc::psiHist(s);
+	// Test vector 2: bStates[0] (the seeded c_{imp,up}|GS> state).
+	const auto& hist = Acc::bStates(s);
 	if (!hist.empty() && hist[0].size() == d) {
-		checkPair(hist[0], "PsiHist[0]");
+		checkPair(hist[0], "bStates[0]");
 	}
 }
 
@@ -468,5 +469,383 @@ TEST_CASE("Gimp(t,t) plateaus at 1/2 for a spin-imbalanced atomic-limit seed",
 		INFO("n=" << n << " G_imp(t,t)=" << g);
 		CHECK(g.real() == Catch::Approx(0.0).margin(1e-10));
 		CHECK(g.imag() == Catch::Approx(0.5).epsilon(1e-8));
+	}
+}
+
+// ── Hamiltonian-construction regression check ────────────────────────────────
+// Added 2026-07-13 while investigating a "wrong phase in the reconstructed
+// Weiss field" bug (see cincuenta/TestSuite/gbek_reference/README.md). Row-
+// by-row comparisons of the Cholesky factor V, or end-to-end comparisons of
+// the converged Weiss field, cannot cleanly localize a Hamiltonian bug: V
+// and the converged Weiss field both depend on the whole self-consistency
+// loop's history and are not gauge/basis invariant, so a mismatch there
+// could come from many places. Eigenvalues of a single, FIXED (externally
+// supplied, not self-consistently derived) V are different: they are
+// basis-ordering-independent, so comparing them against an INDEPENDENT
+// from-scratch reconstruction (cross_check_gbek_hamiltonian.py in
+// gbek_reference, which never calls into cincuenta or LanczosPlusPlus) can
+// only disagree because of the Hamiltonian's actual physics -- wrong
+// Jordan-Wigner sign, wrong site layout, wrong occ/empty coupling polarity,
+// or a wrong diagonal/potential term. This test hardcodes that Python
+// script's output; rerun the script (see its own docstring) if the
+// Hamiltonian construction is ever intentionally changed, and update the
+// expected values here to match.
+TEST_CASE("Hamiltonian eigenvalue spectrum matches an independent Python "
+          "reconstruction (nBath=0, L=1, complex vMid)",
+          "[GBEK][Hamiltonian]")
+{
+	// Same small system as the "Gimp(t,t) plateaus..." test just above:
+	// nBath=0 (true atomic limit, passed as an empty bathParams vector),
+	// L=1 second-bath pair, spin-imbalanced nup=1/ndown=0 seed.
+	static const std::string kConfig
+	    = "##Ainur1.0\n\n"
+	      "FicticiousBeta=10;\n"
+	      "ChemicalPotential=0.;\n"
+	      "Matsubaras=20;\n"
+	      "LatticeGf=\"energy,semicircular,4\";\n"
+	      "NumberOfBathPoints=1;\n"
+	      "DmftNumberOfIterations=1;\n"
+	      "DmftTolerance=1e-3;\n"
+	      "ImpuritySolver=\"exactdiag\";\n"
+	      "FitOptions=particleholesymmetric;\n"
+	      "MinParamsDelta=0.01;\n"
+	      "MinParamsDelta2=0.01;\n"
+	      "MinParamsTolerance=1e-4;\n"
+	      "MinParamsMaxIter=100;\n"
+	      "MinParamsVerbose=0;\n"
+	      "TargetElectronsUp=1;\n"
+	      "TargetElectronsDown=0;\n"
+	      "int ImpuritySite=0;\n"
+	      "real HubbardU=2.;\n"
+	      "HubbardUFinal=2.;\n"
+	      "RootOutputname=\"testGBEKHamiltonian\";\n"
+	      "InfiniteLoopKeptStates=20;\n"
+	      "matrix FiniteLoopsGs=[[@auto, 20, 0],[@auto, 20, 0]];\n"
+	      "real OmegaBegin=-4.;\n"
+	      "integer OmegaTotal=40;\n"
+	      "real OmegaStep=0.2;\n"
+	      "real OmegaDelta=0.2;\n"
+	      "integer TridiagSteps=100;\n"
+	      "real TridiagEps=1e-6;\n"
+	      "TruncationTolerance=\"1e-6,20\";\n"
+	      "CorrectionVectorEta=0.;\n"
+	      "GsWeight=0.1;\n"
+	      "matrix FiniteLoopsOmega=[[@auto, 20, 2],[@auto, 20, 2]];\n"
+	      "TmaxNeq=0.2;\n"
+	      "NtNeq=2;\n"
+	      "NeqDmftIter=1;\n"
+	      "NeqDmftTolerance=1e-4;\n"
+	      "NeqSolver=\"gbek\";\n"
+	      "NeqBathRank=1;\n"
+	      "BandwidthFinal=4.;\n";
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, kConfig);
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, io);
+	solver.solve({}); // empty bathParams: nBath=0
+
+	// Matches cross_check_gbek_hamiltonian.py's vMid exactly.
+	const std::vector<ComplexType> vMid = { ComplexType(0.3, 0.2) };
+
+	auto Hnm1 = buildDenseFromApplyHext(
+	    solver, vMid, Acc::upWordsNm1(solver), Acc::dnWordsNm1(solver), Acc::dim1Nm1(solver));
+	REQUIRE(Hnm1.n_row() == 9);
+	assertHermitian(Hnm1);
+
+	PsimagLite::Vector<RealType>::Type eigs;
+	PsimagLite::diag(Hnm1, eigs, 'N');
+	std::sort(eigs.begin(), eigs.end());
+
+	// From cross_check_gbek_hamiltonian.py (independent, from-scratch
+	// reconstruction -- see that script's docstring).
+	const std::vector<RealType> expected
+	    = { -1.63578166916006, -1.21414284285429, -1.21414284285429, -1.0, 0.0, 0.0,
+		0.21414284285429,  0.21414284285429,  0.63578166916006 };
+	REQUIRE(eigs.size() == expected.size());
+	for (SizeType i = 0; i < expected.size(); ++i) {
+		INFO("eigenvalue index " << i << ": got " << eigs[i] << ", expected "
+		                         << expected[i]);
+		CHECK(eigs[i] == Catch::Approx(expected[i]).margin(1e-10));
+	}
+}
+
+// ── Propagation regression check ─────────────────────────────────────────────
+// Added 2026-07-13, alongside the Hamiltonian eigenvalue check above. That
+// test only exercises a single, static Hamiltonian for one fixed V; it says
+// nothing about the seeded initial state (seedState) or the Krylov time
+// propagation itself. This test covers both: it propagates the SAME small
+// system two steps with two DIFFERENT, externally-fixed vMid values
+// (bypassing NeqBathDecomposition and the self-consistency loop entirely,
+// exactly like the Hamiltonian check), and compares the resulting G^<(n,j)
+// against an independent from-scratch reconstruction
+// (cross_check_gbek_propagation.py in gbek_reference) that starts from the
+// SAME seeded initial state -- confirmed by direct inspection to be the
+// pure basis state with both second-bath sites in their t=0 configuration
+// and the impurity/empty site empty (see that script's docstring for the
+// derivation). Rerun the Python script and update the expected values here
+// if the propagation or seeding is ever intentionally changed.
+TEST_CASE("Time propagation matches an independent Python reconstruction "
+          "(nBath=0, L=1, two-step complex vMid)",
+          "[GBEK][Krylov][propagation]")
+{
+	static const std::string kConfig
+	    = "##Ainur1.0\n\n"
+	      "FicticiousBeta=10;\nChemicalPotential=0.;\nMatsubaras=20;\n"
+	      "LatticeGf=\"energy,semicircular,4\";\nNumberOfBathPoints=1;\n"
+	      "DmftNumberOfIterations=1;\nDmftTolerance=1e-3;\n"
+	      "ImpuritySolver=\"exactdiag\";\nFitOptions=particleholesymmetric;\n"
+	      "MinParamsDelta=0.01;\nMinParamsDelta2=0.01;\nMinParamsTolerance=1e-4;\n"
+	      "MinParamsMaxIter=100;\nMinParamsVerbose=0;\n"
+	      "TargetElectronsUp=1;\nTargetElectronsDown=0;\n"
+	      "int ImpuritySite=0;\nreal HubbardU=2.;\nHubbardUFinal=2.;\n"
+	      "RootOutputname=\"testGBEKPropagation\";\nInfiniteLoopKeptStates=20;\n"
+	      "matrix FiniteLoopsGs=[[@auto, 20, 0],[@auto, 20, 0]];\n"
+	      "real OmegaBegin=-4.;\ninteger OmegaTotal=40;\nreal OmegaStep=0.2;\n"
+	      "real OmegaDelta=0.2;\ninteger TridiagSteps=100;\nreal TridiagEps=1e-6;\n"
+	      "TruncationTolerance=\"1e-6,20\";\nCorrectionVectorEta=0.;\nGsWeight=0.1;\n"
+	      "matrix FiniteLoopsOmega=[[@auto, 20, 2],[@auto, 20, 2]];\n"
+	      "TmaxNeq=0.2;\nNtNeq=2;\nNeqDmftIter=1;\nNeqDmftTolerance=1e-4;\n"
+	      "NeqSolver=\"gbek\";\nNeqBathRank=1;\nBandwidthFinal=4.;\n";
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, kConfig);
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, io);
+	solver.solve({}); // empty bathParams: nBath=0
+
+	// Matches cross_check_gbek_propagation.py's dt and two vMid values exactly.
+	const RealType    dt = 0.05;
+	const ComplexType vMidStep0(0.3, 0.2);
+	const ComplexType vMidStep1(0.1, -0.15);
+
+	CrsMatrixType& csr = Acc::csrNm1Mut(solver);
+
+	Acc::updateCSR(solver, csr, Acc::varNm1(solver), { vMidStep0 });
+	VectorComplex psi1 = Acc::krylovExpmvCSR(solver, Acc::bStates(solver)[0], csr, dt);
+
+	Acc::updateCSR(solver, csr, Acc::varNm1(solver), { vMidStep1 });
+	VectorComplex psi2 = Acc::krylovExpmvCSR(solver, psi1, csr, dt);
+
+	const std::vector<VectorComplex> psis = { Acc::bStates(solver)[0], psi1, psi2 };
+
+	auto innerProd = [](const VectorComplex& a, const VectorComplex& b)
+	{
+		ComplexType s(0);
+		for (SizeType i = 0; i < a.size(); ++i)
+			s += std::conj(a[i]) * b[i];
+		return s;
+	};
+
+	for (SizeType k = 0; k < psis.size(); ++k) {
+		INFO("norm at step " << k);
+		CHECK(std::real(innerProd(psis[k], psis[k])) == Catch::Approx(1.0).margin(1e-10));
+	}
+
+	// From cross_check_gbek_propagation.py: G_lesser(n,j) = i * conj(psi_j).psi_n,
+	// for (n,j) with j <= n.
+	struct Expected {
+		int         n, j;
+		ComplexType value;
+	};
+	const std::vector<Expected> expected = {
+		{ 0, 0, ComplexType(0.00000000000000, 1.00000000000000) },
+		{ 1, 0, ComplexType(0.00000541510959, 0.99967511169887) },
+		{ 1, 1, ComplexType(0.00000000000000, 1.00000000000000) },
+		{ 2, 0, ComplexType(-0.00031764775267, 0.99957766021840) },
+		{ 2, 1, ComplexType(-0.00068023733950, 0.99990162081492) },
+		{ 2, 2, ComplexType(0.00000000000000, 1.00000000000000) },
+	};
+	for (const auto& e : expected) {
+		const ComplexType g = ComplexType(0, 1) * innerProd(psis[e.j], psis[e.n]);
+		INFO("G_lesser(n=" << e.n << ",j=" << e.j << "): got " << g << ", expected "
+		                   << e.value);
+		CHECK(g.real() == Catch::Approx(e.value.real()).margin(1e-8));
+		CHECK(g.imag() == Catch::Approx(e.value.imag()).margin(1e-8));
+	}
+}
+
+// ── Seed-scheme regression check ─────────────────────────────────────────────
+// Added 2026-07-13, guarding against a real bug found and fixed the same day:
+// ImpuritySolverNeqGBEK.h used to seed c_{imp,up} ONCE (at t=0, from the
+// pre-quench GS) and propagate the resulting (N-1)-sector state forward using
+// only the (N-1)-sector Hamiltonian. That is mathematically wrong whenever
+// c does not commute with H (true here: [U n_up n_dn, c_up] != 0) -- the
+// correct Heisenberg-picture construction requires re-seeding
+// c_{imp,up}/c†_{imp,up} against the propagated N-sector reference state
+// PhiNHist AT EVERY time step, not just at t=0 (see propagateOneStep's and
+// gLesserRowGBEKSector's doc comments in ImpuritySolverNeqGBEK.h). The old,
+// wrong scheme produced a systematically suppressed off-diagonal (two-time)
+// imaginary part, growing with |n-j|, that this test would have caught.
+//
+// This test drives the production N-sector CSR (csrN) and the c_{imp,up}
+// operator (cUpNm1) directly -- bypassing NeqBathDecomposition/the
+// self-consistency loop entirely, exactly like the propagation test above --
+// with a real, time-dependent cosine-ramp hopping (not an arbitrary fixed
+// complex vMid), so this exercises the ACTUAL reseed-at-every-step code path
+// used in production, not a hand reimplementation of it.
+//
+// Expected values are G_bruteforce from
+// cincuenta/TestSuite/gbek_reference/cross_check_seed_scheme.py, an
+// independent, from-scratch Python reconstruction using dense
+// scipy.linalg.expm (no shared code with gbek_dynamics.py's propagate() or
+// compute_g_lesser(), so it cannot inherit a shared bug). That script's
+// docstring documents the full derivation and how its psi0 was verified to
+// match cincuenta's actual pre-quench seed; rerun it and update the expected
+// values here if the seeding or propagation is ever intentionally changed.
+TEST_CASE("G^< two-time construction matches an independent Python "
+          "brute-force ground truth (nBath=0, L=1, reseed-at-every-step)",
+          "[GBEK][seed-scheme]")
+{
+	static const std::string kConfig
+	    = "##Ainur1.0\n\n"
+	      "FicticiousBeta=10;\nChemicalPotential=0.;\nMatsubaras=20;\n"
+	      "LatticeGf=\"energy,semicircular,4\";\nNumberOfBathPoints=1;\n"
+	      "DmftNumberOfIterations=1;\nDmftTolerance=1e-3;\n"
+	      "ImpuritySolver=\"exactdiag\";\nFitOptions=particleholesymmetric;\n"
+	      "MinParamsDelta=0.01;\nMinParamsDelta2=0.01;\nMinParamsTolerance=1e-4;\n"
+	      "MinParamsMaxIter=100;\nMinParamsVerbose=0;\n"
+	      "TargetElectronsUp=1;\nTargetElectronsDown=0;\n"
+	      "int ImpuritySite=0;\nreal HubbardU=2.;\nHubbardUFinal=2.;\n"
+	      "RootOutputname=\"testGBEKSeedScheme\";\nInfiniteLoopKeptStates=20;\n"
+	      "matrix FiniteLoopsGs=[[@auto, 20, 0],[@auto, 20, 0]];\n"
+	      "real OmegaBegin=-4.;\ninteger OmegaTotal=40;\nreal OmegaStep=0.2;\n"
+	      "real OmegaDelta=0.2;\ninteger TridiagSteps=100;\nreal TridiagEps=1e-6;\n"
+	      "TruncationTolerance=\"1e-6,20\";\nCorrectionVectorEta=0.;\nGsWeight=0.1;\n"
+	      "matrix FiniteLoopsOmega=[[@auto, 20, 2],[@auto, 20, 2]];\n"
+	      "TmaxNeq=0.3;\nNtNeq=6;\nNeqDmftIter=1;\nNeqDmftTolerance=1e-4;\n"
+	      "NeqSolver=\"gbek\";\nNeqBathRank=1;\nBandwidthFinal=4.;\n";
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, kConfig);
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, io);
+	solver.solve({}); // empty bathParams: nBath=0
+
+	// Matches cross_check_seed_scheme.py's dt, tq, tstar_f, nsteps exactly.
+	const RealType dt      = 0.05;
+	const RealType tq      = 0.25;
+	const RealType tstar_f = 1.0;
+	const int      nsteps  = 6;
+	const RealType pi      = RealType(3.14159265358979323846);
+
+	auto vRamp = [&](RealType t) -> RealType
+	{
+		if (t <= 0)
+			return 0.0;
+		if (t >= tq)
+			return 1.0;
+		return 0.5 * (1.0 - std::cos(pi * t / tq));
+	};
+	auto hop = [&](RealType t) { return tstar_f * vRamp(t); };
+
+	// Forward-propagate the N-sector reference trajectory PhiNHist, then
+	// reseed c_{imp,up} at every step to get bStates[n] -- the ACTUAL
+	// production construction (ImpuritySolverNeqGBEK.h::propagateOneStep),
+	// driven here with an externally-fixed hop(t) schedule instead of
+	// NeqBathDecomposition's self-consistent V.
+	std::vector<VectorComplex> phiN(static_cast<SizeType>(nsteps + 1));
+	phiN[0] = Acc::phiNHist(solver)[0];
+
+	CrsMatrixType& csrN = Acc::csrNMut(solver);
+	for (int n = 1; n <= nsteps; ++n) {
+		const RealType tMid = (n - 0.5) * dt;
+		Acc::updateCSR(solver, csrN, Acc::varN(solver), { ComplexType(hop(tMid)) });
+		phiN[static_cast<SizeType>(n)]
+		    = Acc::krylovExpmvCSR(solver, phiN[static_cast<SizeType>(n - 1)], csrN, dt);
+	}
+
+	std::vector<VectorComplex> bStatesLocal(static_cast<SizeType>(nsteps + 1));
+	for (int n = 0; n <= nsteps; ++n)
+		bStatesLocal[static_cast<SizeType>(n)] = Acc::sparseMatVec(
+		    solver, Acc::cUpNm1(solver), phiN[static_cast<SizeType>(n)]);
+
+	// Sanity check: bStatesLocal[0] must match the production seed exactly
+	// (both are c_{imp,up}|pre-quench GS>, just reached via this test's
+	// explicit sparseMatVec vs. the solver's own internal seeding).
+	{
+		const auto& prodSeed = Acc::bStates(solver)[0];
+		REQUIRE(prodSeed.size() == bStatesLocal[0].size());
+		RealType maxDiff = 0;
+		for (SizeType i = 0; i < prodSeed.size(); ++i)
+			maxDiff = std::max(maxDiff, std::abs(prodSeed[i] - bStatesLocal[0][i]));
+		INFO("max|bStates[0] - locally-derived seed| = " << maxDiff);
+		CHECK(maxDiff < 1e-12);
+	}
+
+	// G^<(n,j) row via backward Krylov sweep from bStatesLocal[n] -- mirrors
+	// gLesserRowGBEKSector exactly, driven with the same externally-fixed
+	// hop(t) schedule.
+	auto innerProd = [](const VectorComplex& a, const VectorComplex& b)
+	{
+		ComplexType s(0);
+		for (SizeType i = 0; i < a.size(); ++i)
+			s += std::conj(a[i]) * b[i];
+		return s;
+	};
+
+	CrsMatrixType& csrNm1     = Acc::csrNm1Mut(solver);
+	auto           gLesserRow = [&](int n)
+	{
+		std::vector<ComplexType> row(static_cast<SizeType>(n + 1));
+		VectorComplex            psi  = bStatesLocal[static_cast<SizeType>(n)];
+		row[static_cast<SizeType>(n)] = ComplexType(0, 1) * innerProd(psi, psi);
+		for (int k = n - 1; k >= 0; --k) {
+			const RealType tMid = (k + 0.5) * dt;
+			Acc::updateCSR(
+			    solver, csrNm1, Acc::varNm1(solver), { ComplexType(hop(tMid)) });
+			psi = Acc::krylovExpmvCSR(solver, psi, csrNm1, -dt);
+			row[static_cast<SizeType>(k)] = ComplexType(0, 1)
+			    * innerProd(bStatesLocal[static_cast<SizeType>(k)], psi);
+		}
+		return row;
+	};
+
+	// From cross_check_seed_scheme.py's G_bruteforce array (see that
+	// script's docstring for the full derivation).
+	struct Expected {
+		int         n, j;
+		ComplexType value;
+	};
+	const std::vector<Expected> expected = {
+		{ 1, 0, ComplexType(-0.049979, 0.998749) },
+		{ 1, 1, ComplexType(0.000000, 0.999999) },
+		{ 2, 0, ComplexType(-0.099818, 0.994872) },
+		{ 2, 1, ComplexType(-0.049971, 0.998630) },
+		{ 2, 2, ComplexType(0.000000, 0.999867) },
+		{ 3, 0, ComplexType(-0.149216, 0.987452) },
+		{ 3, 1, ComplexType(-0.099678, 0.993719) },
+		{ 3, 2, ComplexType(-0.049890, 0.997705) },
+		{ 3, 3, ComplexType(0.000000, 0.998668) },
+		{ 4, 0, ComplexType(-0.197386, 0.974376) },
+		{ 4, 1, ComplexType(-0.148443, 0.983115) },
+		{ 4, 2, ComplexType(-0.099136, 0.989964) },
+		{ 4, 3, ComplexType(-0.049557, 0.994403) },
+		{ 4, 4, ComplexType(0.000000, 0.994222) },
+		{ 5, 0, ComplexType(-0.243052, 0.953805) },
+		{ 5, 1, ComplexType(-0.195085, 0.964912) },
+		{ 5, 2, ComplexType(-0.146661, 0.974618) },
+		{ 5, 3, ComplexType(-0.097823, 0.982690) },
+		{ 5, 4, ComplexType(-0.048718, 0.986937) },
+		{ 5, 5, ComplexType(0.000000, 0.984579) },
+		{ 6, 0, ComplexType(-0.285118, 0.926218) },
+		{ 6, 1, ComplexType(-0.238484, 0.939522) },
+		{ 6, 2, ComplexType(-0.191328, 0.951939) },
+		{ 6, 3, ComplexType(-0.143657, 0.963540) },
+		{ 6, 4, ComplexType(-0.095472, 0.972174) },
+		{ 6, 5, ComplexType(-0.047250, 0.974792) },
+		{ 6, 6, ComplexType(0.000000, 0.970117) },
+	};
+
+	std::vector<std::vector<ComplexType>> rows(static_cast<SizeType>(nsteps + 1));
+	for (int n = 1; n <= nsteps; ++n)
+		rows[static_cast<SizeType>(n)] = gLesserRow(n);
+
+	for (const auto& e : expected) {
+		const ComplexType g = rows[static_cast<SizeType>(e.n)][static_cast<SizeType>(e.j)];
+		INFO("G_lesser(n=" << e.n << ",j=" << e.j << "): got " << g << ", expected "
+		                   << e.value);
+		CHECK(g.real() == Catch::Approx(e.value.real()).margin(1e-5));
+		CHECK(g.imag() == Catch::Approx(e.value.imag()).margin(1e-5));
 	}
 }

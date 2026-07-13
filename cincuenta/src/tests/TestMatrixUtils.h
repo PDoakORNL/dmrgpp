@@ -66,11 +66,26 @@ struct GBEKTestAccessor {
 	}
 	static SizeType dim1Np1(const SolverType& s) { return s.sectorAlpha_.dim1Np1; }
 
-	static const std::vector<VectorComplex>& psiHist(const SolverType& s)
+	static const std::vector<VectorComplex>& bStates(const SolverType& s)
 	{
-		return s.sectorAlpha_.PsiHist;
+		return s.sectorAlpha_.bStates;
+	}
+	static const std::vector<VectorComplex>& phiNHist(const SolverType& s)
+	{
+		return s.sectorAlpha_.PhiNHist;
 	}
 	static SizeType bathRank(const SolverType& s) { return s.bathRank_; }
+
+	// N-sector Hamiltonian CSR + the c_{imp,up} operator (N -> N-1 sector),
+	// needed to reproduce the reseed-at-every-step construction directly
+	// (see the seed-scheme regression test).
+	static const CrsMatrixType& csrN(const SolverType& s) { return s.sectorAlpha_.csrN; }
+	static CrsMatrixType&       csrNMut(const SolverType& s) { return s.sectorAlpha_.csrN; }
+	static const std::vector<VarEntry>& varN(const SolverType& s)
+	{
+		return s.sectorAlpha_.varN;
+	}
+	static const CrsMatrixType& cUpNm1(const SolverType& s) { return s.sectorAlpha_.cUpNm1; }
 
 	// ── Method delegators ────────────────────────────────────────────────
 	static void applyHext(const SolverType&               s,
@@ -109,6 +124,16 @@ struct GBEKTestAccessor {
 	                      const std::vector<ComplexType>& vMid)
 	{
 		s.updateCSR(csr, varEntries, vMid);
+	}
+
+	// Rectangular-safe sparse mat-vec (x = A*y), for cUpNm1 (N -> N-1 sector,
+	// not square).
+	static VectorComplex
+	sparseMatVec(const SolverType& s, const CrsMatrixType& A, const VectorComplex& y)
+	{
+		VectorComplex x;
+		s.sparseMatVec(A, y, x);
+		return x;
 	}
 };
 

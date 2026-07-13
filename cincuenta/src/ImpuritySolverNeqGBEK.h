@@ -170,12 +170,16 @@ public:
 		// Ensure states are propagated up to step n (lazy, idempotent)
 		ensurePropagated(n);
 
-		// Overwrite G^< and G^R with GBEK inner-product formulas
+		// Overwrite G^< and G^R with GBEK inner-product formulas. Both rows
+		// are computed in one backward Krylov sweep each (see
+		// gLesserRowGBEKSector/gGreaterRowGBEKSector), not per-(n,j).
+		const std::vector<ComplexType> gLessRow = gLesserRowGBEK(n);
+		const std::vector<ComplexType> gGrtrRow = gGreaterRowGBEK(n);
 		for (int j = 0; j <= n; ++j) {
 			const SizeType    sn    = static_cast<SizeType>(n);
 			const SizeType    sj    = static_cast<SizeType>(j);
-			const ComplexType gLess = gLesserGBEK(n, j);
-			const ComplexType gGrtr = gGreaterGBEK(n, j);
+			const ComplexType gLess = gLessRow[static_cast<SizeType>(j)];
+			const ComplexType gGrtr = gGrtrRow[static_cast<SizeType>(j)];
 			gimp.lesser(sn, sj)     = gLess;
 			gimp.retarded(sn, sj)   = gGrtr - gLess;
 		}
@@ -223,13 +227,21 @@ private:
 	// swaps to (ndown+L, nup+L) (as if it were down). Both are always
 	// probed with the up-spin operator (see seedState/gLesserGBEKSector),
 	// matching GBEK Eq. 70's Gα_σ/Gβ_σ for σ=up.
+	// PhiNHist: the post-quench N-sector reference trajectory (forward-
+	// propagated pre-quench GS). bStates[n]/dStates[n]: c_{imp,up}/c†_{imp,up}
+	// applied to PhiNHist[n] AT EACH n -- this reseeding is required for
+	// correctness (see propagateOneStep's doc comment); it replaces an
+	// earlier, incorrect scheme that seeded once at n=0 and propagated the
+	// (N∓1)-sector state forward using only the (N∓1)-sector Hamiltonian.
 	struct ExtendedSector {
-		SizeType                               dim1Nm1 = 0, dim1Np1 = 0;
+		SizeType                               dim1Nm1 = 0, dim1Np1 = 0, dim1N = 0;
 		std::vector<WordType>                  upWordsNm1, dnWordsNm1;
 		std::vector<WordType>                  upWordsNp1, dnWordsNp1;
-		CrsMatrixComplexType                   csrNm1, csrNp1;
-		std::vector<VarEntry>                  varNm1, varNp1;
-		mutable std::vector<VectorComplexType> PsiHist, PhiHist;
+		std::vector<WordType>                  upWordsN, dnWordsN;
+		CrsMatrixComplexType                   csrNm1, csrNp1, csrN;
+		std::vector<VarEntry>                  varNm1, varNp1, varN;
+		CrsMatrixComplexType                   cUpNm1, cUpDagNp1;
+		mutable std::vector<VectorComplexType> PhiNHist, bStates, dStates;
 		mutable int                            propagatedThrough = -1;
 	};
 
@@ -319,6 +331,7 @@ private:
 		// Build fast-lookup tables from sorted Fock words
 		buildFockLookup(*bNm1, sector.upWordsNm1, sector.dnWordsNm1, sector.dim1Nm1);
 		buildFockLookup(*bNp1, sector.upWordsNp1, sector.dnWordsNp1, sector.dim1Np1);
+		buildFockLookup(model.basis(), sector.upWordsN, sector.dnWordsN, sector.dim1N);
 
 		// Build CSR sparse matrices for H_ext and validate against applyHext
 		buildHextCSR(sector.upWordsNm1,
@@ -331,60 +344,96 @@ private:
 		             sector.dim1Np1,
 		             sector.csrNp1,
 		             sector.varNp1);
+		// N-sector Hamiltonian: needed to propagate the reference trajectory
+		// PhiNHist forward (see propagateOneStep's doc comment).
+		buildHextCSR(
+		    sector.upWordsN, sector.dnWordsN, sector.dim1N, sector.csrN, sector.varN);
 		checkApplyHextEquivalence(sector);
+
+		// Sparse c_{imp,↑} / c†_{imp,↑} operators, N-sector -> N-1/N+1 sector.
+		// Built once here (basisN/basisNm1/basisNp1 still in scope) and reused
+		// at every time step to reseed against PhiNHist[n] -- see
+		// propagateOneStep's doc comment for why this reseeding matters.
+		sector.cUpNm1 = buildCOperatorCSR(
+		    model.basis(), *bNm1, LabeledOperatorType::Label::OPERATOR_C);
+		sector.cUpDagNp1 = buildCOperatorCSR(
+		    model.basis(), *bNp1, LabeledOperatorType::Label::OPERATOR_CDAGGER);
 
 		// Allocate history arrays
 		const SizeType nSteps = params_.nT + 1;
-		sector.PsiHist.assign(nSteps, VectorComplexType(bNm1->size(), ComplexType(0)));
-		sector.PhiHist.assign(nSteps, VectorComplexType(bNp1->size(), ComplexType(0)));
+		const SizeType dimN   = model.basis().size();
+		sector.PhiNHist.assign(nSteps, VectorComplexType(dimN, ComplexType(0)));
+		sector.bStates.assign(nSteps, VectorComplexType(bNm1->size(), ComplexType(0)));
+		sector.dStates.assign(nSteps, VectorComplexType(bNp1->size(), ComplexType(0)));
 
-		// Seed step 0: c_{imp,↑}|GS_pre_ext⟩ (N-1) and c†_{imp,↑}|GS_pre_ext⟩ (N+1)
-		seedState(sector, eigvecsN, model.basis(), *bNm1, *bNp1);
+		// Seed step 0: PhiNHist[0] = pre-quench GS; bStates[0]/dStates[0]
+		// follow by applying the (now reusable) c/c† operators to it -- must
+		// reproduce the old one-off PsiHist[0]/PhiHist[0] construction exactly.
+		for (SizeType m = 0; m < dimN; ++m)
+			sector.PhiNHist[0][m] = ComplexType(eigvecsN(m, 0));
+		sparseMatVec(sector.cUpNm1, sector.PhiNHist[0], sector.bStates[0]);
+		sparseMatVec(sector.cUpDagNp1, sector.PhiNHist[0], sector.dStates[0]);
 		sector.propagatedThrough = 0;
 	}
 
-	// Apply c_{imp,↑} and c†_{imp,↑} to the pre-quench GS to seed PsiHist[0]/PhiHist[0].
-	// Always the up-spin operator, regardless of whether this sector is
-	// system alpha or system beta -- see class docstring.
-	void seedState(ExtendedSector&      sector,
-	               const MatrixType&    eigvecsN,
-	               const BasisBaseType& basisN,
-	               const BasisBaseType& basisNm1,
-	               const BasisBaseType& basisNp1)
+	// Build the sparse CSR for c_{imp,↑} (opLabel=OPERATOR_C) or c†_{imp,↑}
+	// (opLabel=OPERATOR_CDAGGER), mapping the N-sector Fock basis (dimN
+	// columns) to a companion sector (N-1 or N+1, dimTo rows). Always the
+	// up-spin operator, regardless of whether this sector is system alpha or
+	// system beta -- see class docstring. Applicable to ANY N-sector state
+	// vector, not just the pre-quench GS (unlike the old seedState, which
+	// only ever built the t=0 seed).
+	static CrsMatrixComplexType buildCOperatorCSR(const BasisBaseType&                basisN,
+	                                              const BasisBaseType&                basisTo,
+	                                              typename LabeledOperatorType::Label opLabel)
 	{
-		const SizeType            dimN   = basisN.size();
-		const SizeType            spinUp = LanczosPlusPlus::LanczosGlobals::SPIN_UP;
-		const SizeType            spinDn = LanczosPlusPlus::LanczosGlobals::SPIN_DOWN;
-		const LabeledOperatorType opC(LabeledOperatorType::Label::OPERATOR_C);
-		const LabeledOperatorType opCdag(LabeledOperatorType::Label::OPERATOR_CDAGGER);
+		const SizeType            dimN    = basisN.size();
+		const SizeType            dimTo   = basisTo.size();
+		const SizeType            spinUp  = LanczosPlusPlus::LanczosGlobals::SPIN_UP;
+		const SizeType            spinDn  = LanczosPlusPlus::LanczosGlobals::SPIN_DOWN;
 		const SizeType            impSite = 0;
+		const LabeledOperatorType op(opLabel);
+
+		struct Entry {
+			SizeType    row, col;
+			ComplexType val;
+		};
+		std::vector<Entry> entries;
+		entries.reserve(dimN);
 
 		for (SizeType m = 0; m < dimN; ++m) {
-			const ComplexType amp(eigvecsN(m, 0));
-			if (std::abs(amp) < RealType(1e-15))
+			const WordType    ket1 = basisN(m, spinUp);
+			const WordType    ket2 = basisN(m, spinDn);
+			const PairIntType bra
+			    = basisTo.getBraIndex(ket1, ket2, op, impSite, spinUp, 0);
+			if (bra.first < 0)
 				continue;
+			const int sign = basisN.doSignGf(ket1, ket2, impSite, spinUp, 0);
+			entries.push_back(
+			    { static_cast<SizeType>(bra.first), m, ComplexType(sign) });
+		}
 
-			const WordType ket1 = basisN(m, spinUp);
-			const WordType ket2 = basisN(m, spinDn);
+		std::sort(entries.begin(),
+		          entries.end(),
+		          [](const Entry& a, const Entry& b)
+		          { return a.row < b.row || (a.row == b.row && a.col < b.col); });
 
-			// c_{imp,↑} |m⟩ → N-1 sector
-			const PairIntType braC
-			    = basisNm1.getBraIndex(ket1, ket2, opC, impSite, spinUp, 0);
-			if (braC.first >= 0) {
-				const int sign = basisN.doSignGf(ket1, ket2, impSite, spinUp, 0);
-				sector.PsiHist[0][static_cast<SizeType>(braC.first)]
-				    += ComplexType(sign) * amp;
-			}
-
-			// c†_{imp,↑} |m⟩ → N+1 sector
-			const PairIntType braCdag
-			    = basisNp1.getBraIndex(ket1, ket2, opCdag, impSite, spinUp, 0);
-			if (braCdag.first >= 0) {
-				const int sign = basisN.doSignGf(ket1, ket2, impSite, spinUp, 0);
-				sector.PhiHist[0][static_cast<SizeType>(braCdag.first)]
-				    += ComplexType(sign) * amp;
+		CrsMatrixComplexType csr;
+		csr.resize(dimTo, dimN);
+		csr.reserve(entries.size());
+		SizeType idx = 0;
+		int      nnz = 0;
+		for (SizeType row = 0; row < dimTo; ++row) {
+			csr.setRow(row, nnz);
+			while (idx < entries.size() && entries[idx].row == row) {
+				csr.pushCol(entries[idx].col);
+				csr.pushValue(entries[idx].val);
+				++nnz;
+				++idx;
 			}
 		}
+		csr.setRow(dimTo, nnz);
+		return csr;
 	}
 
 	// Extract sorted up/dn Fock words from a basis for O(log n) index lookup.
@@ -582,29 +631,66 @@ private:
 			sector.propagatedThrough = n;
 	}
 
-	// Propagate step n from step n-1 using the midpoint Hamiltonian.
-	// The midpoint second-bath hoppings V_mid come from the shared Cholesky
-	// decomposition (decomp_) -- identical for both spin configurations,
-	// since there is only one physical second bath.
-	void propagateOneStep(ExtendedSector& sector, int n) const
+	// Midpoint second-bath hoppings for the interval ending at step n:
+	// V_mid = (V[n-1] + V[n]) / 2. Shared by forward propagation of PhiNHist
+	// and by the backward sweeps in gLesserRowGBEKSector/gGreaterRowGBEKSector
+	// -- the same physical Hamiltonian governs interval [t_{n-1}, t_n]
+	// regardless of which direction it is traversed.
+	std::vector<ComplexType> computeVMid(int n) const
 	{
-		assert(n > 0 && n < static_cast<int>(sector.PsiHist.size()));
-
-		// Midpoint second-bath hoppings: V_mid = (V[n-1] + V[n]) / 2
 		std::vector<ComplexType> vMid(bathRank_);
 		for (SizeType p = 0; p < bathRank_; ++p) {
 			const ComplexType vPrev = decomp_->Vplus(n - 1, static_cast<int>(p));
 			const ComplexType vCurr = decomp_->Vplus(n, static_cast<int>(p));
 			vMid[p]                 = RealType(0.5) * (vPrev + vCurr);
 		}
+		return vMid;
+	}
 
-		updateCSR(sector.csrNm1, sector.varNm1, vMid);
-		updateCSR(sector.csrNp1, sector.varNp1, vMid);
+	// Advance the N-sector reference trajectory PhiNHist from step n-1 to n
+	// under the midpoint Hamiltonian, then reseed c_{imp,up}/c†_{imp,up}
+	// against PhiNHist[n] to get bStates[n]/dStates[n].
+	//
+	// This reseeding-at-every-step is required for correctness: the two-time
+	// Green's function is G^<(t,t') = i<c†(t')c(t)>, and in the Heisenberg
+	// picture c(t)|ψ0> = U_{N-1}(0,t) · c · U_N(t,0)|ψ0> -- i.e. c must be
+	// applied to the N-sector state AT TIME t, not at t=0. An earlier version
+	// of this solver instead applied c ONCE (at t=0) and propagated the
+	// resulting (N-1)-sector state forward using only the (N-1)-sector
+	// Hamiltonian; that shortcut is valid only if c commutes with H, which
+	// fails here because of the Hubbard U term ([U n_up n_dn, c_up] != 0).
+	// The bug showed up as a systematically suppressed off-diagonal
+	// (two-time) imaginary part, growing with |n-j| while sparing the
+	// diagonal -- confirmed against an independent brute-force
+	// (dense-matrix-exponential) reconstruction in
+	// cincuenta/TestSuite/gbek_reference/cross_check_seed_scheme.py.
+	void propagateOneStep(ExtendedSector& sector, int n) const
+	{
+		assert(n > 0 && n < static_cast<int>(sector.PhiNHist.size()));
 
-		sector.PsiHist[n]
-		    = krylovExpmvCSR(sector.PsiHist[n - 1], sector.csrNm1, params_.dt);
-		sector.PhiHist[n]
-		    = krylovExpmvCSR(sector.PhiHist[n - 1], sector.csrNp1, params_.dt);
+		const std::vector<ComplexType> vMid = computeVMid(n);
+
+		updateCSR(sector.csrN, sector.varN, vMid);
+		sector.PhiNHist[n]
+		    = krylovExpmvCSR(sector.PhiNHist[n - 1], sector.csrN, params_.dt);
+
+		sparseMatVec(sector.cUpNm1, sector.PhiNHist[n], sector.bStates[n]);
+		sparseMatVec(sector.cUpDagNp1, sector.PhiNHist[n], sector.dStates[n]);
+	}
+
+	// Rectangular-safe sparse mat-vec: x = A*y. PsimagLite::CrsMatrix's own
+	// matrixVectorProduct assumes a square matrix (it asserts
+	// x.size()==y.size()); cUpNm1_/cUpDagNp1_ map between differently-sized
+	// sectors, so they need this instead.
+	static void sparseMatVec(const CrsMatrixComplexType& A,
+	                         const VectorComplexType&    y,
+	                         VectorComplexType&          x)
+	{
+		x.assign(A.rows(), ComplexType(0));
+		for (SizeType i = 0; i < A.rows(); ++i)
+			for (int k = A.getRowPtr(i); k < A.getRowPtr(i + 1); ++k)
+				x[i] += A.getValue(static_cast<SizeType>(k))
+				    * y[static_cast<SizeType>(A.getCol(static_cast<SizeType>(k)))];
 	}
 
 	// Krylov (Lanczos) approximation to exp(-i H dt) |psi⟩.
@@ -817,6 +903,8 @@ private:
 		            sector.dim1Np1,
 		            sector.csrNp1,
 		            sector.varNp1);
+		checkSector(
+		    "N", sector.upWordsN, sector.dnWordsN, sector.dim1N, sector.csrN, sector.varN);
 	}
 
 	// ========== Fock-space Hamiltonian matrix-vector product ==========
@@ -952,48 +1040,82 @@ private:
 	}
 
 	// ========== Green's function formulas ==========
+	//
+	// Both rows below are computed via ONE backward Krylov sweep starting
+	// from the t_n-seeded state (bStates[n]/dStates[n]), rather than as
+	// independent (n,j) pairs -- see propagateOneStep's doc comment for why
+	// per-time reseeding (not a single t=0 seed) is required, and
+	// cross_check_seed_scheme.py for the derivation/confirmation of the
+	// formulas used here.
 
-	// G^<(t_n, t_j) = +i <Ψ(t_j) | Ψ(t_n)>, one spin configuration.
-	static ComplexType gLesserGBEKSector(const ExtendedSector& sector, int n, int j)
+	// Row of G^<(t_n, t_j) for all j=0..n, one spin configuration.
+	// Derivation: G^<(t,t') = i<c†(t')c(t)>, and in the Heisenberg picture
+	// c(t)|ψ0> = U_{N-1}(0,t) b(t) with b(t) = c·φ_N(t) = bStates at that
+	// time, giving G^<(t_n,t_j) = i<b(t_j)|U_{N-1}(t_j,t_n)|b(t_n)> for j<=n
+	// -- i.e. propagate bStates[n] BACKWARD to each earlier t_j.
+	std::vector<ComplexType> gLesserRowGBEKSector(ExtendedSector& sector, int n) const
 	{
-		const SizeType dim = sector.PsiHist[0].size();
-		ComplexType    s(0);
-		for (SizeType k = 0; k < dim; ++k)
-			s += std::conj(sector.PsiHist[static_cast<SizeType>(j)][k])
-			    * sector.PsiHist[static_cast<SizeType>(n)][k];
-		return ComplexType(0, 1) * s;
+		std::vector<ComplexType> row(static_cast<SizeType>(n + 1));
+		VectorComplexType        psi  = sector.bStates[static_cast<SizeType>(n)];
+		row[static_cast<SizeType>(n)] = ComplexType(0, 1) * innerProduct(psi, psi);
+
+		for (int k = n - 1; k >= 0; --k) {
+			const std::vector<ComplexType> vMid = computeVMid(k + 1);
+			updateCSR(sector.csrNm1, sector.varNm1, vMid);
+			psi = krylovExpmvCSR(psi, sector.csrNm1, -params_.dt);
+			row[static_cast<SizeType>(k)] = ComplexType(0, 1)
+			    * innerProduct(sector.bStates[static_cast<SizeType>(k)], psi);
+		}
+		return row;
 	}
 
-	// G^>(t_n, t_j) = -i <Φ(t_n) | Φ(t_j)>, one spin configuration.
-	static ComplexType gGreaterGBEKSector(const ExtendedSector& sector, int n, int j)
+	// Row of G^>(t_n, t_j) for all j=0..n, one spin configuration.
+	// Derivation: G^>(t,t') = -i<c(t)c†(t')>, giving
+	// G^>(t_n,t_j) = -i<d(t_n)|U_{N+1}(t_n,t_j)|d(t_j)>
+	//              = -i * conj( <d(t_j)|U_{N+1}(t_j,t_n)|d(t_n)> )   for j<=n,
+	// so the SAME backward sweep (from dStates[n], through the N+1-sector
+	// Hamiltonian) applies -- only the diagonal prefactor and the final
+	// conjugation differ from gLesserRowGBEKSector.
+	std::vector<ComplexType> gGreaterRowGBEKSector(ExtendedSector& sector, int n) const
 	{
-		const SizeType dim = sector.PhiHist[0].size();
-		ComplexType    s(0);
-		for (SizeType k = 0; k < dim; ++k)
-			s += std::conj(sector.PhiHist[static_cast<SizeType>(n)][k])
-			    * sector.PhiHist[static_cast<SizeType>(j)][k];
-		return ComplexType(0, -1) * s;
+		std::vector<ComplexType> row(static_cast<SizeType>(n + 1));
+		VectorComplexType        psi  = sector.dStates[static_cast<SizeType>(n)];
+		row[static_cast<SizeType>(n)] = ComplexType(0, -1) * innerProduct(psi, psi);
+
+		for (int k = n - 1; k >= 0; --k) {
+			const std::vector<ComplexType> vMid = computeVMid(k + 1);
+			updateCSR(sector.csrNp1, sector.varNp1, vMid);
+			psi = krylovExpmvCSR(psi, sector.csrNp1, -params_.dt);
+			const ComplexType inner
+			    = innerProduct(sector.dStates[static_cast<SizeType>(k)], psi);
+			row[static_cast<SizeType>(k)] = ComplexType(0, -1) * std::conj(inner);
+		}
+		return row;
 	}
 
 	// Gα/Gβ average (GBEK Eq. 70): G_up = (1/2)(Gα_up + Gβ_up). When
 	// nup_==ndown_, system beta is identical to system alpha and was never
-	// built, so this reduces to just system alpha's value.
-	ComplexType gLesserGBEK(int n, int j) const
+	// built, so this reduces to just system alpha's row.
+	std::vector<ComplexType> gLesserRowGBEK(int n) const
 	{
+		std::vector<ComplexType> rowA = gLesserRowGBEKSector(sectorAlpha_, n);
 		if (sameConfig_)
-			return gLesserGBEKSector(sectorAlpha_, n, j);
-		return RealType(0.5)
-		    * (gLesserGBEKSector(sectorAlpha_, n, j)
-		       + gLesserGBEKSector(sectorBeta_, n, j));
+			return rowA;
+		const std::vector<ComplexType> rowB = gLesserRowGBEKSector(sectorBeta_, n);
+		for (SizeType k = 0; k < rowA.size(); ++k)
+			rowA[k] = RealType(0.5) * (rowA[k] + rowB[k]);
+		return rowA;
 	}
 
-	ComplexType gGreaterGBEK(int n, int j) const
+	std::vector<ComplexType> gGreaterRowGBEK(int n) const
 	{
+		std::vector<ComplexType> rowA = gGreaterRowGBEKSector(sectorAlpha_, n);
 		if (sameConfig_)
-			return gGreaterGBEKSector(sectorAlpha_, n, j);
-		return RealType(0.5)
-		    * (gGreaterGBEKSector(sectorAlpha_, n, j)
-		       + gGreaterGBEKSector(sectorBeta_, n, j));
+			return rowA;
+		const std::vector<ComplexType> rowB = gGreaterRowGBEKSector(sectorBeta_, n);
+		for (SizeType k = 0; k < rowA.size(); ++k)
+			rowA[k] = RealType(0.5) * (rowA[k] + rowB[k]);
+		return rowA;
 	}
 
 	// ========== Vector helpers ==========
