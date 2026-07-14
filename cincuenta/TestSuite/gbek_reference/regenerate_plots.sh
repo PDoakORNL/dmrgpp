@@ -103,6 +103,16 @@ if [ "$GROUP_B" = "1" ]; then
 	$UV_NUMPY plot_errstep_t3scan.py
 	$UV_NUMPY plot_fig3l3_post_fix.py
 	$UV_NUMPY scan_t3_activation.py
+	# These two calls use compare_reference.py's DEFAULT labels ("Exact
+	# reference" / "cincuenta rank-L Cholesky approx"), which is correct
+	# ONLY because arg1 here is genuinely the independent, undecomposed
+	# Python target and arg2 is genuinely cincuenta's reconstruction of it.
+	# gbek_reference_comparison.png is embedded in the GBEK progress report
+	# artifact -- if you ever repoint either argument at something else
+	# (e.g. comparing two cincuenta runs against each other), you MUST add
+	# --ref-label/--approx-label explicitly, or the report will silently
+	# ship a mislabeled plot (this happened once already -- see
+	# small_bath_vs_atomic_limit_L2.png's generation for the fix).
 	$UV_NUMPY compare_reference.py \
 		gbek-atomic-limit-exact-lesser "${AL_PREFIX}-plus-bath-lesser" \
 		--tmax 4.0 --out atomic_limit_true_comparison.png
