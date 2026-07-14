@@ -559,8 +559,18 @@ private:
 					const SizeType occS   = 1 + nBath_ + bathRank_ + p;
 					tryHop(0, emptyS, true, p, false, ComplexType(0));
 					tryHop(emptyS, 0, true, p, true, ComplexType(0));
-					tryHop(0, occS, true, p, false, ComplexType(0));
-					tryHop(occS, 0, true, p, true, ComplexType(0));
+					// Occupied-orbital coupling has the OPPOSITE conjugation
+					// from the empty orbital's (GBEK Eq. 49/52a: -iLambda^<_+
+					// couples the occupied orbital via V(t)V(t')^*, while
+					// +iLambda^>_+ =
+					// (-iLambda^<_+)^* couples the empty orbital -- see
+					// gbek_selfconsistency.py::build_templates's docstring,
+					// which documents this exact asymmetry and was validated
+					// against the paper directly). c^dag_occ c_imp must be
+					// conj(V), and c^dag_imp c_occ must be V -- opposite of
+					// what was here before.
+					tryHop(0, occS, true, p, true, ComplexType(0));
+					tryHop(occS, 0, true, p, false, ComplexType(0));
 				}
 			}
 		}
@@ -991,8 +1001,11 @@ private:
 					const ComplexType Vp     = gbekHop[p];
 					applyHop(0, emptyS, Vp);
 					applyHop(emptyS, 0, std::conj(Vp));
-					applyHop(0, occS, Vp);
-					applyHop(occS, 0, std::conj(Vp));
+					// Occupied orbital has the OPPOSITE conjugation from the
+					// empty orbital's -- see buildHextCSR's matching comment
+					// (GBEK Eq. 49/52a).
+					applyHop(0, occS, std::conj(Vp));
+					applyHop(occS, 0, Vp);
 				}
 			}
 		}

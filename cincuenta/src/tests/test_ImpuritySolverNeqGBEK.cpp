@@ -652,8 +652,8 @@ TEST_CASE("Time propagation matches an independent Python reconstruction "
 		{ 0, 0, ComplexType(0.00000000000000, 1.00000000000000) },
 		{ 1, 0, ComplexType(0.00000541510959, 0.99967511169887) },
 		{ 1, 1, ComplexType(0.00000000000000, 1.00000000000000) },
-		{ 2, 0, ComplexType(-0.00031764775267, 0.99957766021840) },
-		{ 2, 1, ComplexType(-0.00068023733950, 0.99990162081492) },
+		{ 2, 0, ComplexType(0.00033118585217, 0.99961010253565) },
+		{ 2, 1, ComplexType(0.00061824086200, 0.99993403666773) },
 		{ 2, 2, ComplexType(0.00000000000000, 1.00000000000000) },
 	};
 	for (const auto& e : expected) {
