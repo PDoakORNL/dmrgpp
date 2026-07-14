@@ -81,11 +81,12 @@ def main():
         print(f"{'ch L='+str(L):<16} {ch_curve[-1]:>14.4f} {global_err(full, ch_recon):>14.4f}")
         print(f"{'ev L='+str(L):<16} {ev_curve[-1]:>14.4f} {global_err(full, ev_recon):>14.4f}")
 
-    # Match the paper's own Fig. 3 bottom-left axis: err^step spans roughly
-    # 1e-9 to a few, on a log scale -- anything below 1e-9 is numerical
-    # noise from the causal recursion's floating-point floor, not signal,
-    # and swamps the panel if left to auto-scale (down to ~1e-18).
-    ax.set_ylim(1e-9, 3)
+    # Match the paper's own Fig. 3 bottom-left axis exactly: log scale from
+    # 1e-6 to 1 (1e0). Curves below 1e-6 are numerical noise from the causal
+    # recursion's floating-point floor, not signal; clipping them into the
+    # paper's own range (rather than auto-scaling down to ~1e-18) is what
+    # makes this panel directly, visually comparable to the paper's.
+    ax.set_ylim(1e-6, 1)
     ax.set_xlim(0, ts[-1])
     ax.set_xlabel("t")
     ax.set_ylabel(r"$\mathrm{err}^{\mathrm{step}}(t)$  (Eq. 67)")

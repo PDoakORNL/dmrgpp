@@ -64,18 +64,27 @@ def plot_figure7(args):
     data = {(L, mode): np.load(f"fig7_docc_L{L}_{mode}.npz")
             for L in L_list for mode in MODES}
 
-    fig, axes = plt.subplots(len(L_list), 2, figsize=(11, 4 * len(L_list)),
-                              sharex=True, squeeze=False)
-    extra_files = ["plot_docc_scan.py"]
+    # One figure PER L (eigenvector top, Cholesky bottom, single column) --
+    # matches the paper's own Fig. 7 layout (a single (L, Lbath) case per
+    # figure), so our L=2/Lbath=4 reproduction can sit directly side by side
+    # with the paper's own panel; L=4/Lbath=8 becomes its own separate figure
+    # instead of a third column squeezed into the same grid.
+    if len(L_list) == 1 and args.out is not None:
+        out_names = {L_list[0]: args.out}
+    else:
+        if args.out is not None:
+            print(f"NOTE: --out ignored for multi-L Fig. 7 (writing one file per L instead)")
+        out_names = {L: f"fig7_docc_L{L}.png" for L in L_list}
 
-    for row, L in enumerate(L_list):
+    for L in L_list:
         n_iter = data[(L, "cholesky")]["docc_history"].shape[0]
         # Match the paper's own Fig. 7 convention: earlier (not-yet-converged)
         # iterations are dashed, in a color gradient; the final, most-converged
         # iteration is a solid red line that stands out from the rest.
         colors = plt.cm.viridis(np.linspace(0.1, 0.9, n_iter - 1))
-        for col, mode in enumerate(MODES):
-            ax = axes[row][col]
+        fig, axes = plt.subplots(2, 1, figsize=(6, 7), sharex=True)
+        for row, mode in enumerate(MODES):
+            ax = axes[row]
             ts = data[(L, mode)]["ts"]
             hist = data[(L, mode)]["docc_history"]
             for it in range(n_iter):
@@ -86,23 +95,24 @@ def plot_figure7(args):
                 ax.plot(ts, hist[it], color=color, linestyle=linestyle, lw=lw,
                         label=f"iter {it+1}")
             ax.set_ylabel("d(t)")
-            ax.set_title(f"{mode}, L={L} (Lbath={2*L})")
+            ax.set_title(mode)
             ax.grid(alpha=0.2)
             if args.ylim is not None:
                 ax.set_ylim(*args.ylim)
-            if row == 0 and col == 0:
+            if row == 0:
                 ax.legend(fontsize=7, ncol=4, loc="upper left")
-            extra_files.append(f"fig7_docc_L{L}_{mode}.npz")
-    for col in range(2):
-        axes[-1][col].set_xlabel("t")
-    fig.suptitle(args.title)
-    fig.tight_layout()
-    fig.savefig(args.out, dpi=150)
-    print(f"Wrote {args.out}")
+        axes[-1].set_xlabel("t")
+        fig.suptitle(f"{args.title} (L={L}, Lbath={2*L})")
+        fig.tight_layout()
+        out = out_names[L]
+        fig.savefig(out, dpi=150)
+        plt.close(fig)
+        print(f"Wrote {out}")
 
-    prov = write_provenance(args.out, extra_files=extra_files,
-                             notes=f"figure=7 L_list={L_list} tol_docc={args.tol_docc}")
-    print(f"Wrote {prov}")
+        extra_files = ["plot_docc_scan.py"] + [f"fig7_docc_L{L}_{mode}.npz" for mode in MODES]
+        prov = write_provenance(out, extra_files=extra_files,
+                                 notes=f"figure=7 L={L} tol_docc={args.tol_docc}")
+        print(f"Wrote {prov}")
 
     print("\n--- Fig. 7 physics criteria ---")
     for L in L_list:
@@ -253,7 +263,6 @@ def main():
         args.ylim = tuple(float(x) for x in args.ylim.split(","))
 
     if args.figure == "7":
-        args.out = args.out or "fig7_docc.png"
         args.title = args.title or "cf. GBEK Fig. 7: double occupation per DMFT iteration"
         plot_figure7(args)
     else:
