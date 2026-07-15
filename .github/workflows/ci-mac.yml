@@ -30,7 +30,9 @@ jobs:
               -GNinja \
               -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
               -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wno-unused-parameter" \
-              -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+              -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+              -DKokkosKernels_ENABLE_TPL_BLAS=ON \
+              -DKokkosKernels_ENABLE_TPL_LAPACK=ON
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build
