@@ -62,6 +62,11 @@ public:
 	// offline trace. No-op for solvers that have no second bath.
 	virtual void dumpV(const std::string& /*filename*/) const { }
 
+	// Write one line per time step, "t docc Ekin Eint Etot", for the paper's
+	// Figs. 9-10 (double occupation, energy conservation). No-op for solvers
+	// that don't compute these observables (currently only GBEK does).
+	virtual void dumpDoccAndEnergy(const std::string& /*filename*/) const { }
+
 	/*!
 	 * \brief gimp
 	 * Access the last-computed two-time impurity GF.

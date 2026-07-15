@@ -86,6 +86,58 @@ struct GBEKTestAccessor {
 		return s.sectorAlpha_.varN;
 	}
 	static const CrsMatrixType& cUpNm1(const SolverType& s) { return s.sectorAlpha_.cUpNm1; }
+	static const std::vector<WordType>& upWordsN(const SolverType& s)
+	{
+		return s.sectorAlpha_.upWordsN;
+	}
+	static const std::vector<WordType>& dnWordsN(const SolverType& s)
+	{
+		return s.sectorAlpha_.dnWordsN;
+	}
+	static SizeType dim1N(const SolverType& s) { return s.sectorAlpha_.dim1N; }
+
+	// Mutable access to PhiNHist, for tests that hand-drive a chosen V(t)
+	// sequence directly (bypassing NeqBathDecomposition/self-consistency)
+	// and need to stash the resulting states before calling the docc/energy
+	// observable methods below -- same style as csrNMut.
+	static std::vector<VectorComplex>& phiNHistMut(const SolverType& s)
+	{
+		return s.sectorAlpha_.PhiNHist;
+	}
+	static const std::vector<RealType>& diagFixed(const SolverType& s)
+	{
+		return s.sectorAlpha_.diagFixed;
+	}
+
+	// docc(t_n)/Ekin(t_n), alpha/beta-averaged (paper Figs. 9-10).
+	static RealType computeDoccGBEK(const SolverType& s, int n) { return s.computeDoccGBEK(n); }
+	static RealType computeKineticEnergyGBEK(const SolverType& s, int n)
+	{
+		return s.computeKineticEnergyGBEK(n);
+	}
+
+	// Single-sector (system alpha only) versions, for tests that hand-drive
+	// only sectorAlpha_'s PhiNHist directly (see phiNHistMut) and don't want
+	// to also drive sectorBeta_ just to exercise the docc/Ekin arithmetic
+	// itself. Physically valid on their own (conservation of <psi|H(t)|psi>
+	// under unitary evolution holds for any single trajectory), just not the
+	// paper's Eq.-70-symmetrized quantity.
+	static RealType computeDoubleOccupationGBEKSector(const SolverType& s, int n)
+	{
+		return s.computeDoubleOccupationGBEKSector(s.sectorAlpha_, n);
+	}
+	static RealType computeKineticEnergyGBEKSector(const SolverType& s, int n)
+	{
+		return s.computeKineticEnergyGBEKSector(s.sectorAlpha_, n);
+	}
+	static const std::vector<RealType>& doccHistory(const SolverType& s)
+	{
+		return s.doccHistory_;
+	}
+	static const std::vector<RealType>& ekinHistory(const SolverType& s)
+	{
+		return s.ekinHistory_;
+	}
 
 	// ── Method delegators ────────────────────────────────────────────────
 	static void applyHext(const SolverType&               s,

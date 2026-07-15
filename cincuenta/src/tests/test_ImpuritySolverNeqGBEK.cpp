@@ -849,3 +849,249 @@ TEST_CASE("G^< two-time construction matches an independent Python "
 		CHECK(g.imag() == Catch::Approx(e.value.imag()).margin(1e-5));
 	}
 }
+
+// ── Double occupation / energy observable tests (paper Figs. 9-10) ──────────
+// Added 2026-07-15, alongside the C++ port of the Python reference's Fig.
+// 9/10 observables (see project memory project_gbek_ekin_factor2_bugfix and
+// project_gbek_double_occupation_next). Both tests below hand-drive PhiNHist
+// directly (same style as the seed-scheme test above), bypassing
+// NeqBathDecomposition/self-consistency entirely, so they are fast and
+// deterministic.
+
+// ── TC: trivial zero-coupling anchor ─────────────────────────────────────────
+// V(t)==0 for all t: the impurity/bath coupling is never switched on, so
+// PhiNHist never leaves its initial (diagonal-Hamiltonian) eigenstate up to
+// an overall phase. docc(t) and Ekin(t) must be EXACTLY 0 for all t, and
+// Etot(t) exactly -U/4 -- this is a basic plumbing/indexing sanity check
+// (diagFixed captured correctly, docc's basis-index decomposition correct),
+// NOT a regression guard for the factor-of-2 bug: with V==0, <H_hop>==0
+// identically regardless of any overall scale factor applied to it, so a
+// 2x (or any other multiplicative) bug would be invisible here. See the
+// conservation-law test below for the check that actually catches that bug.
+TEST_CASE("docc/Ekin are exactly zero when the second-bath coupling is never "
+          "switched on",
+          "[GBEK][energy][docc]")
+{
+	static const std::string kConfig
+	    = "##Ainur1.0\n\n"
+	      "FicticiousBeta=10;\nChemicalPotential=0.;\nMatsubaras=20;\n"
+	      "LatticeGf=\"energy,semicircular,4\";\nNumberOfBathPoints=1;\n"
+	      "DmftNumberOfIterations=1;\nDmftTolerance=1e-3;\n"
+	      "ImpuritySolver=\"exactdiag\";\nFitOptions=particleholesymmetric;\n"
+	      "MinParamsDelta=0.01;\nMinParamsDelta2=0.01;\nMinParamsTolerance=1e-4;\n"
+	      "MinParamsMaxIter=100;\nMinParamsVerbose=0;\n"
+	      "TargetElectronsUp=1;\nTargetElectronsDown=0;\n"
+	      "int ImpuritySite=0;\nreal HubbardU=2.;\nHubbardUFinal=2.;\n"
+	      "RootOutputname=\"testGBEKZeroCoupling\";\nInfiniteLoopKeptStates=20;\n"
+	      "matrix FiniteLoopsGs=[[@auto, 20, 0],[@auto, 20, 0]];\n"
+	      "real OmegaBegin=-4.;\ninteger OmegaTotal=40;\nreal OmegaStep=0.2;\n"
+	      "real OmegaDelta=0.2;\ninteger TridiagSteps=100;\nreal TridiagEps=1e-6;\n"
+	      "TruncationTolerance=\"1e-6,20\";\nCorrectionVectorEta=0.;\nGsWeight=0.1;\n"
+	      "matrix FiniteLoopsOmega=[[@auto, 20, 2],[@auto, 20, 2]];\n"
+	      "TmaxNeq=0.5;\nNtNeq=10;\nNeqDmftIter=1;\nNeqDmftTolerance=1e-4;\n"
+	      "NeqSolver=\"gbek\";\nNeqBathRank=1;\nBandwidthFinal=4.;\n";
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, kConfig);
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, io);
+	solver.solve({}); // empty bathParams: nBath=0
+
+	const RealType dt     = 0.05;
+	const int      nsteps = 10;
+	const RealType uFinal = 2.0;
+
+	std::vector<VectorComplex>& phiN = Acc::phiNHistMut(solver);
+	CrsMatrixType&              csrN = Acc::csrNMut(solver);
+	for (int n = 1; n <= nsteps; ++n) {
+		Acc::updateCSR(solver, csrN, Acc::varN(solver), { ComplexType(0, 0) });
+		phiN[static_cast<SizeType>(n)]
+		    = Acc::krylovExpmvCSR(solver, phiN[static_cast<SizeType>(n - 1)], csrN, dt);
+	}
+
+	for (int n = 0; n <= nsteps; ++n) {
+		const RealType docc = Acc::computeDoubleOccupationGBEKSector(solver, n);
+		const RealType ekin = Acc::computeKineticEnergyGBEKSector(solver, n);
+		const RealType eint = uFinal * (docc - 0.25);
+		const RealType etot = ekin + eint;
+		INFO("n=" << n << " docc=" << docc << " ekin=" << ekin << " etot=" << etot);
+		CHECK(docc == Catch::Approx(0.0).margin(1e-12));
+		CHECK(ekin == Catch::Approx(0.0).margin(1e-10));
+		CHECK(etot == Catch::Approx(-uFinal / 4).margin(1e-10));
+	}
+}
+
+// ── TC: energy-transfer plausibility check (NOT a factor-of-2 regression
+// guard -- see the dense cross-check test below for that) ───────────────────
+// Drives PhiNHist with the SAME physical cosine ramp (tq=0.25, tstar_f=1.0)
+// used by the actual GBEK Fig. 9 protocol (identical to the seed-scheme
+// test's hop(t) above), at nBath=0/L=1, and checks Etot(t) stays roughly
+// close to its analytic t=0 value -U/4 shortly after the ramp ("tiny energy
+// transfer", paper Sec. VI-C).
+//
+// IMPORTANT LIMITATION, found empirically while writing this test: once
+// hop(t) becomes constant (t > t_q), <psi(t)|H(t_q)|psi(t)> is EXACTLY
+// conserved by plain unitarity, for ANY multiplicative scale applied to how
+// that number gets reported as "Ekin" -- a 2x-too-large Ekin is just as
+// "conserved" as the correct one, only at a different (still plausible)
+// plateau value. Verified directly: temporarily reintroducing the
+// factor-of-2 bug in ImpuritySolverNeqGBEK.h and rerunning this exact test
+// produced Etot values of -0.506 (bug) vs. -0.474..-0.393 (fixed) at
+// n=6..10 -- BOTH within the tolerance below, i.e. this test would NOT have
+// caught the bug. It is kept as a basic plausibility check (values are
+// finite and roughly the right order of magnitude), not a regression guard.
+TEST_CASE("Etot(t) stays roughly close to its analytic -U/4 value shortly "
+          "after the ramp completes (plausibility check only)",
+          "[GBEK][energy][conservation]")
+{
+	static const std::string kConfig
+	    = "##Ainur1.0\n\n"
+	      "FicticiousBeta=10;\nChemicalPotential=0.;\nMatsubaras=20;\n"
+	      "LatticeGf=\"energy,semicircular,4\";\nNumberOfBathPoints=1;\n"
+	      "DmftNumberOfIterations=1;\nDmftTolerance=1e-3;\n"
+	      "ImpuritySolver=\"exactdiag\";\nFitOptions=particleholesymmetric;\n"
+	      "MinParamsDelta=0.01;\nMinParamsDelta2=0.01;\nMinParamsTolerance=1e-4;\n"
+	      "MinParamsMaxIter=100;\nMinParamsVerbose=0;\n"
+	      "TargetElectronsUp=1;\nTargetElectronsDown=0;\n"
+	      "int ImpuritySite=0;\nreal HubbardU=2.;\nHubbardUFinal=2.;\n"
+	      "RootOutputname=\"testGBEKConservation\";\nInfiniteLoopKeptStates=20;\n"
+	      "matrix FiniteLoopsGs=[[@auto, 20, 0],[@auto, 20, 0]];\n"
+	      "real OmegaBegin=-4.;\ninteger OmegaTotal=40;\nreal OmegaStep=0.2;\n"
+	      "real OmegaDelta=0.2;\ninteger TridiagSteps=100;\nreal TridiagEps=1e-6;\n"
+	      "TruncationTolerance=\"1e-6,20\";\nCorrectionVectorEta=0.;\nGsWeight=0.1;\n"
+	      "matrix FiniteLoopsOmega=[[@auto, 20, 2],[@auto, 20, 2]];\n"
+	      "TmaxNeq=1.5;\nNtNeq=30;\nNeqDmftIter=1;\nNeqDmftTolerance=1e-4;\n"
+	      "NeqSolver=\"gbek\";\nNeqBathRank=1;\nBandwidthFinal=4.;\n";
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, kConfig);
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, io);
+	solver.solve({}); // empty bathParams: nBath=0
+
+	const RealType dt      = 0.05;
+	const RealType tq      = 0.25;
+	const RealType tstar_f = 1.0;
+	const int      nsteps  = 30;
+	const RealType uFinal  = 2.0;
+	const RealType pi      = RealType(3.14159265358979323846);
+
+	auto vRamp = [&](RealType t) -> RealType
+	{
+		if (t <= 0)
+			return 0.0;
+		if (t >= tq)
+			return 1.0;
+		return 0.5 * (1.0 - std::cos(pi * t / tq));
+	};
+	auto hop = [&](RealType t) { return tstar_f * vRamp(t); };
+
+	std::vector<VectorComplex>& phiN = Acc::phiNHistMut(solver);
+	CrsMatrixType&              csrN = Acc::csrNMut(solver);
+	for (int n = 1; n <= nsteps; ++n) {
+		const RealType tMid = (n - 0.5) * dt;
+		Acc::updateCSR(solver, csrN, Acc::varN(solver), { ComplexType(hop(tMid)) });
+		phiN[static_cast<SizeType>(n)]
+		    = Acc::krylovExpmvCSR(solver, phiN[static_cast<SizeType>(n - 1)], csrN, dt);
+	}
+
+	std::vector<RealType> etot(static_cast<SizeType>(nsteps + 1));
+	for (int n = 0; n <= nsteps; ++n) {
+		const RealType docc            = Acc::computeDoubleOccupationGBEKSector(solver, n);
+		const RealType ekin            = Acc::computeKineticEnergyGBEKSector(solver, n);
+		const RealType eint            = uFinal * (docc - 0.25);
+		etot[static_cast<SizeType>(n)] = ekin + eint;
+	}
+
+	// n=0: exact analytic value, no approximation involved.
+	CHECK(etot[0] == Catch::Approx(-uFinal / 4).margin(1e-10));
+
+	// Shortly after the ramp completes (tq=0.25 -> n=5), Etot should still
+	// be close to -U/4 ("tiny energy transfer"). Loose margin: this is an
+	// L=1 toy instance of the real physics, not the converged Lbath=8 case.
+	const RealType tol = 0.3;
+	for (int n = 6; n <= 10; ++n) {
+		INFO("n=" << n << " t=" << n * dt << " Etot=" << etot[static_cast<SizeType>(n)]);
+		CHECK(etot[static_cast<SizeType>(n)] == Catch::Approx(-uFinal / 4).margin(tol));
+	}
+}
+
+// ── TC: dense cross-check (the ACTUAL regression guard for the factor-of-2
+// bug) ────────────────────────────────────────────────────────────────────
+// Independently recomputes <Ekin> for a single hand-picked step via the
+// DENSE applyHext path (buildDenseFromApplyHext, already cross-validated
+// against the production CSR Hamiltonian by "buildHextCSR produces
+// Hermitian matrix..." and "CSR SpMV agrees with applyHext..." above), with
+// the 0.5 factor and onsite-diagonal subtraction written out explicitly
+// HERE rather than delegated to computeKineticEnergyGBEKSector -- so a
+// future change to that function's 0.5 factor (or its diagFixed usage) that
+// isn't ALSO made here will show up as a mismatch, not a silent pass.
+TEST_CASE("computeKineticEnergyGBEKSector matches an independent dense-matrix "
+          "computation of 0.5*(<H_hop>-onsite)",
+          "[GBEK][energy][dense-cross-check]")
+{
+	static const std::string kConfig
+	    = "##Ainur1.0\n\n"
+	      "FicticiousBeta=10;\nChemicalPotential=0.;\nMatsubaras=20;\n"
+	      "LatticeGf=\"energy,semicircular,4\";\nNumberOfBathPoints=1;\n"
+	      "DmftNumberOfIterations=1;\nDmftTolerance=1e-3;\n"
+	      "ImpuritySolver=\"exactdiag\";\nFitOptions=particleholesymmetric;\n"
+	      "MinParamsDelta=0.01;\nMinParamsDelta2=0.01;\nMinParamsTolerance=1e-4;\n"
+	      "MinParamsMaxIter=100;\nMinParamsVerbose=0;\n"
+	      "TargetElectronsUp=1;\nTargetElectronsDown=0;\n"
+	      "int ImpuritySite=0;\nreal HubbardU=2.;\nHubbardUFinal=2.;\n"
+	      "RootOutputname=\"testGBEKDenseCrossCheck\";\nInfiniteLoopKeptStates=20;\n"
+	      "matrix FiniteLoopsGs=[[@auto, 20, 0],[@auto, 20, 0]];\n"
+	      "real OmegaBegin=-4.;\ninteger OmegaTotal=40;\nreal OmegaStep=0.2;\n"
+	      "real OmegaDelta=0.2;\ninteger TridiagSteps=100;\nreal TridiagEps=1e-6;\n"
+	      "TruncationTolerance=\"1e-6,20\";\nCorrectionVectorEta=0.;\nGsWeight=0.1;\n"
+	      "matrix FiniteLoopsOmega=[[@auto, 20, 2],[@auto, 20, 2]];\n"
+	      "TmaxNeq=0.2;\nNtNeq=2;\nNeqDmftIter=1;\nNeqDmftTolerance=1e-4;\n"
+	      "NeqSolver=\"gbek\";\nNeqBathRank=1;\nBandwidthFinal=4.;\n";
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, kConfig);
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, io);
+	solver.solve({}); // empty bathParams: nBath=0
+
+	const RealType    dt = 0.05;
+	const ComplexType vMid(0.3, 0.2); // arbitrary, matches other tests' convention
+
+	std::vector<VectorComplex>& phiN = Acc::phiNHistMut(solver);
+	CrsMatrixType&              csrN = Acc::csrNMut(solver);
+	Acc::updateCSR(solver, csrN, Acc::varN(solver), { vMid });
+	phiN[1] = Acc::krylovExpmvCSR(solver, phiN[0], csrN, dt);
+
+	// Independent dense H(vMid) for the N sector -- a different code path
+	// (applyHext, not the CSR csrN this test just drove) from the same
+	// underlying physics, already cross-validated elsewhere in this file.
+	auto denseH = buildDenseFromApplyHext(
+	    solver, { vMid }, Acc::upWordsN(solver), Acc::dnWordsN(solver), Acc::dim1N(solver));
+
+	const VectorComplex& psi1 = phiN[1];
+	const SizeType       dim  = psi1.size();
+	ComplexType          raw(0);
+	for (SizeType i = 0; i < dim; ++i) {
+		ComplexType hpsi_i(0);
+		for (SizeType j = 0; j < dim; ++j)
+			hpsi_i += denseH(i, j) * psi1[j];
+		raw += std::conj(psi1[i]) * hpsi_i;
+	}
+
+	RealType    onsite    = 0;
+	const auto& diagFixed = Acc::diagFixed(solver);
+	for (SizeType m = 0; m < dim; ++m)
+		onsite += diagFixed[m] * std::norm(psi1[m]);
+
+	// Written out explicitly (not calling the production 0.5 factor) --
+	// see this test's top comment for why.
+	const RealType expectedEkin = RealType(0.5) * std::real(raw - ComplexType(onsite));
+	const RealType gotEkin      = Acc::computeKineticEnergyGBEKSector(solver, 1);
+
+	INFO("expected (dense) = " << expectedEkin << ", got (production CSR) = " << gotEkin);
+	CHECK(gotEkin == Catch::Approx(expectedEkin).margin(1e-10));
+	// Sanity: this Ekin must be nonzero, or the test would trivially pass
+	// regardless of the 0.5 factor (as Test A above documents).
+	CHECK(std::abs(gotEkin) > 1e-6);
+}

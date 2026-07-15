@@ -23,6 +23,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <fstream>
+#include <iomanip>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -170,6 +172,13 @@ public:
 		// Ensure states are propagated up to step n (lazy, idempotent)
 		ensurePropagated(n);
 
+		// Double occupation / kinetic energy at this step (paper Figs. 9-10)
+		// -- cheap next to the propagation/Green's-function work above (one
+		// extra sparse matvec plus an O(dim) diagonal loop; see
+		// computeKineticEnergyGBEKSector).
+		doccHistory_[static_cast<SizeType>(n)] = computeDoccGBEK(n);
+		ekinHistory_[static_cast<SizeType>(n)] = computeKineticEnergyGBEK(n);
+
 		// Overwrite G^< and G^R with GBEK inner-product formulas. Both rows
 		// are computed in one backward Krylov sweep each (see
 		// gLesserRowGBEKSector/gGreaterRowGBEKSector), not per-(n,j).
@@ -199,6 +208,30 @@ public:
 	{
 		if (decomp_)
 			decomp_->dumpPlusBath(filename);
+	}
+
+	// Write one line per time step actually visited (n=0..propagatedThrough):
+	// "t docc Ekin Eint Etot", fixed precision, mirroring KadanoffBaym::dump's
+	// plain-text style. Eint/Etot are trivial derived quantities
+	// (Eint=U*(docc-1/4), Etot=Ekin+Eint); docc/Ekin come from doccHistory_/
+	// ekinHistory_, filled progressively by computeGimp. See paper Figs. 9-10
+	// and project_gbek_ekin_factor2_bugfix for the 0.5 factor in Ekin.
+	void dumpDoccAndEnergy(const std::string& filename) const override
+	{
+		if (bathRank_ == 0)
+			return;
+		std::ofstream fout(filename.c_str());
+		const int     nMax = sectorAlpha_.propagatedThrough;
+		for (int n = 0; n <= nMax; ++n) {
+			const SizeType sn   = static_cast<SizeType>(n);
+			const RealType t    = static_cast<RealType>(n) * params_.dt;
+			const RealType docc = doccHistory_[sn];
+			const RealType ekin = ekinHistory_[sn];
+			const RealType eint = params_.uFinal * (docc - RealType(0.25));
+			const RealType etot = ekin + eint;
+			fout << std::fixed << std::setprecision(10) << t << " " << docc << " "
+			     << ekin << " " << eint << " " << etot << "\n";
+		}
 	}
 
 	// Raw Cholesky factor V_(n,p), for row-by-row comparison against an
@@ -243,6 +276,13 @@ private:
 		CrsMatrixComplexType                   cUpNm1, cUpDagNp1;
 		mutable std::vector<VectorComplexType> PhiNHist, bStates, dStates;
 		mutable int                            propagatedThrough = -1;
+		// Fixed onsite (U + potential) diagonal of the N-sector Hamiltonian,
+		// indexed by N-sector basis index -- captured once in buildHextCSR
+		// (it never changes) so <Ekin(t)> can be read off as
+		// <PhiNHist[n]|csrN|PhiNHist[n]> minus this term, without needing to
+		// re-derive or extract the diagonal from the CSR matrix later. See
+		// computeKineticEnergyGBEKSector.
+		std::vector<RealType> diagFixed;
 	};
 
 	// ========== L>0 setup ==========
@@ -270,6 +310,9 @@ private:
 			potPost_[i + 1] = firstBathEps_[i];
 
 		sameConfig_ = (nup_ == ndown_);
+
+		doccHistory_.assign(params_.nT + 1, RealType(0));
+		ekinHistory_.assign(params_.nT + 1, RealType(0));
 
 		buildSector(sectorAlpha_, nup_ + L, ndown_ + L, bathParams);
 		if (!sameConfig_)
@@ -345,9 +388,15 @@ private:
 		             sector.csrNp1,
 		             sector.varNp1);
 		// N-sector Hamiltonian: needed to propagate the reference trajectory
-		// PhiNHist forward (see propagateOneStep's doc comment).
-		buildHextCSR(
-		    sector.upWordsN, sector.dnWordsN, sector.dim1N, sector.csrN, sector.varN);
+		// PhiNHist forward (see propagateOneStep's doc comment). Also capture
+		// its fixed onsite diagonal into sector.diagFixed, for
+		// computeKineticEnergyGBEKSector.
+		buildHextCSR(sector.upWordsN,
+		             sector.dnWordsN,
+		             sector.dim1N,
+		             sector.csrN,
+		             sector.varN,
+		             &sector.diagFixed);
 		checkApplyHextEquivalence(sector);
 
 		// Sparse c_{imp,↑} / c†_{imp,↑} operators, N-sector -> N-1/N+1 sector.
@@ -479,11 +528,14 @@ private:
 	                  const std::vector<WordType>& dnWords,
 	                  SizeType                     dim1,
 	                  CrsMatrixComplexType&        csr,
-	                  std::vector<VarEntry>&       varEntries) const
+	                  std::vector<VarEntry>&       varEntries,
+	                  std::vector<RealType>*       diagOut = nullptr) const
 	{
 		const SizeType dim2   = dnWords.size();
 		const SizeType dim    = dim1 * dim2;
 		const SizeType spinUp = LanczosPlusPlus::LanczosGlobals::SPIN_UP;
+		if (diagOut)
+			diagOut->assign(dim, RealType(0));
 
 		struct TripletEntry {
 			SizeType    row, col;
@@ -515,6 +567,8 @@ private:
 			}
 			if (diag != RealType(0))
 				triplets.push_back({ m, m, ComplexType(diag), false, 0, false, 1 });
+			if (diagOut)
+				(*diagOut)[m] = diag;
 
 			for (SizeType spin = 0; spin < 2; ++spin) {
 				const WordType w       = (spin == spinUp) ? up_m : dn_m;
@@ -1106,6 +1160,82 @@ private:
 		return row;
 	}
 
+	// ========== Double occupation and energy observables (paper Figs. 9-10) ==========
+	//
+	// <d(t)> = <n_{imp,up}(t) n_{imp,dn}(t)>, a diagonal (time-local) operator
+	// expectation value on PhiNHist[n] -- no Hamiltonian needed at all.
+	SizeType
+	basisIndexToXY(const ExtendedSector& sector, SizeType m, SizeType& x, SizeType& y) const
+	{
+		x = m % sector.dim1N;
+		y = m / sector.dim1N;
+		return m;
+	}
+
+	RealType computeDoubleOccupationGBEKSector(const ExtendedSector& sector, int n) const
+	{
+		const VectorComplexType& psi  = sector.PhiNHist[static_cast<SizeType>(n)];
+		RealType                 docc = 0;
+		for (SizeType m = 0; m < psi.size(); ++m) {
+			SizeType x = 0, y = 0;
+			basisIndexToXY(sector, m, x, y);
+			const WordType up_m = sector.upWordsN[x];
+			const WordType dn_m = sector.dnWordsN[y];
+			if ((up_m & WordType(1)) && (dn_m & WordType(1)))
+				docc += std::norm(psi[m]);
+		}
+		return docc;
+	}
+
+	// <Ekin(t_n)> = <PhiNHist[n]|H_hop(t_mid)|PhiNHist[n]>, where H_hop is
+	// csrN with its fixed onsite (U+potential) diagonal removed. PRECONDITION:
+	// sector.csrN must already hold H(t_mid) for the interval ending at step
+	// n -- true whenever this is called right after ensurePropagated(n) (as
+	// computeGimp does), since propagateOneStep(n) is the last thing to have
+	// called updateCSR(sector.csrN, ...) for step n (for n=0, csrN instead
+	// holds its buildHextCSR construction-time state, i.e. V=0 -- correct,
+	// since Ekin(0)=0 exactly before any hopping switches on). Deliberately
+	// does NOT recompute/reload vMid itself: doing so would mean calling
+	// computeVMid(n), which reads decomp_->Vplus(...) -- wrong whenever csrN
+	// was instead driven directly (bypassing NeqBathDecomposition entirely),
+	// as the hand-driven Catch2 tests do.
+	//
+	// The 0.5 factor: the bare <H_hop> expectation value comes out at
+	// exactly 2x the physical kinetic energy. Each bath pair couples to
+	// the impurity through TWO auxiliary sites (an "occ" partner carrying
+	// Lambda^< and an "empty" partner carrying Lambda^>, per Fig. 5/Eq.
+	// 56-63), each with the same coupling magnitude |V_p(t)| -- correct
+	// for reproducing Lambda_+ itself (confirmed independently: d(t)
+	// matches the paper's Fig. 10 exactly) but it double-counts the single
+	// physical hybridization channel when read directly off <H_hop>.
+	// Caught in the Python reference by cross-checking against the exact
+	// conservation law <Etot(t)> = <Etot(0)> = -U/4 for t > t_q, which the
+	// raw (uncorrected) value badly violated -- see
+	// cincuenta/TestSuite/gbek_reference/gbek_selfconsistency.py
+	// (compute_energy_observables) and project memory
+	// project_gbek_ekin_factor2_bugfix. The conservation-law regression
+	// test in test_ImpuritySolverNeqGBEK.cpp guards this factor directly.
+	RealType computeKineticEnergyGBEKSector(const ExtendedSector& sector, int n) const
+	{
+		assert(n >= 0 && n < static_cast<int>(sector.PhiNHist.size()));
+		const SizeType nn = static_cast<SizeType>(n);
+
+		const VectorComplexType& psi = sector.PhiNHist[nn];
+		VectorComplexType        Hpsi;
+		sparseMatVec(sector.csrN, psi, Hpsi);
+		const ComplexType raw = innerProduct(psi, Hpsi);
+
+		RealType onsite = 0;
+		for (SizeType m = 0; m < psi.size(); ++m)
+			onsite += sector.diagFixed[m] * std::norm(psi[m]);
+
+		const ComplexType diff = raw - ComplexType(onsite);
+		assert(std::abs(std::imag(diff)) < RealType(1e-6)
+		       && "computeKineticEnergyGBEKSector: <H_hop> should be real "
+		          "(expect ~0 imaginary part for a physical energy)");
+		return RealType(0.5) * std::real(diff);
+	}
+
 	// Gα/Gβ average (GBEK Eq. 70): G_up = (1/2)(Gα_up + Gβ_up). When
 	// nup_==ndown_, system beta is identical to system alpha and was never
 	// built, so this reduces to just system alpha's row.
@@ -1129,6 +1259,25 @@ private:
 		for (SizeType k = 0; k < rowA.size(); ++k)
 			rowA[k] = RealType(0.5) * (rowA[k] + rowB[k]);
 		return rowA;
+	}
+
+	// dα/dβ average, same structure as gLesserRowGBEK/gGreaterRowGBEK above.
+	RealType computeDoccGBEK(int n) const
+	{
+		const RealType dA = computeDoubleOccupationGBEKSector(sectorAlpha_, n);
+		if (sameConfig_)
+			return dA;
+		const RealType dB = computeDoubleOccupationGBEKSector(sectorBeta_, n);
+		return RealType(0.5) * (dA + dB);
+	}
+
+	RealType computeKineticEnergyGBEK(int n) const
+	{
+		const RealType eA = computeKineticEnergyGBEKSector(sectorAlpha_, n);
+		if (sameConfig_)
+			return eA;
+		const RealType eB = computeKineticEnergyGBEKSector(sectorBeta_, n);
+		return RealType(0.5) * (eA + eB);
 	}
 
 	// ========== Vector helpers ==========
@@ -1282,6 +1431,12 @@ private:
 	// case sectorBeta_ is never built and is identical to sectorAlpha_.
 	mutable ExtendedSector sectorAlpha_, sectorBeta_;
 	bool                   sameConfig_ = false;
+
+	// Double occupation and kinetic energy history, filled progressively by
+	// computeGimp(n) alongside the Green's functions (one entry per time
+	// step actually visited); see dumpDoccAndEnergy for the derived
+	// Eint/Etot columns and paper Figs. 9-10.
+	mutable std::vector<RealType> doccHistory_, ekinHistory_;
 
 	friend struct GBEKTestAccessor;
 };

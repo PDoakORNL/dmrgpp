@@ -108,6 +108,7 @@ public:
 		latticeGf_.delta().dump(p.empty() ? "weiss-delta" : p + "-weiss-delta");
 		impSolver_.dumpPlusBath(p.empty() ? "plus-bath-lesser" : p + "-plus-bath-lesser");
 		impSolver_.dumpV(p.empty() ? "cholesky-V" : p + "-cholesky-V");
+		impSolver_.dumpDoccAndEnergy(p.empty() ? "docc-energy" : p + "-docc-energy");
 	}
 
 private:
