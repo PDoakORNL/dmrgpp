@@ -328,7 +328,20 @@ def compute_energy_observables(L, N, dt, U, tstar_f, tq, V, verbose=False):
         H_hop = H_seq_N[min(n, N - 1)] - Uterm_N
         val = np.vdot(phi_states[n], H_hop.dot(phi_states[n]))
         max_im = max(max_im, abs(val.imag))
-        Ekin_t[n] = val.real
+        # The bare <H_hop> expectation value comes out at exactly 2x the
+        # physical <Ekin>: each bath pair p couples to the impurity through
+        # TWO auxiliary sites (an "occ" partner carrying Lambda^< and an
+        # "empty" partner carrying Lambda^>, per Fig. 5/Eq. 56-63 -- see
+        # build_templates), each with the SAME coupling magnitude |V_p(t)|.
+        # That is the correct construction for reproducing Lambda_+ itself
+        # (confirmed elsewhere: d(t) matches the paper's Fig. 10 exactly),
+        # but it means <H_hop> double-counts the single physical
+        # hybridization channel Lambda_+ represents. Caught by cross-checking
+        # against the exact conservation law <Etot(t)> = <Etot(0)> = -U/4,
+        # which the raw (uncorrected) H_hop badly violates for the
+        # best-converged Lbath=8 cases (drifting immediately after the ramp,
+        # not just at late times) while Ekin/2 + Eint stays flat to ~1%.
+        Ekin_t[n] = 0.5 * val.real
     if verbose:
         print(f"  Ekin(t): max |Im| = {max_im:.3e} (expect ~0 for a physical energy)")
 
