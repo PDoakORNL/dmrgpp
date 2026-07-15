@@ -77,11 +77,11 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef PARALLEL_2POINT_CORRELATIONS_H
 #define PARALLEL_2POINT_CORRELATIONS_H
 
-#include "Concurrency.h"
-#include "GetBraOrKet.h"
-#include "Matrix.h"
-#include "NotMpi.h"
 #include "ProgramGlobals.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/NotMpi.h>
 
 namespace Dmrg {
 

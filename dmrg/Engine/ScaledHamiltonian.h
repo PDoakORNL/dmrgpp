@@ -1,8 +1,8 @@
 #ifndef SCALEDHAMILTONIAN_H
 #define SCALEDHAMILTONIAN_H
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
-#include "Vector.h"
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

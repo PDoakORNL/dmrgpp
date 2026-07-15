@@ -1,6 +1,6 @@
 #ifndef LASTKRYLOVSLOTS_H
 #define LASTKRYLOVSLOTS_H
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 #include <map>
 
 namespace Dmrg {

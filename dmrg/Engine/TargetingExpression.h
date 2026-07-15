@@ -78,12 +78,12 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #ifndef TARGETING_EXPRESSION_H
 #define TARGETING_EXPRESSION_H
-#include "CanonicalExpression.h"
 #include "GroupOfOneTimeEvolutions.h"
 #include "KetForTargetingExpression.hh"
 #include "Pvector.h"
 #include "SpecForTargetingExpression.h"
 #include "TargetingBase.h"
+#include <PsimagLite/CanonicalExpression.h>
 #include <iostream>
 #include <stdexcept>
 

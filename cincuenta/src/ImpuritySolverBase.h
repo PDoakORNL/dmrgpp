@@ -2,13 +2,13 @@
 #define IMPURITYSOLVER_BASE_H
 
 #include "CincuentaInputCheck.h"
-#include "FreqEnum.h"
-#include "InputNg.h"
-#include "Matsubaras.h"
 #include "ModelParams.h"
-#include "PsimagLite.h"
-#include "RealFrequencyRange.hh"
-#include "Vector.h"
+#include <PsimagLite/FreqEnum.h>
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/Matsubaras.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/RealFrequencyRange.hh>
+#include <PsimagLite/Vector.h>
 
 namespace Dmft {
 

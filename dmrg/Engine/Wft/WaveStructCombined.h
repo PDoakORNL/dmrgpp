@@ -2,9 +2,9 @@
 #define WAVESTRUCTCOMBINED_H
 #include "../DiskOrMemoryStack.h"
 #include "BasisTraits.hh"
-#include "Io/IoNg.h"
 #include "ProgramGlobals.h"
 #include "WaveStructSvd.h"
+#include <PsimagLite/Io/IoNg.h>
 
 namespace Dmrg {
 

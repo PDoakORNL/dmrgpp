@@ -1,7 +1,7 @@
-#include "AST/ExpressionForAST.h"
-#include "AST/PlusMinusMultiplyDivide.h"
-#include "PredicateAwesome.h"
-#include "PsimagLite.h"
+#include <PsimagLite/AST/ExpressionForAST.h>
+#include <PsimagLite/AST/PlusMinusMultiplyDivide.h>
+#include <PsimagLite/PredicateAwesome.h>
+#include <PsimagLite/PsimagLite.h>
 
 #ifdef USE_COMPLEX
 typedef std::complex<double> ComplexOrRealType;

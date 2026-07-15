@@ -82,8 +82,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef JMPAIRS_HEADER_H
 #define JMPAIRS_HEADER_H
 
-#include "PsimagLite.h"
 #include "Utils.h"
+#include <PsimagLite/PsimagLite.h>
 #include <algorithm>
 
 namespace Dmrg {

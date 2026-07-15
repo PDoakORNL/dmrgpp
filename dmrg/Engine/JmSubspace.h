@@ -82,9 +82,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef JM_SUBSPACE_H
 #define JM_SUBSPACE_H
 
-#include "PackIndices.h" // in PsimagLite
-#include "Sort.h" // in PsimagLite
 #include "Su2SymmetryGlobals.h"
+#include <PsimagLite/PackIndices.h> // in PsimagLite
+#include <PsimagLite/Sort.h> // in PsimagLite
 
 namespace Dmrg {
 template <typename SparseMatrixType, typename SymmetryRelatedType> class JmSubspace {

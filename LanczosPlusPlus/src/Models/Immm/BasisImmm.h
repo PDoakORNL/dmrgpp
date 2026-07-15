@@ -21,7 +21,7 @@ Please see full open source license included in file LICENSE.
 #include "../../Engine/BasisBase.h"
 #include "../../Engine/LanczosGlobals.h"
 #include "BasisOneSpinImmm.h"
-#include "Geometry/KTwoNiFFour.h"
+#include <PsimagLite/Geometry/KTwoNiFFour.h>
 
 namespace LanczosPlusPlus {
 

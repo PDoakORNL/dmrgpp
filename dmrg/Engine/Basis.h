@@ -82,12 +82,12 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "BasisTraits.hh"
 #include "BlockDiagonalMatrix.h"
 #include "HamiltonianSymmetryLocal.h"
-#include "Parallelizer2.h"
-#include "Profiling.h"
 #include "Qn.h"
 #include "QnHash.h"
-#include "Sort.h" // in PsimagLite
 #include "Utils.h"
+#include <PsimagLite/Parallelizer2.h>
+#include <PsimagLite/Profiling.h>
+#include <PsimagLite/Sort.h> // in PsimagLite
 
 namespace Dmrg {
 // A class to represent in a light way a Dmrg basis (used only to implement symmetries).

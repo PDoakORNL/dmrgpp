@@ -78,8 +78,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef TRIDIAGRIXSSTATIC_H
 #define TRIDIAGRIXSSTATIC_H
 #include "ApplyOperatorLocal.h"
-#include "LanczosSolver.h"
 #include "VectorWithOffset.h"
+#include <PsimagLite/LanczosSolver.h>
 
 namespace Dmrg {
 

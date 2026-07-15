@@ -1,6 +1,6 @@
-#include "Minimizer.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/Minimizer.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 #include <cassert>
 #include <cstdlib>
 #include <fstream>

@@ -73,13 +73,13 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #include "BlockDiagonalMatrix.h"
 #include "CorrectionVectorSkeleton.h"
-#include "ParametersForSolver.h"
-#include "PredicateAwesome.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
 #include "TargetParamsCorrectionVector.h"
 #include "TargetingBase.h"
 #include "TimeVectorsKrylov.h"
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/PredicateAwesome.h>
+#include <PsimagLite/ProgressIndicator.h>
 #include <iostream>
 
 namespace Dmrg {

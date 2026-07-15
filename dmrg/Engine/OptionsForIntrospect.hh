@@ -1,6 +1,6 @@
 #ifndef OPTIONSFORINTROSPECT_HH
 #define OPTIONSFORINTROSPECT_HH
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmrg {
 

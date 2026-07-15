@@ -81,8 +81,6 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef GEOMETRY_TERM_H
 #define GEOMETRY_TERM_H
 
-#include "AST/ExpressionForAST.h"
-#include "AST/PlusMinusMultiplyDivide.h"
 #include "GeometryBase.h"
 #include "GeometryDirection.h"
 #include "Honeycomb.h"
@@ -92,8 +90,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "LadderX.h"
 #include "LongChain.h"
 #include "LongRange.h"
-#include "PsimagLite.h"
 #include "Star.h"
+#include <PsimagLite/AST/ExpressionForAST.h>
+#include <PsimagLite/AST/PlusMinusMultiplyDivide.h>
 #include <cassert>
 
 namespace PsimagLite {

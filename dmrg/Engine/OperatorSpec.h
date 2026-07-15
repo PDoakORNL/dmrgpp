@@ -1,9 +1,9 @@
 #ifndef OPERATORSPEC_H
 #define OPERATORSPEC_H
 #include "InputCheck.h"
-#include "InputNg.h"
 #include "LazyAlgebra.h"
-#include "OneOperatorSpec.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/OneOperatorSpec.h>
 
 namespace Dmrg {
 

@@ -80,9 +80,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef CONJ_GRAD_H
 #define CONJ_GRAD_H
 
-#include "Matrix.h"
-#include "ProgressIndicator.h"
-#include "Vector.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

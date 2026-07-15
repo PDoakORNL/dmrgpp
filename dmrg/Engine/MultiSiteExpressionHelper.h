@@ -1,7 +1,7 @@
 #ifndef MULTISITEEXPRESSIONHELPER_H
 #define MULTISITEEXPRESSIONHELPER_H
 #include "DmrgSerializer.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

@@ -3,7 +3,7 @@
 #include "InputCheck.h"
 #include "ProgramGlobals.h"
 #include "Provenance.h"
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 #include <unistd.h>
 
 void usage(const PsimagLite::String& name)

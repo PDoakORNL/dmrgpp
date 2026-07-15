@@ -1,4 +1,4 @@
-#include "Integrator.h"
+#include <PsimagLite/Integrator.h>
 
 template <typename RealType_> class SquareFunction {
 

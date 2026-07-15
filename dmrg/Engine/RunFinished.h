@@ -1,6 +1,6 @@
 #ifndef RUNFINISHED_H
 #define RUNFINISHED_H
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmrg {
 

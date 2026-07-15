@@ -1,13 +1,13 @@
 #ifndef MANYOMEGAS_H
 #define MANYOMEGAS_H
 #include "DmrgRunner.h"
-#include "InputNg.h"
-#include "InterNode.h"
-#include "LanczosSolver.h"
 #include "OmegaParams.h"
-#include "PsiBase64.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/InterNode.h>
+#include <PsimagLite/LanczosSolver.h>
+#include <PsimagLite/PsiBase64.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

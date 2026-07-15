@@ -81,12 +81,12 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #include "BlockOffDiagMatrix.h"
 #include "ChangeOfBasis.h"
-#include "Complex.h"
-#include "Concurrency.h"
-#include "Matrix.h"
 #include "Operator.h"
-#include "Parallelizer.h"
-#include "ProgressIndicator.h"
+#include <PsimagLite/Complex.h>
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Parallelizer.h>
+#include <PsimagLite/ProgressIndicator.h>
 #include <cassert>
 
 namespace Dmrg {

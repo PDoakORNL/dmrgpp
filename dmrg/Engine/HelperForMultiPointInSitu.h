@@ -2,9 +2,9 @@
 #define HELPERFORMULTIPOINTINSITU_H
 #include "DmrgSerializer.h"
 #include "FermionSign.h"
-#include "GetBraOrKet.h"
-#include "Matrix.h"
 #include "ProgramGlobals.h"
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/Matrix.h>
 
 namespace Dmrg {
 

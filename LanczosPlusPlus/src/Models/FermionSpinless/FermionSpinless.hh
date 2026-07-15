@@ -5,13 +5,13 @@
 #define LANCZOSPP_FERMION_SPINLESS_H
 
 #include "BasisFermionSpinless.hh"
-#include "BitManip.h"
 #include "LanczosGlobals.h"
 #include "LanczosModelBase.hpp"
-#include "Parallelizer2.h"
 #include "ParametersFermionSpinless.hh"
-#include "SparseRow.h"
-#include "TypeToString.h"
+#include <PsimagLite/BitManip.h>
+#include <PsimagLite/Parallelizer2.h>
+#include <PsimagLite/SparseRow.h>
+#include <PsimagLite/TypeToString.h>
 
 namespace LanczosPlusPlus {
 

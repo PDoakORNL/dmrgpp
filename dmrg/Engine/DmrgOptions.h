@@ -1,14 +1,14 @@
-#ifndef OPTIONS_H
-#define OPTIONS_H
+#ifndef DMRG_OPTIONS_H
+#define DMRG_OPTIONS_H
 #include "ProgramGlobals.h"
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 #include <algorithm>
 #include <cctype>
 #include <numeric>
 
 namespace Dmrg {
 
-template <typename InputValidatorType> class Options {
+template <typename InputValidatorType> class DmrgOptions {
 
 public:
 
@@ -16,7 +16,7 @@ public:
 	using StringConstIterator = typename PsimagLite::String::const_iterator;
 	using VectorStringType    = PsimagLite::Vector<PsimagLite::String>::Type;
 
-	Options(PsimagLite::String label, InputValidatorType& io)
+	DmrgOptions(PsimagLite::String label, InputValidatorType& io)
 	{
 		PsimagLite::String tmp;
 		io.readline(tmp, label);
@@ -59,4 +59,4 @@ private:
 	VectorStringType vdata_;
 };
 }
-#endif // OPTIONS_H
+#endif // DMRG_OPTIONS_H

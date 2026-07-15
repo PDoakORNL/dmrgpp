@@ -1,7 +1,7 @@
 #ifndef LANCZOSOPTIONS_H
 #define LANCZOSOPTIONS_H
 #include "LabeledOperator.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace LanczosPlusPlus {
 

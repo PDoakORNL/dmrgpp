@@ -82,18 +82,18 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define PARAMETERSDMRGSOLVER_HEADER_H
 
 #include "AlgebraicStringToNumber.h"
+#include "DmrgOptions.h"
 #include "FiniteLoop.h"
-#include "Io/IoSelector.h"
-#include "Io/IoSerializerStub.h"
-#include "Options.h"
-#include "ProgressIndicator.h"
 #include "Provenance.h"
-#include "PsimagLite.h"
 #include "Recovery.h"
 #include "RestartStruct.h"
 #include "TruncationControl.h"
-#include "TypeToString.h"
-#include "Vector.h"
+#include <PsimagLite/Io/IoSelector.h>
+#include <PsimagLite/Io/IoSerializerStub.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/TypeToString.h>
+#include <PsimagLite/Vector.h>
 #include <sstream>
 #include <sys/types.h>
 #include <unistd.h>
@@ -148,7 +148,7 @@ struct ParametersDmrgSolver {
 	using PairRealSizeType      = std::pair<FieldType, SizeType>;
 	using FiniteLoopType        = FiniteLoop<FieldType>;
 	using VectorFiniteLoopType  = typename PsimagLite::Vector<FiniteLoopType>::Type;
-	using OptionsType           = Options<InputValidatorType>;
+	using OptionsType           = DmrgOptions<InputValidatorType>;
 	using TruncationControlType = TruncationControl<FieldType>;
 
 	enum class MatrixSolverEnum

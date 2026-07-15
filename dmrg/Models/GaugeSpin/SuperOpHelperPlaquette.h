@@ -2,7 +2,7 @@
 #define SuperOpHelperPlaquette_H
 #include "ProgramGlobals.h"
 #include "SuperOpHelperBase.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 /*
  * Non local ops.
  *

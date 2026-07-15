@@ -70,10 +70,10 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_MODELHELPER_H
 #define DMRG_MODELHELPER_H
 
-#include "Concurrency.h"
 #include "Link.h"
-#include "PackIndices.h" // in PsimagLite
-#include "Vector.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/PackIndices.h> // in PsimagLite
+#include <PsimagLite/Vector.h>
 
 /** \ingroup DMRG */
 /*@{*/

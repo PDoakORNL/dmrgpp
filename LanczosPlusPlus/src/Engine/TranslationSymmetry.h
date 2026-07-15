@@ -18,11 +18,11 @@ Please see full open source license included in file LICENSE.
 
 #ifndef TRANSLATION_SYMM_H
 #define TRANSLATION_SYMM_H
-#include "CrsMatrix.h"
 #include "LanczosGlobals.h"
-#include "ProgressIndicator.h"
-#include "SparseVector.h"
-#include "Vector.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/SparseVector.h>
+#include <PsimagLite/Vector.h>
 #include <iostream>
 
 namespace LanczosPlusPlus {

@@ -1,9 +1,9 @@
 #ifndef BLOCKDIAGMATRIXWF_H
 #define BLOCKDIAGMATRIXWF_H
 #include "BlockDiagonalMatrix.h"
-#include "CrsMatrix.h"
-#include "GemmR.h"
-#include "PackIndices.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/GemmR.h>
+#include <PsimagLite/PackIndices.h>
 #include <iomanip>
 #include <iostream>
 

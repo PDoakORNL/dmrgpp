@@ -78,10 +78,10 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #ifndef DMRG_TOOLBOX_H
 #define DMRG_TOOLBOX_H
-#include "Geometry/Geometry.h"
 #include "ProgramGlobals.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/Geometry/Geometry.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>

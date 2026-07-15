@@ -2,8 +2,8 @@
 #define SETUP_VBATCH_H
 
 #include "DMRGConfig.h"
-#include "Vector.h"
 #include "dmrg_types.h"
+#include <PsimagLite/Vector.h>
 
 typedef PsimagLite::Vector<SizeType>::Type VectorSizeType;
 

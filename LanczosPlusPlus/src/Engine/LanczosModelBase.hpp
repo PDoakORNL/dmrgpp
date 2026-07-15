@@ -21,9 +21,9 @@ Please see full open source license included in file LICENSE.
 #ifndef LANCZOS_MODEL_BASE_H
 #define LANCZOS_MODEL_BASE_H
 #include "BasisBase.h"
-#include "CrsMatrix.h"
 #include "RahulOperator.h"
-#include "Vector.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Vector.h>
 
 namespace LanczosPlusPlus {
 

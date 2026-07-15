@@ -81,7 +81,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_PARAMS_HEISENBERG_ANCILLAC_H
 #define DMRG_PARAMS_HEISENBERG_ANCILLAC_H
 #include "ParametersModelBase.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 //! Heisenberg Model Parameters

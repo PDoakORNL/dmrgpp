@@ -78,9 +78,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef TARGET_PARAMS_COMMON_H
 #define TARGET_PARAMS_COMMON_H
 #include "AlgebraicStringToNumber.h"
-#include "Io/IoSerializerStub.h"
 #include "ProgramGlobals.h"
 #include "TargetParamsBase.h"
+#include <PsimagLite/Io/IoSerializerStub.h>
 #include <iostream>
 #include <stdexcept>
 #include <vector>

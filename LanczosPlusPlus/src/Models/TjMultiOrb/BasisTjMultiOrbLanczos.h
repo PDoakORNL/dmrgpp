@@ -5,9 +5,9 @@
 #define BASIS_TJ_MULTIORB_LANCZOS_H
 
 #include "BasisBase.h"
-#include "BitManip.h"
 #include "LanczosPlusPlus/src/Engine/LabeledOperator.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
+#include <PsimagLite/BitManip.h>
 
 namespace LanczosPlusPlus {
 

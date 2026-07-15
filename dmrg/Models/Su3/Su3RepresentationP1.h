@@ -1,8 +1,8 @@
 #ifndef SU3REPRESENTATIONP1_H
 #define SU3REPRESENTATIONP1_H
-#include "Matrix.h"
-#include "PsimagLite.h"
 #include "Su3RepresentationBase.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/PsimagLite.h>
 
 template <typename ComplexOrRealType, bool>
 class Su3RepresentationP1 : public Su3RepresentationBase<ComplexOrRealType> {

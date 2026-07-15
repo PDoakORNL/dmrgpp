@@ -81,9 +81,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef ARRAY_OF_MAT_STRUCT_H
 #define ARRAY_OF_MAT_STRUCT_H
 #include "../KronUtil/MatrixDenseOrSparse.h"
-#include "CrsMatrix.h"
 #include "GenIjPatch.h"
-#include "Profiling.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Profiling.h>
 
 namespace Dmrg {
 

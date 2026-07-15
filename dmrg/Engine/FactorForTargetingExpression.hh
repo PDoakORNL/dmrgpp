@@ -1,6 +1,6 @@
 #ifndef FACTORFORTARGETINGEXPRESSION_HH
 #define FACTORFORTARGETINGEXPRESSION_HH
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 #include <string>
 
 namespace Dmrg {

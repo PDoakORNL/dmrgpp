@@ -1,7 +1,7 @@
 #ifndef OMEGASFOURIER_H
 #define OMEGASFOURIER_H
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

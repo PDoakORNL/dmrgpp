@@ -1,10 +1,10 @@
 #ifndef DMRG_INTROSPECT_H
 #define DMRG_INTROSPECT_H
 #define USE_PTHREADS_OR_NOT_NG
-#include "CanonicalExpression.h"
 #include "OperatorSpec.h"
 #include "OptionsForIntrospect.hh"
-#include "PsimagLite.h"
+#include <PsimagLite/CanonicalExpression.h>
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmrg {
 

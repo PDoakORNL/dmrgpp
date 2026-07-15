@@ -78,14 +78,14 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef BLOCK_DIAGONAL_MATRIX_H
 #define BLOCK_DIAGONAL_MATRIX_H
-#include "Concurrency.h"
-#include "CrsMatrix.h"
 #include "EnforcePhase.h"
-#include "Io/IoSelector.h"
-#include "Matrix.h" // in PsimagLite
-#include "NoPthreadsNg.h"
 #include "ProgramGlobals.h"
-#include "PsimagLite.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Io/IoSelector.h>
+#include <PsimagLite/Matrix.h> // in PsimagLite
+#include <PsimagLite/NoPthreadsNg.h>
+#include <PsimagLite/PsimagLite.h>
 #include <iostream>
 #include <vector>
 

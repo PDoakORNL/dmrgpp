@@ -1,7 +1,7 @@
 #ifndef LABELEDOPERATOR_H
 #define LABELEDOPERATOR_H
 
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 
 namespace LanczosPlusPlus {
 

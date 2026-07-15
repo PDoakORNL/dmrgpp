@@ -81,8 +81,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #include "FermionSign.h"
 #include "OperatorStorage.h"
-#include "PackIndices.h" // in PsimagLite
 #include "ProgramGlobals.h"
+#include <PsimagLite/PackIndices.h> // in PsimagLite
 
 namespace Dmrg {
 

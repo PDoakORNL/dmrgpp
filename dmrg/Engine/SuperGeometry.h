@@ -1,8 +1,8 @@
 #ifndef SUPERGEOMETRY_H
 #define SUPERGEOMETRY_H
-#include "Geometry/Geometry.h"
-#include "Geometry/GeometryDca.h"
 #include "ProgramGlobals.h"
+#include <PsimagLite/Geometry/Geometry.h>
+#include <PsimagLite/Geometry/GeometryDca.h>
 
 namespace Dmrg {
 

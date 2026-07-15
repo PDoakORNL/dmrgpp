@@ -1,12 +1,12 @@
 #ifndef FEASJZSYMMETRY_H
 #define FEASJZSYMMETRY_H
-#include "CrsMatrix.h"
 #include "HilbertSpaceFeAs.h"
-#include "Matrix.h"
 #include "ModelBase.h"
 #include "Operator.h"
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

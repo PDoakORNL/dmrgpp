@@ -9,10 +9,10 @@
 #ifndef PSIMAG_BLAS
 #define PSIMAG_BLAS
 #include "AllocatorCpu.h"
-#include "PsimagLiteConfig.h"
+#include <PsimagLite/PsimagLiteConfig.h>
 
 #ifdef PSIMAGLITE_USE_KOKKOS
-#include <kokkos_gemm.h>
+#include "kokkos_gemm.h"
 #endif
 
 #include <complex>

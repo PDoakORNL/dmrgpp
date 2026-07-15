@@ -1,6 +1,6 @@
-// #include "CrsMatrix.h"
-#include "Concurrency.h"
-#include "CrsMatrix.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/CrsMatrix.h>
+
 #include <cstdlib>
 #include <fstream>
 

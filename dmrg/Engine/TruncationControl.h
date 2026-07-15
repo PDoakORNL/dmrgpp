@@ -1,9 +1,9 @@
 #ifndef TRUNCATIONCONTROL_H
 #define TRUNCATIONCONTROL_H
 #include "InputCheck.h"
-#include "InputNg.h"
-#include "ProgressIndicator.h"
-#include "PsimagLite.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmrg {
 

@@ -1,6 +1,6 @@
 #ifndef MATRIX_MARKET_HH
 #define MATRIX_MARKET_HH
-#include "CrsMatrix.h"
+#include <PsimagLite/CrsMatrix.h>
 #include <string>
 
 namespace Dmrg {

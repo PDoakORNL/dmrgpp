@@ -1,6 +1,6 @@
 #include "ImpuritySolverBase.h"
-#include "Matsubaras.h"
-#include "PsimagLite.h"
+#include <PsimagLite/Matsubaras.h>
+#include <PsimagLite/PsimagLite.h>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <complex>

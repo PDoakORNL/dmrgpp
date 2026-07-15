@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <InputPath.hpp>
+#include <PsimagLite/InputPath.hpp>
 
 #include <filesystem>
 #include <fstream>

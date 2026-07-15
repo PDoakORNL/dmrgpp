@@ -80,16 +80,16 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef TWO_POINT_H
 #define TWO_POINT_H
-#include "Concurrency.h"
-#include "CrsMatrix.h"
-#include "GetBraOrKet.h"
 #include "ManyPointAction.h"
 #include "Parallel2PointCorrelations.h"
-#include "Parallelizer.h"
 #include "ProgramGlobals.h"
 #include "SdhsReinterpret.h"
 #include "VectorWithOffset.h" // for operator*
 #include "VectorWithOffsets.h" // for operator*
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/Parallelizer.h>
 
 namespace Dmrg {
 

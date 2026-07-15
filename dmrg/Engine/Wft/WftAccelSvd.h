@@ -1,7 +1,7 @@
 #ifndef WFT_ACCEL_SVD_H
 #define WFT_ACCEL_SVD_H
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 #include <limits>
 
 namespace Dmrg {

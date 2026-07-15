@@ -76,9 +76,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef PARALLEL_4POINT_DS_H
 #define PARALLEL_4POINT_DS_H
 
-#include "Concurrency.h"
-#include "Matrix.h"
-#include "NotMpi.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/NotMpi.h>
 
 namespace Dmrg {
 

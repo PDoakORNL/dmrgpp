@@ -81,9 +81,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef FOURPOINT_C_H
 #define FOURPOINT_C_H
 
-#include "AnsiColors.h"
 #include "Braket.h"
-#include "CrsMatrix.h"
+#include <PsimagLite/AnsiColors.h>
+#include <PsimagLite/CrsMatrix.h>
 
 namespace Dmrg {
 template <typename CorrelationsSkeletonType> class FourPointCorrelations {

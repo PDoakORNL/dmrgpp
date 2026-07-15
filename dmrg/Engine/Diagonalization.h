@@ -77,22 +77,22 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef DIAGONALIZATION_HEADER_H
 #define DIAGONALIZATION_HEADER_H
-#include "ArnoldiSaI.hh"
-#include "Concurrency.h"
 #include "FiniteLoop.h"
 #include "InfiniteOrFiniteAlgorithm.hh"
-#include "LanczosSolver.h"
-#include "MatrixSolverBase.hh"
 #include "OneSiteSpaces.hh"
-#include "PackIndices.h"
 #include "ParametersDmrgSolver.h"
-#include "ParametersForSolver.h"
-#include "PredicateAwesome.h"
-#include "Profiling.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
 #include "VectorWithOffset.h" // includes the PsimagLite::norm functions
 #include "VectorWithOffsets.h" // includes the PsimagLite::norm functions
+#include <PsimagLite/ArnoldiSaI.hh>
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/LanczosSolver.h>
+#include <PsimagLite/MatrixSolverBase.hh>
+#include <PsimagLite/PackIndices.h>
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/PredicateAwesome.h>
+#include <PsimagLite/Profiling.h>
+#include <PsimagLite/ProgressIndicator.h>
 
 namespace Dmrg {
 

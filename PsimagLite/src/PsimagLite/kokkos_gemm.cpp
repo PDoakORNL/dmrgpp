@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-#include <kokkos_gemm.h>
+#include "kokkos_gemm.h"
 
 namespace {
 

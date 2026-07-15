@@ -78,8 +78,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef LPP_INPUT_CHECK_H
 #define LPP_INPUT_CHECK_H
-#include "Geometry/Geometry.h"
-#include "Options.h"
+#include <PsimagLite/Geometry/Geometry.h>
+#include <PsimagLite/Options.h>
 #include <stdexcept>
 #include <vector>
 

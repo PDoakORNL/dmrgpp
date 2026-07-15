@@ -80,7 +80,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef CORRECTION_V_FUNCTION_H
 #define CORRECTION_V_FUNCTION_H
 #include "ConjugateGradient.h"
-#include "FreqEnum.h"
+#include <PsimagLite/FreqEnum.h>
 
 namespace Dmrg {
 template <typename MatrixType, typename InfoType> class CorrectionVectorFunction {

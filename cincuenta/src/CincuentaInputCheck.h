@@ -4,9 +4,9 @@
  */
 #ifndef CINCUENTA_INPUT_CHECK_H
 #define CINCUENTA_INPUT_CHECK_H
-#include "../../PsimagLite/src/Options.h"
-#include "Geometry/Geometry.h"
 #include "InputCheck.h"
+#include <PsimagLite/Geometry/Geometry.h>
+#include <PsimagLite/Options.h>
 #include <stdexcept>
 #include <vector>
 // #include "ProgramGlobals.h"

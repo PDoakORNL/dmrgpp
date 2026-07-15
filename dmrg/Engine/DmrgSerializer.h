@@ -82,8 +82,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "BlockDiagonalMatrix.h"
 #include "BlockOffDiagMatrix.h"
 #include "FermionSign.h"
-#include "Io/IoSelector.h"
 #include "ProgramGlobals.h"
+#include <PsimagLite/Io/IoSelector.h>
 
 namespace Dmrg {
 // Move also checkpointing from DmrgSolver to here (FIXME)

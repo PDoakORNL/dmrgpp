@@ -1,6 +1,6 @@
-#include "Sort.h"
-#include "TypeToString.h"
-#include "Vector.h"
+#include <PsimagLite/Sort.h>
+#include <PsimagLite/TypeToString.h>
+#include <PsimagLite/Vector.h>
 #include <cassert>
 #include <fstream>
 #include <iostream>

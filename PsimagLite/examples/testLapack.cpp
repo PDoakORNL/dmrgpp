@@ -1,4 +1,5 @@
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
+
 #include <cstdlib>
 #include <iostream>
 

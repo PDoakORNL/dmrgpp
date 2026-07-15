@@ -72,15 +72,15 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define TARGETING_TIMESTEP_H
 
 #include "BlockDiagonalMatrix.h"
-#include "ParametersForSolver.h"
-#include "PredicateAwesome.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
 #include "TargetParamsTimeStep.h"
 #include "TargetingBase.h"
 #include "TimeVectorsKrylov.h"
 #include "TimeVectorsRungeKutta.h"
 #include "TimeVectorsSuzukiTrotter.h"
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/PredicateAwesome.h>
+#include <PsimagLite/ProgressIndicator.h>
 #include <iostream>
 
 namespace Dmrg {

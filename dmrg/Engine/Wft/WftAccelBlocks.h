@@ -1,8 +1,8 @@
 #ifndef WFTACCELBLOCKS_H
 #define WFTACCELBLOCKS_H
-#include "GemmR.h"
-#include "Matrix.h"
 #include "ProgramGlobals.h"
+#include <PsimagLite/GemmR.h>
+#include <PsimagLite/Matrix.h>
 #include <iomanip>
 #include <iostream>
 

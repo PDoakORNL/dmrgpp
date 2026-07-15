@@ -82,14 +82,14 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #include "CorrectionVectorAction.h"
 #include "CorrectionVectorFunction.h"
-#include "FreqEnum.h"
 #include "KrylovHelper.h"
-#include "NoPthreadsNg.h"
 #include "ParallelTriDiag.h"
-#include "ParametersForSolver.h"
-#include "ProgressIndicator.h"
 #include "TridiagRixsStatic.h"
 #include "VectorWithOffsets.h"
+#include <PsimagLite/FreqEnum.h>
+#include <PsimagLite/NoPthreadsNg.h>
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/ProgressIndicator.h>
 
 namespace Dmrg {
 

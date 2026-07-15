@@ -80,13 +80,13 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define KRON_MATRIX_HEADER_H
 
 #include "BatchedGemmInclude.hh"
-#include "Concurrency.h"
 #include "KronConnections.h"
-#include "LoadBalancerWeights.h"
-#include "Matrix.h"
-#include "Parallelizer.h"
-#include "ProgressIndicator.h"
-#include "PsimagLite.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/LoadBalancerWeights.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Parallelizer.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmrg {
 

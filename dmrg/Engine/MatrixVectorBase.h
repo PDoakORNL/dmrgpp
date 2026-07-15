@@ -80,7 +80,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_MATRIX_VECTOR_BASE_H
 #define DMRG_MATRIX_VECTOR_BASE_H
 
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 #include <vector>
 
 namespace Dmrg {

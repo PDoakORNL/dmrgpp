@@ -76,10 +76,10 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_PARALLEL_WFT_SU2_H
 #define DMRG_PARALLEL_WFT_SU2_H
 
-#include "Concurrency.h"
-#include "PackIndices.h"
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/PackIndices.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

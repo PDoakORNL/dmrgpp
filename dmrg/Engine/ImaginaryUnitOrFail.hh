@@ -1,7 +1,7 @@
 #ifndef IMAGINARYUNITORFAIL_HH
 #define IMAGINARYUNITORFAIL_HH
-#include "Complex.h"
-#include "PsimagLite.h"
+#include <PsimagLite/Complex.h>
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmrg {
 

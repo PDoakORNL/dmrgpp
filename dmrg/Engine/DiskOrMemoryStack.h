@@ -1,8 +1,8 @@
 #ifndef DISKORMEMORYSTACK_H
 #define DISKORMEMORYSTACK_H
 #include "DiskStackNg.h"
-#include "Io/IoNg.h"
-#include "Stack.h"
+#include <PsimagLite/Io/IoNg.h>
+#include <PsimagLite/Stack.h>
 
 namespace Dmrg {
 

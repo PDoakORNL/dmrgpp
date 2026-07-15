@@ -75,9 +75,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef DMRG_SU2_RELATED_H
 #define DMRG_SU2_RELATED_H
-#include "CrsMatrix.h"
 #include "InputCheck.h"
-#include "InputNg.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/InputNg.h>
 
 namespace Dmrg {
 // This is a structure, don't add member functions here!

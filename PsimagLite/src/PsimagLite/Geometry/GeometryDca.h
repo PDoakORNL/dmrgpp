@@ -18,8 +18,8 @@ Please see full open source license included in file LICENSE.
 
 #ifndef LANCZOS_GEOMETRY_DCA_H
 #define LANCZOS_GEOMETRY_DCA_H
-#include "Io/IoNg.h"
-#include "Vector.h"
+#include <PsimagLite/Io/IoNg.h>
+#include <PsimagLite/Vector.h>
 
 namespace PsimagLite {
 

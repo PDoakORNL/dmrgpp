@@ -79,9 +79,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #ifndef METTS_STOCHASTICS_H
 #define METTS_STOCHASTICS_H
-#include "ProgressIndicator.h"
-#include "TypeToString.h"
 #include "Utils.h"
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/TypeToString.h>
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>

@@ -10,10 +10,10 @@
 #include "LanczosPlusPlus/src/Engine/LabeledOperator.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
 #include "LanczosPlusPlus/src/Engine/ModelSelector.h"
-#include "Matrix.h"
 #include "ParamsNeqDmftSolver.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 #include <cassert>
 #include <cmath>
 #include <complex>

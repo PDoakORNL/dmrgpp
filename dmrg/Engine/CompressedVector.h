@@ -1,6 +1,6 @@
 #ifndef COMPRESSEDVECTOR_H
 #define COMPRESSEDVECTOR_H
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 #include <fstream>
 
 namespace Dmrg {
