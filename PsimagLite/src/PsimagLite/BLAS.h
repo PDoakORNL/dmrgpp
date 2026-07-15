@@ -10,7 +10,7 @@
 #define PSIMAG_BLAS
 #include "AllocatorCpu.h"
 
-#include <kokkos_gemm.h>
+#include <PsimagLite/kokkos_gemm.h>
 
 #include <complex>
 
