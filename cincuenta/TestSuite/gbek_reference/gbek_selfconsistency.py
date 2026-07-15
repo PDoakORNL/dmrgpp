@@ -78,6 +78,22 @@ def equilibrium_lambda1(ts, hop_t, D=None):
     return Lambda1
 
 
+def lambda_from_g(G, hop_t):
+    """
+    Lambda[n,j] = hop_t[n]*hop_t[j]*(-1j)*G[n,j], j<=n (else 0) -- the
+    Bethe-lattice self-consistency Delta(t,t')=hop(t)G(t,t')hop(t') applied
+    to a single Keldysh branch G (G^< or G^>), producing -i*Delta^{<,>}.
+    Factored out of run_self_consistency's iteration loop so
+    compute_energy_observables can reuse it for the G^> branch too.
+    """
+    N = G.shape[0] - 1
+    Lambda = np.zeros_like(G)
+    for n in range(N + 1):
+        for j in range(n + 1):
+            Lambda[n, j] = hop_t[n] * hop_t[j] * (-1j) * G[n, j]
+    return Lambda
+
+
 def v_ramp(t, tq):
     if tq <= 0:
         return 1.0 if t > 0 else 0.0
@@ -247,10 +263,7 @@ def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6,
         if record_history:
             docc_history.append(compute_diag_observable(phi_states, docc_op))
 
-        Lambda_new = np.zeros_like(Lambda)
-        for n in range(N + 1):
-            for j in range(n + 1):
-                Lambda_new[n, j] = hop_t[n] * hop_t[j] * (-1j) * G_avg[n, j]
+        Lambda_new = lambda_from_g(G_avg, hop_t)
 
         diff = np.max(np.abs(Lambda_new - Lambda))
         history.append(diff)
@@ -263,6 +276,66 @@ def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6,
             break
 
     return Lambda, V, hop_t, ts, history, docc_history
+
+
+def compute_energy_observables(L, N, dt, U, tstar_f, tq, V, verbose=False):
+    """
+    Given a CONVERGED bath-coupling matrix V (as returned by
+    run_self_consistency), do one more forward pass to extract everything
+    Fig. 9 needs: <Ekin(t)>, <Eint(t)>, <Etot(t)>, <d(t)>.
+
+    <Ekin(t)> is computed as a DIRECT expectation value of the hopping part
+    of the alpha trajectory's Hamiltonian, <phi(t)|H_hop(t)|phi(t)>, rather
+    than via the textbook Keldysh-contour convolution
+    <Ekin(t)> = -i*Sum_sigma[Lambda_sigma*G_sigma]^<(t,t) the paper quotes.
+    These SHOULD be equal in principle (a standard EOM identity: the
+    coupling energy of any system coupled to a bath via hop(t) equals the
+    contour convolution of the induced hybridization with the system's own
+    Green's function) -- but an earlier implementation of the convolution
+    route (see git history) produced Ekin(t)==0 identically for every U/L
+    tested, which direct comparison against THIS expectation value proved
+    wrong (Ekin_direct was clearly nonzero, ~O(0.1-0.7)). The convolution
+    bug was never isolated (candidates: the multi-pair/spin generalization
+    of compute_g_greater, or the R/A reconstruction in gbek_energy.py), so
+    rather than ship code with a known, unresolved defect, this uses the
+    direct route instead: we already have the exact auxiliary-bath
+    wavefunction (that's the entire point of this ED approach), so there is
+    no need to reconstruct Ekin from Lambda/G at all. This route also
+    naturally inherits the Cholesky-rank truncation error as Lbath grows --
+    exactly the effect Fig. 9 is testing -- since a more accurate V (larger
+    L) gives a more accurate H_hop(t) matching the true self-consistent one.
+    """
+    nsites = 1 + 2 * L
+    ts = np.arange(N + 1) * dt
+
+    nup_ext, ndown_ext = 1 + L, L
+    basis_N, index_N = build_basis(nsites, nup_ext, ndown_ext)
+    if verbose:
+        print(f"L={L} nsites={nsites} dim(N)={len(basis_N)}")
+
+    Uterm_N, occ_N, empty_N = build_templates(nsites, basis_N, index_N, U, L)
+    psi0 = initial_state(nsites, L, basis_N, index_N)
+    docc_op = double_occupation_operator(basis_N, site=0)
+
+    H_seq_N = make_h_seq(Uterm_N, occ_N, empty_N, V[:N, :])
+    phi_states = propagate(psi0, H_seq_N, dt)
+
+    d_t = compute_diag_observable(phi_states, docc_op)
+
+    Ekin_t = np.zeros(N + 1)
+    max_im = 0.0
+    for n in range(N + 1):
+        H_hop = H_seq_N[min(n, N - 1)] - Uterm_N
+        val = np.vdot(phi_states[n], H_hop.dot(phi_states[n]))
+        max_im = max(max_im, abs(val.imag))
+        Ekin_t[n] = val.real
+    if verbose:
+        print(f"  Ekin(t): max |Im| = {max_im:.3e} (expect ~0 for a physical energy)")
+
+    Eint_t = U * (d_t - 0.25)
+    Etot_t = Ekin_t + Eint_t
+
+    return ts, Ekin_t, Eint_t, Etot_t, d_t, max_im
 
 
 def dump_lesser(path, Lambda, dt):

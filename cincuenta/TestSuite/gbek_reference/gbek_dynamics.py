@@ -6,7 +6,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
-from gbek_ed import annihilate, create, build_basis, c_operator, cdag_operator, number_operator
+from gbek_ed import annihilate, create, build_basis, c_operator, number_operator
 
 
 def hop_operator(basis, index, site_a, site_b, spin):

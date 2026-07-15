@@ -234,10 +234,99 @@ def plot_figure8(args):
           "the paper's claim and should be investigated, not smoothed over.")
 
 
+def plot_figure10(args):
+    U_VALUES = (0.0, 1.0, 2.0, 4.0, 6.0, 8.0)
+    L_VALUES = (2, 3, 4)  # Lbath = 4, 6, 8
+
+    data = {(U, L): np.load(f"fig10_docc_U{U:g}_L{L}.npz")
+            for U in U_VALUES for L in L_VALUES}
+    U_colors = dict(zip(U_VALUES, plt.cm.viridis(np.linspace(0.1, 0.9, len(U_VALUES)))))
+
+    fig, axes = plt.subplots(len(L_VALUES), 1, figsize=(7, 9), sharex=True)
+    for ax, L in zip(axes, L_VALUES):
+        for U in U_VALUES:
+            d = data[(U, L)]
+            ax.plot(d["ts"], d["d_t"], color=U_colors[U], lw=1.8, label=f"U={U:g}")
+        d0 = data[(U_VALUES[0], L)]
+        ax.plot(d0["ts"], 0.3 * d0["v"], color="gray", linestyle="--", lw=1.2,
+                label="0.3 v(t)")
+        ax.set_ylabel("d(t)")
+        ax.set_title(f"Lbath={2*L}")
+        ax.grid(alpha=0.2)
+        if args.ylim is not None:
+            ax.set_ylim(*args.ylim)
+    axes[0].legend(fontsize=7, ncol=4, loc="upper right")
+    axes[-1].set_xlabel("t")
+    fig.suptitle(args.title)
+    fig.tight_layout()
+    fig.savefig(args.out, dpi=150)
+    print(f"Wrote {args.out}")
+
+    extra_files = ["plot_docc_scan.py"] + [f"fig10_docc_U{U:g}_L{L}.npz"
+                                            for U in U_VALUES for L in L_VALUES]
+    prov = write_provenance(args.out, extra_files=extra_files, notes="figure=10")
+    print(f"Wrote {prov}")
+
+    print("\n--- Fig. 10 physics criteria ---")
+    print("Note: exact axis range not independently pixel-checked against the paper "
+          "(unlike Fig. 7/8's --ylim paper preset) -- these are qualitative-agreement "
+          "checks against the paper's stated claims, not strict numeric pass/fail.")
+
+    print("\nU=0 plateau (paper: monotonically approaches d_final = 1/4):")
+    for L in L_VALUES:
+        d_t = data[(0.0, L)]["d_t"]
+        tail = d_t[-len(d_t) // 5:]  # late-time window
+        monotonic = np.all(np.diff(d_t) >= -1e-9)
+        print(f"  Lbath={2*L}: late-time d(t) ~ {tail.mean():.4f} (want ~0.25), "
+              f"monotonic rise: {monotonic}")
+
+    print("\nPlateau value vs U (paper: monotonically suppressed as U grows):")
+    for L in L_VALUES:
+        plateaus = []
+        for U in U_VALUES:
+            d_t = data[(U, L)]["d_t"]
+            plateaus.append(d_t[-len(d_t) // 5:].mean())
+        non_increasing = all(plateaus[i] >= plateaus[i + 1] - 1e-3 for i in range(len(plateaus) - 1))
+        print(f"  Lbath={2*L}: late-time d(t) means by U = "
+              f"{[f'{p:.3f}' for p in plateaus]}  monotonically suppressed: {non_increasing}")
+
+    print("\nU=8 oscillation period (paper: approximate period 1/U -- qualitative "
+          "agreement check, not a strict pass/fail; also flags possible under-resolution "
+          "since dt=0.04 gives only ~3 points per 1/U=0.125 period):")
+    for L in L_VALUES:
+        d = data[(8.0, L)]
+        ts, d_t = d["ts"], d["d_t"]
+        centered = d_t - d_t.mean()
+        sign_changes = np.where(np.diff(np.sign(centered)) != 0)[0]
+        if len(sign_changes) >= 2:
+            half_periods = np.diff(ts[sign_changes])
+            est_period = 2 * np.median(half_periods)
+            ratio = est_period / (1.0 / 8.0)
+            print(f"  Lbath={2*L}: estimated period ~ {est_period:.3f} "
+                  f"(1/U=0.125), ratio = {ratio:.2f}")
+        else:
+            print(f"  Lbath={2*L}: too few oscillations detected to estimate a period")
+
+    print("\nAgreement horizon across Lbath at fixed U (paper: larger Lbath stays "
+          "correct longer, especially at larger U):")
+    pairs = [(2, 3), (3, 4), (2, 4)]
+    for U in U_VALUES:
+        scale = max(np.ptp(data[(U, L)]["d_t"]) for L in L_VALUES)
+        tol = args.tol_docc if args.tol_docc is not None else 0.02 * max(scale, 1e-6)
+        print(f"\n  U={U:g} (dynamic range ~{scale:.4f}, tol={tol:.4f}):")
+        for L_x, L_y in pairs:
+            ts = data[(U, L_x)]["ts"]
+            t_star, persistent = causal_break_time(
+                data[(U, L_x)]["d_t"], data[(U, L_y)]["d_t"], ts, tol)
+            flag = "" if persistent else "  <-- NOT persistent (re-agrees later; anomaly)"
+            print(f"    Lbath={2*L_x} vs Lbath={2*L_y}: agreement horizon t* = "
+                  f"{t_star:.3f}{flag}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--figure", choices=["7", "8"], required=True)
+    ap.add_argument("--figure", choices=["7", "8", "10"], required=True)
     ap.add_argument("--out", default=None)
     ap.add_argument("--title", default=None)
     ap.add_argument("--L", default="2",
@@ -250,11 +339,12 @@ def main():
     ap.add_argument("--ylim", default="paper",
                     help="'paper' (default) uses the actual paper axis range for direct "
                          "visual comparison (Fig. 7: 0-0.15, Fig. 8: 0-0.1, matching "
-                         "page_12.png); 'auto' lets matplotlib autoscale; or pass "
-                         "'ymin,ymax' explicitly")
+                         "page_12.png; Fig. 10 has no independently-verified preset, so "
+                         "'paper' falls back to autoscale for --figure 10); 'auto' lets "
+                         "matplotlib autoscale; or pass 'ymin,ymax' explicitly")
     args = ap.parse_args()
 
-    paper_ylim = {"7": (0.0, 0.15), "8": (0.0, 0.1)}[args.figure]
+    paper_ylim = {"7": (0.0, 0.15), "8": (0.0, 0.1), "10": None}[args.figure]
     if args.ylim == "paper":
         args.ylim = paper_ylim
     elif args.ylim == "auto":
@@ -265,10 +355,14 @@ def main():
     if args.figure == "7":
         args.title = args.title or "cf. GBEK Fig. 7: double occupation per DMFT iteration"
         plot_figure7(args)
-    else:
+    elif args.figure == "8":
         args.out = args.out or "fig8_docc.png"
         args.title = args.title or "cf. GBEK Fig. 8: converged double occupation vs. L_bath/t_max"
         plot_figure8(args)
+    else:
+        args.out = args.out or "fig10_docc.png"
+        args.title = args.title or "cf. GBEK Fig. 10: double occupation vs. U"
+        plot_figure10(args)
 
 
 if __name__ == "__main__":

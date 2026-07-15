@@ -7,9 +7,9 @@
 # this directory itself.
 #
 # Two families of plots:
-#   (A) Pure Python, no C++ build needed: Fig. 7/8 double-occupation
-#       reproduction (fig7_docc.png, fig8_docc.png) and their prerequisite
-#       .npz data.
+#   (A) Pure Python, no C++ build needed: Fig. 7/8/9/10 double-occupation and
+#       energy-conservation reproduction (fig7_docc.png, fig8_docc.png,
+#       fig9_energy.png, fig10_docc.png) and their prerequisite .npz data.
 #   (B) Depend on actual cincuenta C++ runs having produced dump files in
 #       build/ first (the GBEK Fig. 3 causal-Cholesky-vs-eigenvector
 #       validation plots from the earlier seeding-timing investigation).
@@ -55,7 +55,17 @@ if [ "$GROUP_A" = "1" ]; then
 	fi
 	$UV_NUMPY plot_docc_scan.py --figure 8
 
-	echo "Group A done: fig7_docc.png, fig8_docc.png"
+	if [ ! -f fig9_energy_U2_L2.npz ]; then
+		$UV_NUMPY run_fig9_scan.py
+	fi
+	$UV_NUMPY plot_energy_scan.py
+
+	if [ ! -f fig10_docc_U0_L2.npz ]; then
+		$UV_NUMPY run_fig10_scan.py
+	fi
+	$UV_NUMPY plot_docc_scan.py --figure 10
+
+	echo "Group A done: fig7_docc.png, fig8_docc.png, fig9_energy.png, fig10_docc.png"
 fi
 
 # ---------------------------------------------------------------------------
