@@ -8,3 +8,4 @@
 *.provenance.txt
 __pycache__/
 .DS_Store
+cpp_docc_energy/
