@@ -5,12 +5,23 @@
 %   latexmk -pdf report.tex
 % Neither the paper figures (arxiv_figures/) nor our own plots (*.png) are
 % checked into the repo -- see .gitignore and each script's own header.
+%
+% \PIVERSION toggles the "bug found and fixed" development-history callouts
+% and the bug-count bullet in "Where this leaves us" -- everything else
+% (status, capabilities, limitations) is unaffected. Default (0) is the
+% full internal version. For a status-only copy (e.g. to share with people
+% who aren't interested in development-process detail), build
+% report-summary.tex instead: `latexmk -pdf report-summary.tex`.
 \documentclass[11pt]{article}
+\providecommand{\PIVERSION}{0}
+\newif\ifdevnotes
+\ifnum\PIVERSION=0 \devnotestrue \else \devnotesfalse \fi
 
 \usepackage[margin=1in]{geometry}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{float}
+\usepackage[section]{placeins}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{siunitx}
@@ -135,6 +146,7 @@ analogue $\mathrm{err}^\mathrm{step}(t)$.
   \end{tabular}
 \end{table}
 
+\ifdevnotes
 \begin{callout}
 \textbf{Bug found and fixed (2026-07-13):} the production solver was
 seeding $c_{\mathrm{imp},\uparrow}$ ONCE at $t=0$ and propagating the
@@ -166,6 +178,7 @@ $G^\alpha$/$G^\beta$ averaging (Eq.\ 70) is implemented correctly;
 cincuenta's own sums were instead 1.01--1.05. All downstream dumps,
 figures, and metrics on this page were regenerated after the fix.
 \end{callout}
+\fi
 
 \section{Fig.\ 4 --- Hybridization amplitude time evolution}
 \subsection*{$V_{0p}(t)$, rank $L=3$, Cholesky vs.\ eigenvector}
@@ -321,6 +334,7 @@ residual drift shrinking as $L_\mathrm{bath}$ grows $4\to6\to8$.
   \end{tabular}
 \end{table}
 
+\ifdevnotes
 \begin{callout}
 \textbf{Bug found and fixed (2026-07-15):} the direct $\langle
 H_\mathrm{hop}(t)\rangle$ expectation value used for \Ekin\ came out at
@@ -358,6 +372,7 @@ case, since the pre-quench Hamiltonian has no hopping at all. All three
 $L_\mathrm{bath}$ values now agree with Python to within 0.012--0.018 in
 $E_\mathrm{tot}$, with no exclusions.
 \end{callout}
+\fi
 
 \section{Fig.\ 10 --- Double occupation vs.\ $U$}
 \subsection*{Converged $d(t)$ for $L_\mathrm{bath}=4$, 6, 8 across a $U$-scan}
@@ -384,11 +399,11 @@ exactly as the paper describes.
 \textbf{$U=0$ closed-form anchor:} the paper states $\Etot=\Ekin=0$ and
 $d(t)\to0.25$ exactly for $U=0$. Our $U=0$ runs land at $|E| <
 6\times10^{-7}$ and $d(t\to t_\mathrm{max})$ matches 0.25 to plotting
-precision at all three $L_\mathrm{bath}$, both before and after the Fig.\
-9 fix (this anchor can't catch an overall scale error since it's
-identically zero either way --- see the Fig.\ 9 callout for how the
-$E_\mathrm{kin}$ bug was actually caught). No bugs found in the $d(t)$
-pipeline itself; suppression with $U$ and the shrinking
+precision at all three $L_\mathrm{bath}$\ifdevnotes, both before and
+after the Fig.\ 9 fix (this anchor can't catch an overall scale error
+since it's identically zero either way --- see the Fig.\ 9 callout for
+how the $E_\mathrm{kin}$ bug was actually caught)\fi. No bugs found in
+the $d(t)$ pipeline itself; suppression with $U$ and the shrinking
 reliable-time-window with $U$ both match the paper's qualitative
 description.
 \end{callout}
@@ -447,8 +462,8 @@ to fix; some are deliberate scope choices for this stage of the work.
     exact but $O(\mathrm{dim}^3)$ time / $O(\mathrm{dim}^2)$ memory ---
     infeasible well before $L=5$ ($\mathrm{dim}\sim213$k). For the
     atomic limit ($n_\mathrm{bath}=0$) this puts the switch exactly at
-    $L=4$. Lanczos was seeding incorrectly for $L\ge4$ until the fix
-    described in the Fig.\ 9 callout above; now verified correct through
+    $L=4$. Lanczos ground-state seeding at $L\ge4$ is now verified
+    correct (checked against the exact $t=0$ atomic-limit state) through
     $L=4$. \\
     \addlinespace
     Second-bath rank / max $L_\mathrm{bath}$ tested &
@@ -480,6 +495,7 @@ to fix; some are deliberate scope choices for this stage of the work.
     quantitative/qualitative agreement with the paper. Figs.\ 9--10 now
     have a direct C++-vs-Python comparison too, not just
     Python-reference-only.
+  \ifdevnotes
   \item \textbf{Eight bugs found and fixed} across this effort, all
     sign/conjugation/normalization/seeding mistakes in two-time
     bookkeeping, Hamiltonian construction, or ground-state finding ---
@@ -490,6 +506,12 @@ to fix; some are deliberate scope choices for this stage of the work.
     closed-form limit, a conservation law, a from-scratch brute-force
     reimplementation, or an exact boundary condition), not by
     inspection.
+  \else
+  \item \textbf{Validated against the paper at every stage} --- every
+    reproduced figure was checked against independent cross-checks
+    (closed-form limits, conservation laws, brute-force reference
+    calculations, exact boundary conditions), not by inspection alone.
+  \fi
   \item \textbf{C++ port of Figs.\ 9--10 done.}
     \texttt{ImpuritySolverNeqGBEK::dumpDoccAndEnergy} now computes and
     dumps the same observables the production solver's Green's functions
@@ -505,12 +527,12 @@ to fix; some are deliberate scope choices for this stage of the work.
     at $L_\mathrm{bath}=4$, 2.5$\times$ faster at $L_\mathrm{bath}=6$,
     1.3$\times$ faster at $L_\mathrm{bath}=8$. The margin shrinks with
     $L$ but never reverses in this range.
-  \item \textbf{C++ Fig.\ 3 parity} --- after fixing the two-time
-    Green's-function seeding bug, the production solver's own online
-    reconstruction now overlays the Python Cholesky reference essentially
-    exactly on full self-consistency runs, eliminating a spurious
-    ``wing'' artifact that used to appear in the reconstructed Weiss
-    field.
+  \item \textbf{C++ Fig.\ 3 parity} --- the production solver's own
+    online reconstruction now overlays the Python Cholesky reference
+    essentially exactly on full self-consistency runs\ifdevnotes\ (after
+    fixing the two-time Green's-function seeding bug, eliminating a
+    spurious ``wing'' artifact that used to appear in the reconstructed
+    Weiss field)\fi.
   \item \textbf{Next}: investigate the open $L=3$ near-atomic Krylov
     crash (see the limitations table above); consider testing $L=5$ now
     that Lanczos seeding is fixed; arbitrary (non-half) filling remains

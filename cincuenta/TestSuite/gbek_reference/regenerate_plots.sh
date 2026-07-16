@@ -150,13 +150,18 @@ fi
 # the paper's own figures fetched fresh from arXiv)
 # ---------------------------------------------------------------------------
 if [ "$GROUP_REPORT" = "1" ]; then
-	echo "=== Group report: building report.pdf ==="
+	echo "=== Group report: building report.pdf and report-summary.pdf ==="
 
 	if [ ! -d arxiv_figures ]; then
 		./fetch_arxiv_figures.sh
 	fi
 
 	latexmk -pdf -interaction=nonstopmode report.tex
+	# report-summary.pdf: same content with the "bug found and fixed"
+	# development-history callouts omitted (see report.tex's \PIVERSION
+	# header comment) -- a status/capabilities-only copy for sharing with
+	# people who aren't interested in development-process detail.
+	latexmk -pdf -interaction=nonstopmode report-summary.tex
 
-	echo "Group report done: report.pdf"
+	echo "Group report done: report.pdf, report-summary.pdf"
 fi

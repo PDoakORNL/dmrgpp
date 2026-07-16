@@ -578,3 +578,11 @@ reasoning as the plots above.
 Requires network access (arXiv fetch), a TeX install with `latexmk`, and
 `ghostscript` (`brew install ghostscript`) for the EPS-to-PDF conversion
 step. Not part of the cmake build.
+
+`report-summary.tex` builds `report-summary.pdf` from the same source
+with the "bug found and fixed" development-history callouts omitted --
+a status/capabilities-only copy for sharing with people who aren't
+interested in development-process detail (see `report.tex`'s `\PIVERSION`
+header comment). Both PDFs build together via `--report` above, or
+individually with `latexmk -pdf report.tex` / `latexmk -pdf
+report-summary.tex`.

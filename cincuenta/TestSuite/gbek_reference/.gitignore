@@ -15,6 +15,11 @@ report.aux
 report.log
 report.out
 report.toc
+report-summary.pdf
+report-summary.aux
+report-summary.log
+report-summary.out
+report-summary.toc
 *.fls
 *.fdb_latexmk
 *.synctex.gz
