@@ -9,3 +9,12 @@
 __pycache__/
 .DS_Store
 cpp_docc_energy/
+arxiv_figures/
+report.pdf
+report.aux
+report.log
+report.out
+report.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz

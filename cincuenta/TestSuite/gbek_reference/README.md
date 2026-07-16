@@ -536,12 +536,13 @@ committed to the repo** (see `.gitignore` here) -- binary blobs don't
 diff/review usefully and bit-rot in git history; the source (scripts +
 parameters) is what's checked in. Regenerate anything you need locally:
 
-    ./regenerate_plots.sh            # everything
+    ./regenerate_plots.sh            # everything (groups A+B)
     ./regenerate_plots.sh --group-a  # just Fig. 7/8 (pure Python, fast)
     ./regenerate_plots.sh --group-b  # the older C++-dependent validation
                                       # plots (builds+runs cincuenta if the
                                       # prerequisite dumps aren't already
                                       # in build/)
+    ./regenerate_plots.sh --report   # build report.pdf (see below)
 
 Group A (`fig7_docc.png`, `fig8_docc.png`) is pure Python:
 `run_fig7_scan.py --L 2`, `run_fig7_scan.py --L 4`, `run_fig8_scan.py`,
@@ -560,3 +561,20 @@ also needs the pure-Python exact reference (`gbek_selfconsistency.py --L 3
 --N 100 --dt 0.04 --U 2.0 --tq 0.25 --out gbek-atomic-limit-exact-lesser`,
 also in `regenerate_plots.sh`). See each script's own header for its exact
 expected inputs.
+
+## Building the LaTeX report
+
+`report.tex` is the canonical, reproducible write-up of this effort (the
+content previously maintained by hand as a Claude Artifact). It embeds
+groups A+B's plots plus the paper's own Figs. 3, 4, 7, 8, 9, 10, fetched
+directly from the arXiv e-print source (`fetch_arxiv_figures.sh`, arXiv
+1306.6315) rather than checked-in crops -- neither the fetched paper
+figures nor the built PDF are committed (see `.gitignore`), same
+reasoning as the plots above.
+
+    ./regenerate_plots.sh --group-a --group-b   # or already-present plots
+    ./regenerate_plots.sh --report
+
+Requires network access (arXiv fetch), a TeX install with `latexmk`, and
+`ghostscript` (`brew install ghostscript`) for the EPS-to-PDF conversion
+step. Not part of the cmake build.

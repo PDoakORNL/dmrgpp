@@ -17,10 +17,15 @@
 #       inputs if their dumps aren't already present in build/.
 #
 # Usage:
-#   ./regenerate_plots.sh            # regenerate everything
+#   ./regenerate_plots.sh            # regenerate everything (groups A+B)
 #   ./regenerate_plots.sh --group-a  # just the Fig. 7/8 tooling (fast)
 #   ./regenerate_plots.sh --group-b  # just the C++-dependent plots (slower,
 #                                     # builds cincuenta and runs it if needed)
+#   ./regenerate_plots.sh --report   # build report.pdf (needs A+B's plots
+#                                     # already present, plus network access
+#                                     # for fetch_arxiv_figures.sh and a TeX
+#                                     # install); NOT run by default, and not
+#                                     # part of the cmake build.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -30,8 +35,10 @@ UV_NUMPY="uv run --with numpy --with scipy --with matplotlib python3"
 
 GROUP_A=1
 GROUP_B=1
+GROUP_REPORT=0
 if [ "${1:-}" = "--group-a" ]; then GROUP_B=0; fi
 if [ "${1:-}" = "--group-b" ]; then GROUP_A=0; fi
+if [ "${1:-}" = "--report" ]; then GROUP_A=0; GROUP_B=0; GROUP_REPORT=1; fi
 
 # ---------------------------------------------------------------------------
 # Group A: Fig. 7/8 double-occupation reproduction (pure Python)
@@ -136,4 +143,20 @@ if [ "$GROUP_B" = "1" ]; then
 	echo "  delta_minus_leak_check.png, errstep_t3scan_comparison.png,"
 	echo "  fig3L3_near_atomic_post_fix.png, gbek_reference_comparison.png,"
 	echo "  t3_activation_scan.png"
+fi
+
+# ---------------------------------------------------------------------------
+# Group report: build report.pdf (LaTeX write-up, groups A+B's plots plus
+# the paper's own figures fetched fresh from arXiv)
+# ---------------------------------------------------------------------------
+if [ "$GROUP_REPORT" = "1" ]; then
+	echo "=== Group report: building report.pdf ==="
+
+	if [ ! -d arxiv_figures ]; then
+		./fetch_arxiv_figures.sh
+	fi
+
+	latexmk -pdf -interaction=nonstopmode report.tex
+
+	echo "Group report done: report.pdf"
 fi
