@@ -358,13 +358,28 @@ private:
 		const ModelBaseType&                                                 model = ms();
 
 		// Diagonalise N sector → pre-quench GS.
-		// Full diag is feasible for L=1 (dim~4900); for L>=2 (dim~63k+) use Lanczos GS.
+		// Full diag is only feasible up to nsites_ext_<=8 (dense, O(dim^3)/O(dim^2)
+		// time/memory -- infeasible well before L=5, dim~213k); for larger
+		// systems use Lanczos GS, seeded with the KNOWN atomic-limit product
+		// state (see lanczosGS's doc comment) rather than a naive uniform
+		// vector -- see project memory project_gbek_cpp_lanczosGS_bug for the
+		// bug this fixes (uniform-vector Lanczos converged to the WRONG
+		// extremal state at L=4: reported energy -2807.96 vs. the true -4000).
 		VectorRealType energiesN;
 		MatrixType     eigvecsN;
 		if (nsites_ext_ <= 8) {
 			diagWithBasis(model, model.basis(), geom, energiesN, eigvecsN);
 		} else {
-			eigvecsN = lanczosGS(model, geom);
+			// Impurity's own occupation within this sector: each of the L
+			// "occ" second-bath sites contributes exactly 1 up + 1 down
+			// electron (see potPre's bigEps assignments just above), so
+			// whatever nupExt/ndownExt has left over is what the impurity
+			// itself must carry (0 or 1 each, enforced by the atomic-limit
+			// nup_+ndown_==1 constraint upstream).
+			assert(nupExt >= L && ndownExt >= L);
+			const SizeType impurityUp   = nupExt - L;
+			const SizeType impurityDown = ndownExt - L;
+			eigvecsN = lanczosGS(model, geom, nBath_, L, impurityUp, impurityDown);
 		}
 
 		// Build N-1 and N+1 sector bases for the extended system
@@ -1374,9 +1389,55 @@ private:
 		ham.fullDiag(eigs, eigvecs);
 	}
 
-	// Lanczos ground state for sectors too large for full diagonalisation (L>=2).
-	// Returns a dim×1 matrix whose column 0 is the normalised GS eigenvector.
-	static MatrixType lanczosGS(const ModelBaseType& model, const GeometryType& geom)
+	// Basis index m such that basis(m,SPIN_UP)==occupiedSitesUp and
+	// basis(m,SPIN_DOWN)==occupiedSitesDown, or SizeType max if not found.
+	// Linear scan over the (already sector-restricted) basis -- dim is at
+	// most a few hundred thousand here and this runs once per buildSector
+	// call, so an O(dim) scan is negligible; avoids depending on the
+	// sorted-array lookup machinery (buildFockLookup/lookupIndex) that
+	// isn't built yet at this point in buildSector.
+	static SizeType findBasisIndex(const BasisBaseType& basis,
+	                               WordType             occupiedSitesUp,
+	                               WordType             occupiedSitesDown)
+	{
+		const SizeType spinUp = LanczosPlusPlus::LanczosGlobals::SPIN_UP;
+		const SizeType spinDn = LanczosPlusPlus::LanczosGlobals::SPIN_DOWN;
+		for (SizeType m = 0; m < basis.size(); ++m)
+			if (basis(m, spinUp) == occupiedSitesUp
+			    && basis(m, spinDn) == occupiedSitesDown)
+				return m;
+		return std::numeric_limits<SizeType>::max();
+	}
+
+	// Lanczos ground state for sectors too large for full diagonalisation
+	// (nsites_ext_>8). Returns a dim×1 matrix whose column 0 is the
+	// normalised GS eigenvector.
+	//
+	// Seeded with the KNOWN atomic-limit product state the pre-quench
+	// bigEps potentials (see buildSector's potPre construction) are
+	// designed to make overwhelmingly the ground state: the impurity
+	// carries impurityUp/impurityDown electrons (0 or 1 each), each of the
+	// L "occ" second-bath sites (index 1+nBath+L+p) is doubly occupied,
+	// every other site (including all nBath first-bath sites, whose true
+	// equilibrium occupation isn't known in closed form here) is left
+	// empty in the seed -- a neutral default for any first-bath sites,
+	// though the only case actually exercised so far (NeqAtomicLimit=1) has
+	// nBath=0, for which the pre-quench Hamiltonian has NO hopping at all,
+	// so this seed is not just a good guess but the EXACT eigenstate.
+	//
+	// This replaces an earlier version that seeded Lanczos with a naive
+	// uniform vector (1/sqrt(dim) on every basis state), confirmed to
+	// converge to the WRONG extremal state for L>=4 (reported ground
+	// energy -2807.96 vs. the true -4000 for L=4's fully-polarized product
+	// state) -- see project memory project_gbek_cpp_lanczosGS_bug for the
+	// full diagnosis. A seed with substantial overlap with the true ground
+	// state, rather than an unbiased guess, is the fix.
+	static MatrixType lanczosGS(const ModelBaseType& model,
+	                            const GeometryType&  geom,
+	                            SizeType             nBath,
+	                            SizeType             L,
+	                            SizeType             impurityUp,
+	                            SizeType             impurityDown)
 	{
 		const BasisBaseType&      basis = model.basis();
 		const SizeType            dim   = basis.size();
@@ -1390,8 +1451,39 @@ private:
 
 		LanczosSolverForGSType lanczos(ham, lparams);
 
-		typename LanczosSolverForGSType::VectorType initVec(
-		    dim, ComplexOrRealType(1.0 / std::sqrt(RealType(dim))));
+		// occupiedSitesUp/occupiedSitesDown: the set of sites occupied by an
+		// up/down electron respectively (packed one bit per site), same
+		// representation and same site layout as buildHextCSR (site 0 =
+		// impurity; 1..nBath = first bath; nBath+1..nBath+L = "empty"
+		// second-bath sites; nBath+L+1..nBath+2L = "occ" second-bath sites --
+		// occS below matches that function's own occS computation exactly).
+		// Marking occS occupied in BOTH sets means "this occ site holds one
+		// up AND one down electron", i.e. doubly occupied.
+		WordType occupiedSitesUp = 0, occupiedSitesDown = 0;
+		if (impurityUp == 1)
+			occupiedSitesUp |= (WordType(1) << 0);
+		if (impurityDown == 1)
+			occupiedSitesDown |= (WordType(1) << 0);
+		for (SizeType p = 0; p < L; ++p) {
+			const SizeType occS = 1 + nBath + L + p;
+			occupiedSitesUp |= (WordType(1) << occS);
+			occupiedSitesDown |= (WordType(1) << occS);
+		}
+		const SizeType seedIndex
+		    = findBasisIndex(basis, occupiedSitesUp, occupiedSitesDown);
+
+		typename LanczosSolverForGSType::VectorType initVec(dim, ComplexOrRealType(0));
+		if (seedIndex != std::numeric_limits<SizeType>::max()) {
+			initVec[seedIndex] = ComplexOrRealType(1);
+		} else {
+			assert(false
+			       && "lanczosGS: target atomic-limit product state not found in "
+			          "basis -- falling back to a uniform seed, which is known to "
+			          "converge to the wrong state for large nsites_ext_");
+			for (SizeType i = 0; i < dim; ++i)
+				initVec[i] = ComplexOrRealType(1.0 / std::sqrt(RealType(dim)));
+		}
+
 		RealType                                    gsEnergy = 0;
 		typename LanczosSolverForGSType::VectorType gsVec(dim, ComplexOrRealType(0));
 

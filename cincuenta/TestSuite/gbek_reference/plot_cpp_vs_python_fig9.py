@@ -4,21 +4,19 @@ Compare the production C++ GBEK solver's new docc/energy observables
 (ImpuritySolverNeqGBEK::dumpDoccAndEnergy, ported 2026-07-15) against the
 Python reference's Fig. 9 reproduction (run_fig9_scan.py /
 gbek_selfconsistency.py::compute_energy_observables), for the true atomic
-limit (NeqAtomicLimit=1, nBath=0) at U=2,4 and Lbath=4,6 (L=2,3).
+limit (NeqAtomicLimit=1, nBath=0) at U=2,4 and Lbath=4,6,8 (L=2,3,4).
 
-L=4 (Lbath=8) is DELIBERATELY EXCLUDED from this comparison: the C++ run
-for L=4 (any U) gives a WRONG t=0 state (docc(0)~0.24, Ekin(0)~0.47,
-instead of the exact atomic-limit values 0/0) -- confirmed to be caused by
-ImpuritySolverNeqGBEK.h::lanczosGS(), used only when nsites_ext_>8 (i.e.
-L>=4), converging to the wrong extremal state (reported ground energy
--2807.96 vs the true product-state energy -4000 for L=4) because it seeds
-Lanczos with a naive uniform vector instead of a state with real overlap
-with the true (bigEps-forced, sharply-gapped) ground state. L=2,3 use full
-diagonalization instead (nsites_ext_<=8) and are exactly correct (verified:
-docc(0)=0, Ekin(0)=0, Etot(0)=-U/4 to 10 decimal places, all U). This is a
-pre-existing solver gap, not introduced by the docc/energy port itself --
-see project memory for the proposed fix (seed Lanczos with the known
-analytic atomic-limit product state instead of a uniform vector).
+L=4 (Lbath=8) originally hit a separate C++-only bug: lanczosGS()
+(used only when nsites_ext_>8, i.e. L>=4) seeded Lanczos with a naive
+uniform vector, converging to the WRONG extremal state (reported ground
+energy -2807.96 vs. the true product-state energy -4000 for L=4) instead
+of the true pre-quench ground state, giving a wrong t=0 state
+(docc(0)~0.24, Ekin(0)~0.47 instead of the exact atomic-limit 0/0).
+FIXED 2026-07-16: lanczosGS() now seeds Lanczos with the known analytic
+atomic-limit product state instead (exact for nBath=0, since the
+pre-quench Hamiltonian then has no hopping at all) -- see project memory
+project_gbek_cpp_lanczosGS_bug for the full diagnosis and fix. L=2,3 use
+full diagonalization (nsites_ext_<=8) and were never affected.
 
 C++ data source: cincuenta/TestSuite/gbek_reference/cpp_docc_energy/
   atomic-limit-gbek-L{L}[-U{U}]-docc-energy, format "t docc Ekin Eint Etot"
@@ -36,7 +34,7 @@ import matplotlib.pyplot as plt
 from provenance import write_provenance
 
 U_VALUES = (2.0, 4.0)     # the paper's actual Fig. 9 curves
-L_VALUES_CPP = (2, 3)     # L=4 excluded -- see module docstring
+L_VALUES_CPP = (2, 3, 4)
 L_VALUES_PY = (2, 3, 4)
 QUANTITIES = [("Ekin_t", "Ekin", "green"), ("Eint_t", "Eint", "blue"), ("Etot_t", "Etot", "red")]
 U_STYLES = {2.0: "-", 4.0: "--"}
@@ -85,8 +83,7 @@ def main():
         ax.legend(fontsize=6, ncol=2, loc="lower right")
 
     ax_py.set_ylabel("energy (units of v0)")
-    fig.suptitle("cf. GBEK Fig. 9: Python reference vs. C++ production solver "
-                  "(L=4/Lbath=8 excluded from C++ -- see script docstring)")
+    fig.suptitle("cf. GBEK Fig. 9: Python reference vs. C++ production solver")
     fig.tight_layout()
     out = "cpp_vs_python_fig9.png"
     fig.savefig(out, dpi=150)
@@ -97,10 +94,10 @@ def main():
                    + [f"cpp_docc_energy/atomic-limit-gbek-L{L}{'' if U == 2.0 else f'-U{U:g}'}-docc-energy"
                       for U in U_VALUES for L in L_VALUES_CPP])
     prov = write_provenance(out, extra_files=extra_files,
-                             notes="figure=9 C++-vs-Python; L=4 excluded from C++ (lanczosGS bug)")
+                             notes="figure=9 C++-vs-Python, all three Lbath")
     print(f"Wrote {prov}")
 
-    print("\n--- C++ vs Python: Etot(t) agreement (L=2,3 only) ---")
+    print("\n--- C++ vs Python: Etot(t) agreement ---")
     for U in U_VALUES:
         for L in L_VALUES_CPP:
             py = py_data[(U, L)]
@@ -109,13 +106,14 @@ def main():
             diff = np.max(np.abs(py_etot - cpp["Etot_t"]))
             print(f"  U={U:g} Lbath={2*L}: max|Etot_cpp - Etot_python| = {diff:.4e}")
 
-    print("\n--- C++ L=4 (Lbath=8) sanity check: t=0 should be exactly "
-          "docc=0, Ekin=0, Etot=-U/4 -- known BROKEN, printed for the record ---")
+    print("\n--- C++ t=0 sanity check: should be exactly docc=0, Ekin=0, "
+          "Etot=-U/4 for all Lbath ---")
     for U in U_VALUES:
-        raw = np.loadtxt(f"cpp_docc_energy/atomic-limit-gbek-L4"
-                          f"{'' if U == 2.0 else f'-U{U:g}'}-docc-energy")
-        print(f"  U={U:g}: t=0 docc={raw[0,1]:.6f} Ekin={raw[0,2]:.6f} "
-              f"Etot={raw[0,4]:.6f} (expected 0, 0, {-U/4:.6f})")
+        for L in L_VALUES_CPP:
+            raw = np.loadtxt(f"cpp_docc_energy/atomic-limit-gbek-L{L}"
+                              f"{'' if U == 2.0 else f'-U{U:g}'}-docc-energy")
+            print(f"  U={U:g} Lbath={2*L}: t=0 docc={raw[0,1]:.6f} Ekin={raw[0,2]:.6f} "
+                  f"Etot={raw[0,4]:.6f} (expected 0, 0, {-U/4:.6f})")
 
 
 if __name__ == "__main__":
