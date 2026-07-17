@@ -2,7 +2,6 @@
 #include "Dispersion.h"
 #include "DmftSolver.h"
 #include "ImpuritySolverNeqTdmrg.h"
-#include "InputPath.hpp"
 #include "NeqDmftSolver.h"
 #include "ProgramGlobals.h"
 #include "Provenance.h"

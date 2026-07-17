@@ -6,8 +6,8 @@
 #include "ImpuritySolverNeqBase.h"
 #include "KadanoffBaym.h"
 #include "ParamsNeqDmftSolver.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 #include <cassert>
 #include <cmath>
 #include <complex>
