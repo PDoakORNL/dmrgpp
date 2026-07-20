@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Isolate whether cincuenta's second-bath failure (Delta^+ collapsing to ~0
+Isolate whether cincuenta's second-bath failure (Lambda^+ collapsing to ~0
 well before the paper's expected L=3 accuracy horizon) is in the Cholesky
 DECOMPOSITION step or the real-time PROPAGATION step.
 
-Method: read cincuenta's own dumped total Delta (weiss-delta-lesser) for a
-run, subtract the analytic first-bath Delta^- (computed directly from the
+Method: read cincuenta's own dumped total Lambda (weiss-delta-lesser) for a
+run, subtract the analytic first-bath Lambda^- (computed directly from the
 run's own fitted equilibrium bath parameters -- confirmed tiny, ~3e-4, via
 check_analytic_deltaminus.py), and feed the result through our own
 independently-validated cholesky_causal() (a faithful port of
@@ -32,8 +32,8 @@ def fermi(eps, beta):
     return np.where(x > 500, 0.0, np.where(x < -500, 1.0, 1.0 / (1 + np.exp(x))))
 
 
-def analytic_delta_minus_lesser(ts, V, eps, beta):
-    """-i*Delta^-_<(t_n, t_j) for all n,j, from the free-propagation formula
+def analytic_lambda_minus_lesser(ts, V, eps, beta):
+    """Lambda^-_<(t_n, t_j) for all n,j, from the free-propagation formula
     in NeqBathDecomposition.h::deltaMinusLesser (there without the leading
     -i; here folded in directly since that's the convention this script
     works in throughout)."""
@@ -49,8 +49,8 @@ def analytic_delta_minus_lesser(ts, V, eps, beta):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("delta_file", help="cincuenta's weiss-delta-lesser dump (total Delta)")
-    ap.add_argument("plus_file", help="cincuenta's plus-bath-lesser dump (its own Delta^+)")
+    ap.add_argument("delta_file", help="cincuenta's weiss-delta-lesser dump (total Lambda)")
+    ap.add_argument("plus_file", help="cincuenta's plus-bath-lesser dump (its own Lambda^+)")
     ap.add_argument("--V", required=True, help="comma-separated fitted hoppings")
     ap.add_argument("--eps", required=True, help="comma-separated fitted bath energies")
     ap.add_argument("--beta", type=float, required=True)
@@ -60,18 +60,18 @@ def main():
     V = np.array([float(x) for x in args.V.split(",")])
     eps = np.array([float(x) for x in args.eps.split(",")])
 
-    ts, delta_re, delta_im = read_lesser_file(args.delta_file)
+    ts, raw_re, raw_im = read_lesser_file(args.delta_file)
     ts2, plus_re, plus_im = read_lesser_file(args.plus_file)
     assert np.allclose(ts, ts2)
     dt = ts[1] - ts[0]
 
-    delta_less = delta_re + 1j * delta_im          # Delta^<(t,t') itself
-    lam_total = -1j * delta_less                    # -i*Delta^<(t,t')
-    lam_minus = analytic_delta_minus_lesser(ts, V, eps, args.beta)  # -i*Delta^-_<
-    lam_plus_target = lam_total - lam_minus          # -i*Delta^+_< : the Cholesky's target
+    raw_less = raw_re + 1j * raw_im                  # the dump's raw lesser component
+    lam_total = -1j * raw_less                       # Lambda(t,t')
+    lam_minus = analytic_lambda_minus_lesser(ts, V, eps, args.beta)  # Lambda^-
+    lam_plus_target = lam_total - lam_minus          # Lambda^+ : the Cholesky's target
 
     print("max|lam_minus| over full grid:", np.max(np.abs(lam_minus)),
-          "(should be tiny -- confirms Delta^- is negligible)")
+          "(should be tiny -- confirms Lambda^- is negligible)")
 
     # cholesky_causal expects the lower triangle (j<=n) of its input filled;
     # it internally Hermitian-completes the rest via lam_at.

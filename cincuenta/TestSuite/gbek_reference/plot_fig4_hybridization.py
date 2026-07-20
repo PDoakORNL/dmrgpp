@@ -45,8 +45,8 @@ from provenance import write_provenance
 
 def load_lambda(path):
     """Read a gbek_selfconsistency.py::dump_lesser output directly as
-    Lambda = -i*Delta^<_+ (no extra -1j -- see plot_fig3_errstep.py's
-    module docstring for why this differs from plot_errstep.py's loader)."""
+    Lambda^<_+ (no extra -1j -- see plot_fig3_errstep.py's module
+    docstring for why this differs from plot_errstep.py's loader)."""
     ts, re, im = read_lesser_file(path)
     return ts, re + 1j * im
 

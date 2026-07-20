@@ -1,5 +1,5 @@
 """
-Rank-L causal Cholesky decomposition of -i*Lambda^<(t_n,t_j), independently
+Rank-L causal Cholesky decomposition of Lambda^<(t_n,t_j), independently
 implemented directly from Gramsch, Balzer, Eckstein, Kollar, PRB 88, 235106
 (2013), Eqs. 56-63 -- the reference this file's implementation is checked
 against is the paper's equations, not cincuenta/src/NeqBathDecomposition.h.
@@ -30,7 +30,7 @@ cholesky_causal_buggy_fixed_window()'s docstring.
     F(q) = 2||Q q - a||^2 + |q^dagger q - d|^2
 
 a JOINT minimization over the off-diagonal fit (Qq ~ a) AND the diagonal
-target d = (-iDelta^+_<)_{s+1,s+1} -- not a separable linear-least-squares
+target d = (Lambda^+_<)_{s+1,s+1} -- not a separable linear-least-squares
 problem. After fixing bug 1, cholesky_causal() still only solved the linear
 part (Qq ~ a) and never enforced q^dagger q ~ d, which systematically
 undershoots the diagonal (verified: q^dagger q ends up ~5-15% below the
@@ -323,7 +323,7 @@ def cholesky_causal(lam, L, floor_rtol=1e-10):
     max_diag_seen = 0.0
 
     def lam_at(n, j):
-        # lam = -i*Delta^< is Hermitian (lam(t,t')^* = lam(t',t)); the causal
+        # lam (this module's Lambda^<) is Hermitian (lam(t,t')^* = lam(t',t)); the causal
         # algorithm only ever calls this with j <= n in practice, so this
         # branch is never exercised during real self-consistency use, but
         # must still use the correct (Hermitian, no extra minus sign)

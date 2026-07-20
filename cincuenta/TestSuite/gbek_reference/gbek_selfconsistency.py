@@ -1,18 +1,18 @@
 """
 Full GBEK atomic-limit self-consistency loop (Gramsch, Balzer, Eckstein,
 Kollar, PRB 88, 235106 (2013), Sec. VI), producing the "exact" reference
--i*Lambda^+_<(t,t') = -i*Delta^+_<(t,t') used for Fig. 3's top-left panel.
+Lambda^+_<(t,t') used for Fig. 3's top-left panel.
 
 Physics:
-  - Atomic-limit start: Delta^- = 0 identically (no first bath), so
-    Delta = Delta^+ entirely.
+  - Atomic-limit start: Lambda^- = 0 identically (no first bath), so
+    Lambda = Lambda^+ entirely.
   - Hopping (bandwidth) quench: v(t) cosine ramp 0 -> 1 over [0, tq], then
     constant.  U fixed throughout.
-  - Bethe-lattice self-consistency: Delta(t,t') = hop(t) G(t,t') hop(t'),
+  - Bethe-lattice self-consistency: Lambda(t,t') = -i * hop(t) G(t,t') hop(t'),
     hop(t) = t_star_f * v(t).
   - Second bath: L pairs of bath sites (one initially doubly-occupied, one
     initially empty), coupled via a rank-L causal Cholesky decomposition of
-    -i*Delta^<(t,t') -- see gbek_cholesky.py, implemented directly from GBEK
+    Lambda^<(t,t') -- see gbek_cholesky.py, implemented directly from GBEK
     Eq. 56-63 (NeqBathDecomposition.h::choleskyOptimalUpdate was fixed to
     match it after this independent implementation exposed a bug there;
     see that file's module docstring and the README's "The real bug").
@@ -81,8 +81,8 @@ def equilibrium_lambda1(ts, hop_t, D=None):
 def lambda_from_g(G, hop_t):
     """
     Lambda[n,j] = hop_t[n]*hop_t[j]*(-1j)*G[n,j], j<=n (else 0) -- the
-    Bethe-lattice self-consistency Delta(t,t')=hop(t)G(t,t')hop(t') applied
-    to a single Keldysh branch G (G^< or G^>), producing -i*Delta^{<,>}.
+    Bethe-lattice self-consistency relation applied to a single Keldysh
+    branch G (G^< or G^>), producing Lambda^{<,>}.
     Factored out of run_self_consistency's iteration loop so
     compute_energy_observables can reuse it for the G^> branch too.
     """
@@ -114,9 +114,9 @@ def build_templates(nsites, basis, index, U, L):
         H(t) = U_term
              + sum_p [V[n,p]      * occ_templates[p]   + conj(V[n,p])      * occ_templates[p]^dag
                       + conj(V[n,p]) * empty_templates[p] + V[n,p]          * empty_templates[p]^dag]
-      The occupied bath site couples via -i*Delta^<_+ = sum_p V_p(t)V_p(t')^*
-      (Eq. 52a); the empty site couples via i*Delta^>_+, and Delta^<_+ =
-      (Delta^>_+)^* (Eq. 49/particle-hole relation) means the empty site's
+      The occupied bath site couples via Lambda^<_+ = sum_p V_p(t)V_p(t')^*
+      (Eq. 52a); the empty site couples via Lambda^>_+, and Lambda^<_+ =
+      (Lambda^>_+)^* (Eq. 49/particle-hole relation) means the empty site's
       hopping is conj(V[n,p]), NOT the same V[n,p] as the occupied site.
       Using the same V for both (as an earlier version of this script did)
       is invisible for real V but breaks particle-hole symmetry -- and hence
@@ -239,7 +239,7 @@ def run_self_consistency(L, N, dt, U, tstar_f, tq, n_iterations, tol=1e-6,
     if initial_lambda is None:
         Lambda = equilibrium_lambda1(ts, hop_t)  # Eq. (71)'s correct seed
     elif isinstance(initial_lambda, str) and initial_lambda == "zero":
-        Lambda = np.zeros((N + 1, N + 1), dtype=complex)  # -i*Delta^<(t_n,t_j), j<=n -- OLD, WRONG bootstrap, kept for regression/comparison only
+        Lambda = np.zeros((N + 1, N + 1), dtype=complex)  # Lambda^<(t_n,t_j), j<=n -- OLD, WRONG bootstrap, kept for regression/comparison only
     else:
         Lambda = np.array(initial_lambda, dtype=complex, copy=True)
     history = []
@@ -353,16 +353,17 @@ def compute_energy_observables(L, N, dt, U, tstar_f, tq, V, verbose=False):
 
 def dump_lesser(path, Lambda, dt):
     """
-    Write -i*Delta^<(t,t') in the same "t t' Re Im" format used by
+    Write Lambda^<(t,t') in the same "t t' Re Im" format used by
     KadanoffBaym::dump (see cincuenta/TestSuite/compare_neq_delta_lesser.py),
     so the reference curve can be plotted with the existing tooling.
 
-    Lambda = -i*Delta^< is HERMITIAN (Lambda(t,t')^* = Lambda(t',t)), not
-    anti-Hermitian: the "-i" flips the parity of the underlying anti-Hermitian
-    relation Delta^<(t,t')^* = -Delta^<(t',t) (the same relation cincuenta's
-    C++ correctly uses for gimp.lesser() itself, i.e. for Delta^</G^< without
-    the "-i" factor). Using "-conj" here instead of "+conj" produced a sign
-    flip exactly at t=t' in the reconstructed upper triangle.
+    Lambda is HERMITIAN (Lambda(t,t')^* = Lambda(t',t)), not anti-Hermitian:
+    the "-i" built into Lambda's own definition (Lambda = -i*hop*hop*G, see
+    lambda_from_g) flips the parity of the underlying anti-Hermitian
+    relation obeyed by the raw two-time correlator, G^<(t,t')^* = -G^<(t',t)
+    (paper Eq. 5a; the same relation cincuenta's C++ correctly uses for
+    gimp.lesser() itself). Using "-conj" here instead of "+conj" produced a
+    sign flip exactly at t=t' in the reconstructed upper triangle.
     """
     N = Lambda.shape[0] - 1
     with open(path, "w") as fh:

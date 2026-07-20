@@ -31,7 +31,7 @@ OUT = "atomic_limit_2d_rank_comparison.png"
 
 def main():
     ts, re, im = read_lesser_file(TARGET_FILE)
-    lam_target = -1j * (re + 1j * im)  # Lambda = -i*Delta_< ; Delta^-=0 here, so this IS Delta^+
+    lam_target = -1j * (re + 1j * im)  # Lambda; Lambda^-=0 here, so this IS Lambda^+
 
     V = cholesky_causal(lam_target, L=3)
     lam_python = reconstruct(V)
@@ -45,7 +45,7 @@ def main():
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
     panels = [
-        ("Target -i*Delta^+_< (Delta^-=0 exactly)", lam_target, w_target),
+        ("Target -i*Lambda^+_< (Lambda^-=0 exactly)", lam_target, w_target),
         ("Python rank-3 cholesky_causal reconstruction", lam_python, w_python),
         ("cincuenta C++ online reconstruction (plus-bath-lesser)", lam_cpp, w_cpp),
     ]

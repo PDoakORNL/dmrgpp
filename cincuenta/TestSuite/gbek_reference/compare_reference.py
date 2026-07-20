@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Compare the exact atomic-limit reference -i*Delta^+_<(t,t') (produced by
+Compare the exact atomic-limit reference -i*Lambda^+_<(t,t') (produced by
 gbek_selfconsistency.py) against cincuenta's own rank-L Cholesky
 approximation (dumped by ImpuritySolverNeqGBEK::dumpPlusBath, e.g.
 "gebk-fig3-L3-plus-bath-lesser").

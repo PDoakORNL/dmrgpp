@@ -136,11 +136,11 @@ if [ "$GROUP_B" = "1" ]; then
 	$UV_NUMPY compare_reference.py \
 		gbek-atomic-limit-exact-lesser "${AL_PREFIX}-plus-bath-lesser" \
 		--tmax 4.0 --out gbek_reference_comparison.png
-	$UV_NUMPY quantify_delta_minus_leak.py "$FIG3_PREFIX"
+	$UV_NUMPY quantify_lambda_minus_leak.py "$FIG3_PREFIX"
 
 	echo "Group B done: atomic_limit_2d_rank_comparison.png,"
 	echo "  atomic_limit_true_comparison.png, collapse_evidence_summary.png,"
-	echo "  delta_minus_leak_check.png, errstep_t3scan_comparison.png,"
+	echo "  lambda_minus_leak_check.png, errstep_t3scan_comparison.png,"
 	echo "  fig3L3_near_atomic_post_fix.png, gbek_reference_comparison.png,"
 	echo "  t3_activation_scan.png"
 fi
