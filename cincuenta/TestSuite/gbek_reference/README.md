@@ -2,7 +2,7 @@
 
 Standalone reference implementation (numpy/scipy only, no dependency on
 cincuenta, Ainur, or LanczosPlusPlus) that computes the "exact"
--i*Lambda^+_<(t,t') hybridization for the atomic-limit hopping quench setup of
+-i*Λ^+_<(t,t') hybridization for the atomic-limit hopping quench setup of
 
     Gramsch, Balzer, Eckstein, Kollar, PRB 88, 235106 (2013), Sec. VI.
 
@@ -15,7 +15,7 @@ second-bath approximation (`NeqBathDecomposition.h`,
 **Punch line**: this effort found and fixed a real bug in
 `NeqBathDecomposition.h`'s Cholesky "optimal update" step -- see
 "The real bug" below. It was not a rank-truncation artifact, not a
-particle-hole-symmetry issue, and not first-bath (`Lambda^-`) leakage (an
+particle-hole-symmetry issue, and not first-bath (`Λ^-`) leakage (an
 earlier hypothesis during this investigation that turned out to be wrong --
 see "A wrong turn" below, kept for the record).
 
@@ -34,22 +34,22 @@ independent of the production C++ code, to produce a trustworthy comparison
 target.
 
 **This is not a general-purpose GBEK solver.** It only handles the one setup
-needed for this comparison: atomic-limit start (Lambda^- = 0 identically, no
+needed for this comparison: atomic-limit start (Λ^- = 0 identically, no
 first bath), a cosine hopping ramp, Bethe-lattice self-consistency, and the
 alpha/beta spin-seed averaging the paper uses to restore particle-hole
 symmetry.
 
 ## Physics implemented
 
-- **Atomic limit**: no first bath. `Lambda = Lambda^+` entirely.
+- **Atomic limit**: no first bath. `Λ = Λ^+` entirely.
 - **Hopping (bandwidth) quench**: `v(t)` cosine ramp 0->1 over `[0, tq]`,
   constant afterward. `U` fixed throughout (this is a hopping quench, not an
   interaction quench).
-- **Bethe-lattice self-consistency**: `Lambda(t,t') = -i * hop(t) G(t,t') hop(t')`,
+- **Bethe-lattice self-consistency**: `Λ(t,t') = -i * hop(t) G(t,t') hop(t')`,
   `hop(t) = t_star_f * v(t)`.
 - **Second bath**: `L` pairs of bath sites (one initially doubly-occupied,
   one initially empty), coupled via a rank-`L` causal Cholesky decomposition
-  of `Lambda^<(t,t')` -- see `gbek_cholesky.py`, and "The real bug" below.
+  of `Λ^<(t,t')` -- see `gbek_cholesky.py`, and "The real bug" below.
 - **G-sigma averaging**: `G_sigma = 1/2 (G_alpha,0sigma + G_beta,0sigma)`.
   By the up<->down / alpha<->beta symmetry of this setup,
   `G_beta,0sigma = G_alpha,0,-sigma`, so only the alpha (impurity seeded
@@ -78,15 +78,15 @@ symmetry.
 - `compare_reference.py` -- overlays this exact reference against
   cincuenta's own rank-L Cholesky output
   (`ImpuritySolverNeqGBEK::dumpPlusBath`).
-- `quantify_lambda_minus_leak.py` -- computes `Lambda^- = Lambda - Lambda^+`
+- `quantify_lambda_minus_leak.py` -- computes `Λ^- = Λ - Λ^+`
   directly from cincuenta's own dumped output. Originally written to check
-  a "Lambda^- leakage" hypothesis that turned out to be wrong (see "A wrong
-  turn"); still useful as a way to compute `Lambda^-` from a run's dumps, but
+  a "Λ^- leakage" hypothesis that turned out to be wrong (see "A wrong
+  turn"); still useful as a way to compute `Λ^-` from a run's dumps, but
   don't trust its historical framing without re-deriving what the residual
   actually means for whatever question you're asking.
 - `check_cholesky_step.py` -- the script that actually found the real bug:
-  takes cincuenta's own dumped total `Lambda`, subtracts the analytic
-  (confirmed-tiny) `Lambda^-`, and feeds the result through
+  takes cincuenta's own dumped total `Λ`, subtracts the analytic
+  (confirmed-tiny) `Λ^-`, and feeds the result through
   `gbek_cholesky.py`'s independent Cholesky implementation. Reproduced
   cincuenta's actual C++ output to 1e-6 *before* the fix (proving the C++
   was executing its algorithm correctly -- the algorithm itself was wrong)
@@ -108,8 +108,8 @@ this is a standard exact Cholesky recursion and was never in question. For
 reference matrix `Q_s` as containing **all** `s = n-1` previously-determined
 rows, growing by one row every step:
 
-    a_{s+1} = ((Lambda^+_<)_{s+1,1}, ..., (Lambda^+_<)_{s+1,s})^dagger    (length s)
-    minimize ||Q_s q_{s+1} - a_{s+1}||^2 + |q_{s+1}^dagger q_{s+1} - (Lambda^+_<)_{s+1,s+1}|^2
+    a_{s+1} = ((Λ^+_<)_{s+1,1}, ..., (Λ^+_<)_{s+1,s})^dagger    (length s)
+    minimize ||Q_s q_{s+1} - a_{s+1}||^2 + |q_{s+1}^dagger q_{s+1} - (Λ^+_<)_{s+1,s+1}|^2
 
 The actual code instead hardcoded the reference set to the first `L`
 seeding rows, **forever** -- never growing it as `n` increases. On an
@@ -124,16 +124,16 @@ growing-window version actually does.
 
 ### How this was found
 
-1. `compare_reference.py` showed cincuenta's actual `Lambda^+` output
+1. `compare_reference.py` showed cincuenta's actual `Λ^+` output
    collapsing to ~0 by t~2 on the paper-matching `L=3, N=100` grid, well
    before the paper's own claimed L=3 accuracy horizon (t~2.5).
-2. First hypothesis (wrong, see "A wrong turn"): first-bath (`Lambda^-`)
-   leakage. Ruled out by directly computing the analytic `Lambda^-` formula
+2. First hypothesis (wrong, see "A wrong turn"): first-bath (`Λ^-`)
+   leakage. Ruled out by directly computing the analytic `Λ^-` formula
    from the run's own fitted equilibrium bath parameters: it's ~3e-4,
    constant, and negligible for the entire trajectory -- nowhere close to
    being able to explain the missing ~0.5.
-3. `check_cholesky_step.py`: fed cincuenta's own dumped total `Lambda` minus
-   that (confirmed tiny) analytic `Lambda^-` through an early version of
+3. `check_cholesky_step.py`: fed cincuenta's own dumped total `Λ` minus
+   that (confirmed tiny) analytic `Λ^-` through an early version of
    `gbek_cholesky.py`'s Cholesky implementation. It reproduced cincuenta's
    actual buggy output to 1e-6 -- but that implementation was, at the time,
    a line-for-line **port** of `NeqBathDecomposition.h`, not an independent
@@ -161,14 +161,14 @@ propagation cost.
 
 ### Bug 2: missing diagonal constraint
 
-After fixing bug 1, `compare_reference.py` still showed cincuenta's `Lambda^+`
+After fixing bug 1, `compare_reference.py` still showed cincuenta's `Λ^+`
 decaying noticeably faster than the exact reference on the real
 paper-matching grid -- smaller than bug 1's near-total collapse, but a real,
 consistent gap (e.g. diagonal 0.478 vs the exact 0.4997 at t=0.4, growing to
 a much larger relative gap by t=2). The paper's actual objective for the
 "optimal update" (Eq. 63) is a JOINT minimization:
 
-    F(q) = 2||Q_s q - a||^2 + |q^dagger q - d|^2,   d = (Lambda^+_<)_{s+1,s+1}
+    F(q) = 2||Q_s q - a||^2 + |q^dagger q - d|^2,   d = (Λ^+_<)_{s+1,s+1}
 
 not a separable "solve the linear off-diagonal fit, then match the diagonal
 separately" problem. `cholesky_causal()`, even after the bug 1 fix, still
@@ -247,16 +247,16 @@ past the seeding phase, and hardcode a handful of the resulting values
 (with `repr()` for full precision) as a Catch2 test. Exact-rank synthetic
 targets are good for basic correctness but cannot catch this class of bug.
 
-## A wrong turn: first-bath (`Lambda^-`) leakage (ruled out)
+## A wrong turn: first-bath (`Λ^-`) leakage (ruled out)
 
 Earlier in this investigation, `quantify_lambda_minus_leak.py` computed
-`Lambda^- = Lambda - Lambda^+_dumped` from cincuenta's own output and appeared
-to show `Lambda^-` rising to absorb the persistent field that `Lambda^+`
-loses. This was a real observation but a wrong conclusion: `Lambda - Lambda^+_dumped`
+`Λ^- = Λ - Λ^+_dumped` from cincuenta's own output and appeared
+to show `Λ^-` rising to absorb the persistent field that `Λ^+`
+loses. This was a real observation but a wrong conclusion: `Λ - Λ^+_dumped`
 is not the literal physical first-bath term -- it's whatever the Cholesky
 reconstruction fails to capture, which is a different thing whenever that
 reconstruction itself is inaccurate (which, per the bug above, it was).
-Computing the actual analytic `Lambda^-` formula directly from the run's
+Computing the actual analytic `Λ^-` formula directly from the run's
 fitted equilibrium bath parameters (`V_alpha`, `eps_alpha`) showed it is
 tiny (~3e-4) and constant for the whole trajectory -- nowhere near large
 enough to be the missing ~0.5. The real explanation was the Cholesky bug
@@ -283,7 +283,7 @@ being combined:
   iterations (~2 min wall time with the corrected, growing-reference-set
   Cholesky -- slower than the original buggy version's ~45s, expected given
   the O(N^2 L^2) vs O(N L^2) cost, still entirely practical at this scale).
-  The diagonal `Lambda(t,t)` is flat at its particle-hole-symmetric exact
+  The diagonal `Λ(t,t)` is flat at its particle-hole-symmetric exact
   value `0.5*hop(t)^2` across the *entire* time range (not just
   asymptotically) -- this is a genuine invariant of the physics (protected
   by particle-hole symmetry, independent of Cholesky rank `L`), and was
@@ -309,12 +309,12 @@ being combined:
    (state norm drifted from 1 to >10 over the full time grid) and broke
    particle-hole symmetry (occupied/empty bath partners must carry `V` and
    `conj(V)` respectively, per `<+ = (>+)*`, not the same `V`).
-3. **Wrong Hermitian-completion sign in `dump_lesser`.** `Lambda`
-   is Hermitian (`Lambda(t,t')^* = Lambda(t',t)`) -- required for it to be
+3. **Wrong Hermitian-completion sign in `dump_lesser`.** `Λ`
+   is Hermitian (`Λ(t,t')^* = Λ(t',t)`) -- required for it to be
    positive-semidefinite. The completion for `t < t'` used `-conj(...)`,
    the *anti*-Hermitian relation that correctly applies to `G^<` itself
    (paper Eq. 5a, and which cincuenta's C++ correctly uses for
-   `gimp.lesser()`), not to `Lambda`. This produced a sign flip exactly at
+   `gimp.lesser()`), not to `Λ`. This produced a sign flip exactly at
    `t=t'` in every off-diagonal slice/2D plot -- purely a plotting/output
    bug; the actual self-consistency computation only ever reads the
    `j <= n` triangle and was never affected.
@@ -346,7 +346,7 @@ entirely practical ~2 min noted above).
 
     # or, plot the exact reference alone with the existing tooling:
     python3 ../compare_neq_delta_lesser.py gbek-atomic-limit-exact-lesser \
-        --tmax 4.0 --title "GEBK Fig. 3: exact -i Lambda^<_+ (atomic limit reference)"
+        --tmax 4.0 --title "GEBK Fig. 3: exact -i Λ^<_+ (atomic limit reference)"
 
 ## Seeding-timing investigation (2026-07-09/10)
 
@@ -475,7 +475,7 @@ precisely-measured `t*~1.2-1.3` for `Lbath=4`).
 
 **Bug 3 (conjugation swap).** `cholesky_causal`'s optimal-update step
 builds its least-squares system from previously-established `V` rows. The
-factorization this module targets is `Lambda(n,k) = sum_p V(n,p) *
+factorization this module targets is `Λ(n,k) = sum_p V(n,p) *
 conj(V(k,p))`, so those established rows need to be conjugated before use
 as the design matrix -- every call site passed them in unconjugated
 instead. Invisible on any real-valued target (every prior self-test in
