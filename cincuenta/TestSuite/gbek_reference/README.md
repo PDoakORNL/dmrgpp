@@ -529,6 +529,21 @@ Together, both fixes move the `L=2` (`Lbath=4`) agreement horizon from
 See `gbek_cholesky.py`'s and `NeqBathDecomposition.h`'s own docstrings
 for the full derivations.
 
+## Self-tests
+
+`gbek_ed.py`, `gbek_dynamics.py`, `gbek_cholesky.py`, and
+`atomic_limit_reference.py` each carry a smoke test in their own
+`if __name__ == "__main__":` block, validating against an independent
+analytic/exact result (see "Validation status" above for what each one
+checks). Nothing runs these automatically -- `./run_self_tests.sh` is the
+"run everything, fail loudly on the first problem" entry point; run it
+after changing any of these modules, or before trusting a fresh checkout.
+This is a smoke-test harness, not a full regression suite: the
+`check_*`/`cross_check_*`/`quantify_*`/`investigate_*` scripts documented
+elsewhere in this README are one-off diagnostic tools from the actual bug
+hunt, most printing a comparison for a human to read rather than
+asserting pass/fail, and are not included here.
+
 ## Regenerating plots
 
 **No `.png`, `.npz`, or `.provenance.txt` file in this directory is
