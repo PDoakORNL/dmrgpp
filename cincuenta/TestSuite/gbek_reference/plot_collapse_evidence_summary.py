@@ -49,14 +49,14 @@ def load_atomic_limit():
 
 def load_near_atomic():
     ts, re, im = read_lesser_file(NA_TOTAL)
-    delta_total = re + 1j * im
+    raw_total = re + 1j * im
     N = len(ts)
     tn = np.arange(N) * DT_NA
     tau = tn[:, None] - tn[None, :]
-    delta_minus = np.zeros((N, N), dtype=complex)
+    raw_minus = np.zeros((N, N), dtype=complex)
     for a in range(len(V_FIT)):
-        delta_minus += V_FIT[a] ** 2 * 1j * fermi(EPS_FIT[a]) * np.exp(-1j * EPS_FIT[a] * tau)
-    lam_target = -1j * (delta_total - delta_minus)
+        raw_minus += V_FIT[a] ** 2 * 1j * fermi(EPS_FIT[a]) * np.exp(-1j * EPS_FIT[a] * tau)
+    lam_target = -1j * (raw_total - raw_minus)
     _, re2, im2 = read_lesser_file(NA_CPP)
     lam_cpp = re2 + 1j * im2
     return ts, lam_target, lam_cpp
@@ -75,7 +75,7 @@ def main():
     for ax, (title, target, cpp, py) in zip(
         axes[0],
         [
-            ("Atomic limit (Delta^-===0 exactly): WORKS", target_al, cpp_al, py_al),
+            ("Atomic limit (Lambda^-===0 exactly): WORKS", target_al, cpp_al, py_al),
             ("Near-atomic (W_i=0.1 approx): COLLAPSES", target_na, cpp_na, py_na),
         ],
     ):

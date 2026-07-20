@@ -13,11 +13,11 @@ Array conventions (must match gbek_selfconsistency.py / gbek_dynamics.py
 exactly -- this is where three of the six prior Cholesky/GBEK bugs in this
 codebase came from, all sign/conjugation mistakes in exactly this kind of
 two-time bookkeeping):
-    - Lambda_less/Lambda_great are -i*Delta^{<,>}(t,t') = hop(t)*hop(t')*(-i)*
-      G^{<,>}(t,t') (see gbek_selfconsistency.py's Lambda_new construction),
-      stored lower-triangular (array[n,j] = value at (t_n,t_j), only j<=n
+    - Lambda_less/Lambda_great are hop(t)*hop(t')*(-i)*G^{<,>}(t,t') (see
+      gbek_selfconsistency.py's Lambda_new construction), stored
+      lower-triangular (array[n,j] = value at (t_n,t_j), only j<=n
       filled). This quantity is HERMITIAN: X(t,t') = conj(X(t',t)) -- the
-      extra -i flips the parity of Delta^{<,>}'s own anti-Hermitian relation
+      extra -i flips the parity of G^{<,>}'s own anti-Hermitian relation
       (see gbek_selfconsistency.py's dump_lesser() docstring).
     - G_less/G_great are G^{<,>}(t,t') themselves (compute_g_lesser's and
       compute_g_greater's direct return values, no extra prefactor), also
@@ -52,7 +52,7 @@ def _full_antihermitian(X_lower):
     """
     Same as _full_hermitian but for anti-Hermitian two-time quantities
     (X(t,t') = -conj(X(t',t))) -- the standard relation for G^{<,>} itself,
-    as opposed to Lambda = -i*Delta^{<,>} (Hermitian, see _full_hermitian).
+    as opposed to Lambda (Hermitian, see _full_hermitian).
     """
     N = X_lower.shape[0] - 1
     full = np.array(X_lower, dtype=complex, copy=True)

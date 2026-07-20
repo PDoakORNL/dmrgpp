@@ -47,13 +47,14 @@ DEFAULT_TARGET = "/Users/Shared/ornldev/code/dmrgpp/build/atomic-limit-gbek-L3-w
 
 
 def load_lambda(path):
-    """Read a *-weiss-delta-lesser dump and convert to Lambda = -i*Delta_<.
+    """Read a *-weiss-delta-lesser dump and convert to Lambda (= -i * the
+    dump's raw lesser component).
 
-    Delta^- == 0 for the true-atomic-limit runs this script targets, so
+    Lambda^- == 0 for the true-atomic-limit runs this script targets, so
     this IS Lambda_+ directly (see project_neq_atomic_limit_implementation
-    memory). If you ever point this at a target where Delta^- != 0, this
+    memory). If you ever point this at a target where Lambda^- != 0, this
     conversion is no longer valid as "Lambda_+" and the script would need
-    a Delta^- subtraction first (cf. gbek_cholesky.py's module docstring
+    a Lambda^- subtraction first (cf. gbek_cholesky.py's module docstring
     and the near-atomic W_i=0.1 analysis in project_gbek_cosine_bug).
     """
     ts, re, im = read_lesser_file(path)

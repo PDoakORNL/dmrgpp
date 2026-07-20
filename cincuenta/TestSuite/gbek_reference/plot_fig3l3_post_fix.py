@@ -38,16 +38,16 @@ def fermi(eps):
 
 def main():
     ts, re, im = read_lesser_file(WEISS_DELTA_FILE)
-    delta_total = re + 1j * im
+    raw_total = re + 1j * im
     N = len(ts)
     tn = np.arange(N) * DT
     tau = tn[:, None] - tn[None, :]
 
-    delta_minus = np.zeros((N, N), dtype=complex)
+    raw_minus = np.zeros((N, N), dtype=complex)
     for a in range(len(V_FIT)):
-        delta_minus += V_FIT[a] ** 2 * 1j * fermi(EPS_FIT[a]) * np.exp(-1j * EPS_FIT[a] * tau)
+        raw_minus += V_FIT[a] ** 2 * 1j * fermi(EPS_FIT[a]) * np.exp(-1j * EPS_FIT[a] * tau)
 
-    lam_target = -1j * (delta_total - delta_minus)
+    lam_target = -1j * (raw_total - raw_minus)
     V_py = cholesky_causal(lam_target, L=3)
     recon_py = reconstruct(V_py)
 
@@ -56,7 +56,7 @@ def main():
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
     panels = [
-        ("Target -i*Delta^+_< (near-atomic, W_i=0.1)", lam_target),
+        ("Target -i*Lambda^+_< (near-atomic, W_i=0.1)", lam_target),
         ("Python rank-3 cholesky_causal reconstruction", recon_py),
         ("cincuenta C++ recon (post conjugate-bug fix)", lam_cpp),
     ]

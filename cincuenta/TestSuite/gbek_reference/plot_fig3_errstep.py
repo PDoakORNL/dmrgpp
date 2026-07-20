@@ -7,10 +7,10 @@ ranks (L=2, L=3).
 
 IMPORTANT convention note: this reads the target with `re + 1j*im` directly
 (no extra -1j factor), because gbek_selfconsistency.py::dump_lesser already
-writes Lambda = -i*Delta^<_+ itself. This is a DIFFERENT convention from
+writes Lambda^<_+ itself. This is a DIFFERENT convention from
 plot_errstep.py's load_lambda(), which is designed for cincuenta's raw
-*-weiss-delta-lesser C++ dumps (Delta^< itself, needing an extra -i to
-become Lambda) -- using that loader on a gbek_selfconsistency.py dump
+*-weiss-delta-lesser C++ dumps (the raw lesser component, needing an extra
+-i to become Lambda) -- using that loader on a gbek_selfconsistency.py dump
 silently rotates every value by an erroneous extra factor of -i, which
 looks like nonsense (e.g. two different ranks appearing to give identical,
 wrong reconstructions) rather than raising an error. Do not swap loaders
@@ -37,7 +37,7 @@ DEFAULT_TARGET = "gbek-atomic-limit-exact-lesser"
 
 def load_self_consistency_lambda(path):
     """Read a gbek_selfconsistency.py::dump_lesser output directly as
-    Lambda = -i*Delta^<_+ -- NO extra -1j (see module docstring)."""
+    Lambda^<_+ -- NO extra -1j (see module docstring)."""
     ts, re, im = read_lesser_file(path)
     return ts, re + 1j * im
 
