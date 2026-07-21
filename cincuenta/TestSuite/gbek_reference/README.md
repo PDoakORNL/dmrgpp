@@ -234,6 +234,9 @@ Group A (`fig7_docc.png`, `fig8_docc.png`) is pure Python:
 `investigate_L4_tmax4.py`, then `plot_docc_scan.py --figure 7 --L 2,4` /
 `--figure 8`.
 
+!!!! Nothing below here will work until the follow cincuenta GBEK PR
+lands !!!!
+
 Group B depends on actual `cincuenta` C++ dumps existing in `build/`
 first: `inputNeqAtomicLimitGBEKL3.ain` produces the
 `build/atomic-limit-gbek-L3-*` files used by `plot_atomic_limit_2d.py`,
