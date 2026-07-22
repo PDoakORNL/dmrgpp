@@ -13,6 +13,15 @@ rank-L Cholesky second-bath approximation (`NeqBathDecomposition.h`,
 `ImpuritySolverNeqGBEK.h`, elsewhere in the `cincuenta` C++ tree) is
 validated.
 
+**Full report and all figures**: this directory can regenerate every plot
+used to validate this effort, plus a full LaTeX report reproducing the
+paper's own Figs. 3, 4, 7-10 alongside ours, with one command:
+
+    ./regenerate_plots.sh --group-a --group-b --report
+
+See "Building the LaTeX report" and "Regenerating plots" below for details
+and prerequisites.
+
 ## Why this exists
 
 Getting an "exact" self-consistent Weiss field equivalent to the one used in
