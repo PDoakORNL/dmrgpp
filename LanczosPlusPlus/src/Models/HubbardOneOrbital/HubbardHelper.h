@@ -1,9 +1,9 @@
 #ifndef HUBBARDHELPER_H
 #define HUBBARDHELPER_H
-#include "CrsMatrix.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
-#include "Parallelizer2.h"
-#include "SparseRow.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Parallelizer2.h>
+#include <PsimagLite/SparseRow.h>
 
 namespace LanczosPlusPlus {
 

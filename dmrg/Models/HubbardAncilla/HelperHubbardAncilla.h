@@ -2,7 +2,7 @@
 #define HELPERHUBBARDANCILLA_H
 
 #include "../FeAsModel/HilbertSpaceFeAs.h"
-#include "Matrix.h"
+#include <PsimagLite/Matrix.h>
 
 namespace Dmrg {
 

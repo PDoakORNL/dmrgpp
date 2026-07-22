@@ -79,14 +79,14 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef DMRG_FERMION_SPINLESS
 #define DMRG_FERMION_SPINLESS
-#include "CrsMatrix.h"
 #include "HilbertSpaceFermionSpinless.h"
 #include "ParametersFermionSpinless.h"
 #include "ProgramGlobals.h"
-#include "Sort.h" // in PsimagLite
 #include "SpinSquared.h"
 #include "SpinSquaredHelper.h"
 #include "VerySparseMatrix.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Sort.h> // in PsimagLite
 #include <cassert>
 
 namespace Dmrg {

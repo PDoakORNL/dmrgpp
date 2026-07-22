@@ -78,7 +78,6 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef DMRG_OBSERVE_H
 #define DMRG_OBSERVE_H
-#include "Concurrency.h"
 #include "CorrelationsSkeleton.h"
 #include "FourPointCorrelations.h"
 #include "ManyPointAction.h"
@@ -86,12 +85,13 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "ObserverHelper.h"
 #include "OnePointCorrelations.h"
 #include "Parallel4PointDs.h"
-#include "Parallelizer.h"
-#include "PredicateAwesome.h"
 #include "TwoPointCorrelations.h"
 #include "Utils.h"
 #include "VectorWithOffset.h" // for operator*
 #include "VectorWithOffsets.h" // for operator*
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Parallelizer.h>
+#include <PsimagLite/PredicateAwesome.h>
 
 namespace Dmrg {
 

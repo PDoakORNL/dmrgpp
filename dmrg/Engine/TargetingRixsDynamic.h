@@ -89,14 +89,14 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define TARGETING_RIXS_DYNAMIC_H
 
 #include "CorrectionVectorSkeleton.h"
-#include "FreqEnum.h"
 #include "ParallelTriDiag.h"
-#include "ParametersForSolver.h"
-#include "ProgressIndicator.h"
 #include "TargetParamsCorrectionVector.h"
 #include "TargetParamsTimeStep.h"
 #include "TargetingBase.h"
 #include "VectorWithOffsets.h"
+#include <PsimagLite/FreqEnum.h>
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/ProgressIndicator.h>
 
 namespace Dmrg {
 

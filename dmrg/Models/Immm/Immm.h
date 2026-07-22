@@ -73,7 +73,6 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #ifndef IMMM_HEADER_H
 #define IMMM_HEADER_H
-#include "CrsMatrix.h"
 #include "HilbertSpaceImmm.h"
 #include "ModelBase.h"
 #include "ParametersImmm.h"
@@ -81,6 +80,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "SpinSquared.h"
 #include "SpinSquaredHelper.h"
 #include "VerySparseMatrix.h"
+#include <PsimagLite/CrsMatrix.h>
 #include <cassert>
 
 namespace Dmrg {

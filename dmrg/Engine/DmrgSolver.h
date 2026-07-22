@@ -80,7 +80,6 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef SOLVER_DMRG_HEADER_H
 #define SOLVER_DMRG_HEADER_H
 
-#include "ApplicationInfo.h"
 #include "BasisTraits.hh"
 #include "Diagonalization.h"
 #include "DmrgSerializer.h"
@@ -89,12 +88,13 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "OutputFileOrNot.h"
 #include "ParametersDmrgSolver.h"
 #include "PrinterInDetail.h"
-#include "ProgressIndicator.h"
-#include "PsiBase64.h"
 #include "Recovery.h"
 #include "TargetSelector.h"
 #include "TargetingBase.h"
 #include "Truncation.h"
+#include <PsimagLite/ApplicationInfo.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/PsiBase64.h>
 
 namespace Dmrg {
 

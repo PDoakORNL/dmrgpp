@@ -83,18 +83,18 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "ApplyOperatorExpression.h"
 #include "Braket.h"
 #include "Checkpoint.h"
-#include "ContinuedFraction.h"
-#include "GetBraOrKet.h"
-#include "Io/IoSelector.h"
 #include "MultiPointInSitu.h"
 #include "OneSiteSpaces.hh"
-#include "ProgressIndicator.h"
-#include "PsimagLite.h"
 #include "RestartStruct.h"
 #include "SdhsReinterpret.h"
 #include "TargetParamsDynamic.h"
 #include "TimeSerializer.h"
 #include "VectorWithOffsets.h"
+#include <PsimagLite/ContinuedFraction.h>
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/Io/IoSelector.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/PsimagLite.h>
 #include <cassert>
 
 namespace Dmrg {

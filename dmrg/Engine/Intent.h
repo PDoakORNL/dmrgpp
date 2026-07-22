@@ -1,7 +1,7 @@
 #ifndef INTENT_H
 #define INTENT_H
-#include "AnsiColors.h"
-#include "InputNg.h"
+#include <PsimagLite/AnsiColors.h>
+#include <PsimagLite/InputNg.h>
 
 namespace Dmrg {
 

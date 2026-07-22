@@ -81,7 +81,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef PARAMETERS_KITAEV_H
 #define PARAMETERS_KITAEV_H
 #include "ParametersModelBase.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 //! Kitaev Model Parameters

@@ -1,9 +1,9 @@
 #ifndef LANCZOSDRIVER_1_H
 #define LANCZOSDRIVER_1_H
-#include "Io/IoSimple.h"
 #include "LabeledOperator.h"
 #include "LanczosDriver.h"
 #include "LanczosGlobals.h"
+#include <PsimagLite/Io/IoSimple.h>
 
 template <typename ModelType> SizeType maxOrbitals(const ModelType& model)
 {

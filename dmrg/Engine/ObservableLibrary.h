@@ -79,12 +79,12 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define OBSERVABLE_LIBRARY_H
 
 #include "ApplyOperatorLocal.h"
-#include "Concurrency.h"
-#include "GetBraOrKet.h"
-#include "Matrix.h" // in PsimagLite
 #include "ProgramGlobals.h"
 #include "StringOrderPost.h"
-#include "Vector.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/Matrix.h> // in PsimagLite
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

@@ -1,5 +1,5 @@
 #include "ObserveDriver.h"
-#include "RedirectOutput.hh"
+#include <PsimagLite/RedirectOutput.hh>
 
 using namespace Dmrg;
 

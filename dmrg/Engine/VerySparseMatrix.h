@@ -81,8 +81,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef VERY_SPARSE_MATRIX_HEADER_H
 #define VERY_SPARSE_MATRIX_HEADER_H
 
-#include "CrsMatrix.h"
-#include "Sort.h" // in PsimagLite
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Sort.h> // in PsimagLite
 
 namespace Dmrg {
 // Yet another sparse matrix class

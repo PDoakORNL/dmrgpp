@@ -79,10 +79,10 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef TIME_SERIAL_H
 #define TIME_SERIAL_H
 
-#include "Io/IoSelector.h"
 #include "StageEnum.h"
-#include "TypeToString.h"
-#include "Vector.h"
+#include <PsimagLite/Io/IoSelector.h>
+#include <PsimagLite/TypeToString.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

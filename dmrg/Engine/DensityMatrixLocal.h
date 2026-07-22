@@ -72,14 +72,14 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DENSITY_MATRIX_LOCAL_H
 #define DENSITY_MATRIX_LOCAL_H
 #include "BlockDiagonalMatrix.h"
-#include "Concurrency.h"
 #include "DensityMatrixBase.h"
 #include "DiagBlockDiagMatrix.h"
-#include "NoPthreads.h"
 #include "ParallelDensityMatrix.h"
-#include "Parallelizer.h"
-#include "ProgressIndicator.h"
-#include "TypeToString.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/NoPthreads.h>
+#include <PsimagLite/Parallelizer.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/TypeToString.h>
 
 namespace Dmrg {
 

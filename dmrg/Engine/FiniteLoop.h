@@ -1,11 +1,11 @@
 #ifndef DMRG_FINITELOOP_H
 #define DMRG_FINITELOOP_H
 
-#include "Io/IoSerializerStub.h"
 #include "ProgramGlobals.h"
-#include "PsimagLite.h"
 #include "TruncationControl.h"
-#include "Vector.h"
+#include <PsimagLite/Io/IoSerializerStub.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 #include <iostream>
 #include <map>
 

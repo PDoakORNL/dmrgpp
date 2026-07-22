@@ -70,14 +70,14 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #ifndef DENSITY_MATRIX_SVD_H
 #define DENSITY_MATRIX_SVD_H
-#include "Concurrency.h"
 #include "DensityMatrixBase.h"
 #include "MatrixVectorKron/GenIjPatch.h"
-#include "NoPthreads.h"
 #include "PersistentSvd.h"
-#include "Profiling.h"
-#include "Svd.h"
-#include "TypeToString.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/NoPthreads.h>
+#include <PsimagLite/Profiling.h>
+#include <PsimagLite/Svd.h>
+#include <PsimagLite/TypeToString.h>
 
 namespace Dmrg {
 

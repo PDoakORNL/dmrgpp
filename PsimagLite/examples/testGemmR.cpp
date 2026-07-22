@@ -1,5 +1,6 @@
-#include "GemmR.h"
-#include "Matrix.h"
+#include <PsimagLite/GemmR.h>
+#include <PsimagLite/Matrix.h>
+
 #include <iostream>
 
 typedef std::complex<double> zcomplex;

@@ -71,21 +71,21 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_TARGETING_METTS_H
 #define DMRG_TARGETING_METTS_H
 #include "ApplyOperatorLocal.h"
-#include "CrsMatrix.h"
-#include "Io/IoSelector.h"
 #include "MettsCollapse.h"
 #include "MettsParams.h"
 #include "MettsSerializer.h"
 #include "MettsStochastics.h"
-#include "ParametersForSolver.h"
-#include "PredicateAwesome.h"
-#include "ProgressIndicator.h"
-#include "RandomForTests.h"
 #include "TargetingBase.h"
 #include "TimeVectorsKrylov.h"
 #include "TimeVectorsRungeKutta.h"
 #include "TimeVectorsSuzukiTrotter.h"
 #include "VectorWithOffset.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Io/IoSelector.h>
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/PredicateAwesome.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/RandomForTests.h>
 #include <cassert>
 #include <iostream>
 

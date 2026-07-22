@@ -1,6 +1,6 @@
 #ifndef DENSITYOFSTATES_H
 #define DENSITYOFSTATES_H
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmft {
 

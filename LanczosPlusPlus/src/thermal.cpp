@@ -1,6 +1,6 @@
 #include "Engine/OneSector.h"
-#include "Io/IoSimple.h"
-#include "PsimagLite.h"
+#include <PsimagLite/Io/IoSimple.h>
+#include <PsimagLite/PsimagLite.h>
 
 typedef double                                          RealType;
 typedef PsimagLite::IoSimple::In                        InputType;

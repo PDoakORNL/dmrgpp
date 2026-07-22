@@ -1,6 +1,6 @@
-#include "ApplicationInfo.h"
-#include "BitManip.h"
-#include "Concurrency.h"
+#include <PsimagLite/ApplicationInfo.h>
+#include <PsimagLite/BitManip.h>
+#include <PsimagLite/Concurrency.h>
 #include <cstdlib>
 #include <iostream>
 

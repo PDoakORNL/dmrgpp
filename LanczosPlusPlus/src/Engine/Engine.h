@@ -20,18 +20,18 @@ Please see full open source license included in file LICENSE.
 
 #ifndef ENGINE_H_
 #define ENGINE_H_
-#include "BLAS.h"
-#include "ContinuedFractionCollection.h"
 #include "DefaultSymmetry.h"
-#include "GetBraOrKet.h"
 #include "LabeledOperator.h"
 #include "LanczosGlobals.h"
-#include "LanczosSolver.h"
-#include "OneOperatorSpec.h"
-#include "ParametersForSolver.h"
-#include "ProgressIndicator.h"
-#include "Random48.h"
-#include "TypeToString.h"
+#include <PsimagLite/BLAS.h>
+#include <PsimagLite/ContinuedFractionCollection.h>
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/LanczosSolver.h>
+#include <PsimagLite/OneOperatorSpec.h>
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Random48.h>
+#include <PsimagLite/TypeToString.h>
 #include <iostream>
 
 namespace LanczosPlusPlus {

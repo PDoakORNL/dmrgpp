@@ -80,12 +80,13 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef PSI_IO_NG_H
 #define PSI_IO_NG_H
 
-#include "AllocatorCpu.h"
-#include "IoNgSerializer.h"
-#include "Map.h"
-#include "Matrix.h"
-#include "Stack.h"
-#include "Vector.h"
+#include "PsimagLite/AllocatorCpu.h"
+#include "PsimagLite/Io/IoNgSerializer.h"
+#include "PsimagLite/Map.h"
+#include "PsimagLite/Matrix.h"
+#include "PsimagLite/Stack.h"
+#include "PsimagLite/Vector.h"
+
 #include <H5Cpp.h>
 #include <iostream>
 #include <typeinfo>

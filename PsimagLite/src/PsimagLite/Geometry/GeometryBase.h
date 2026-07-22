@@ -2,7 +2,7 @@
 Copyright (c) 2009-2013, UT-Battelle, LLC
 All rights reserved
 
-[PsimagLite, Version 2.]
+[PsimagLite, Version 1.0.0]
 [by G.A., Oak Ridge National Laboratory]
 
 UT Battelle Open Source Software License 11242008
@@ -71,57 +71,96 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 /** \ingroup PsimagLite */
 /*@{*/
 
-/*! \file MpiNo.h
+/*! \file GeometryBase.h
  *
- * Do NOT include this file directly, use Mpi.h instead
+ *  Well, I need to read that chapter in
+ *  Alexandrescu's "Modern C++ design" again to have
+ *  a decent factory here, but this will have to do for now
  *
  */
-#ifndef MPINO_HEADER_H
-#define MPINO_HEADER_H
-#include "../loki/TypeTraits.h"
-#include "Vector.h"
-#include <algorithm>
-#include <stdexcept>
+#ifndef GEOMETRY_BASE_H
+#define GEOMETRY_BASE_H
+
+#include <PsimagLite/InputNg.h>
 
 namespace PsimagLite {
 
-namespace MPI {
+template <typename ComplexOrRealType, typename InputType> class GeometryBase {
 
-	using CommType = int;
-	extern int COMM_WORLD;
-	extern int SUM;
+	using PairType   = std::pair<SizeType, SizeType>;
+	using MatrixType = Matrix<ComplexOrRealType>;
 
-	void init(int*, char***);
+public:
 
-	void finalize();
+	virtual ~GeometryBase() { }
 
-	bool hasMpi();
+	template <class Archive> void write(Archive&, const unsigned int) { }
 
-	void info(std::ostream&);
+	virtual SizeType dirs() const = 0;
 
-	void version(std::ostream&);
+	virtual SizeType handle(SizeType i, SizeType j) const = 0;
 
-	SizeType commSize(CommType);
+	virtual SizeType getVectorSize(SizeType dirId) const = 0;
 
-	SizeType commRank(CommType);
+	virtual bool connected(SizeType i1, SizeType i2) const = 0;
 
-	int barrier(CommType);
+	virtual SizeType calcDir(SizeType i1, SizeType i2) const = 0;
 
-	template <typename T> void bcast(T&, int = 0, CommType = COMM_WORLD) { }
+	virtual bool fringe(SizeType i, SizeType smax, SizeType emin) const = 0;
 
-	template <typename T> void recv(T&, int, int, CommType = COMM_WORLD) { }
+	virtual SizeType getSubstituteSite(SizeType smax, SizeType emin, SizeType siteNew2) const
+	    = 0;
 
-	template <typename T> void send(T&, int, int, CommType = COMM_WORLD) { }
+	virtual String label() const = 0;
 
-	template <typename T> void pointByPointGather(T&, int = 0, CommType = COMM_WORLD) { }
+	virtual SizeType length(SizeType i) const = 0;
 
-	template <typename T> void reduce(T&, int = 0, int = 0, int = 0) { }
+	virtual SizeType translate(SizeType site, SizeType dir, SizeType amount) const = 0;
 
-	template <typename T> void allReduce(T&) { }
+	virtual SizeType maxConnections() const = 0;
 
-} // namespace MPI
+	virtual SizeType findReflection(SizeType site) const = 0;
 
+	virtual void set(MatrixType&, SizeType) const
+	{
+		throw RuntimeError("GeometryBase::set() unimplemented for derived class\n");
+	}
+
+	virtual int index(SizeType i1, SizeType edof1, SizeType edofTotal) const
+	{
+		assert(edof1 < edofTotal);
+		return edof1 + i1 * edofTotal;
+	}
+
+	virtual SizeType matrixRank(SizeType linSize, SizeType maxEdof) const
+	{
+		return linSize * maxEdof;
+	}
+
+	virtual int signChange(SizeType, SizeType) const { return 1; }
+
+	virtual SizeType orbitals(SizeType orbs, SizeType) const { return orbs; }
+
+protected:
+
+	SizeType unimplemented(const String& str) const
+	{
+		String str2 = "unimplemented " + str + "\n";
+		throw RuntimeError(str2);
+	}
+
+	bool neighbors(SizeType i1, SizeType i2, bool periodic, SizeType period) const
+	{
+		SizeType imin = (i1 < i2) ? i1 : i2;
+		SizeType imax = (i1 > i2) ? i1 : i2;
+		bool     b    = (imax - imin == 1);
+		if (!periodic)
+			return b;
+		bool b2 = (imax - imin == period);
+		return (b || b2);
+	}
+}; // class GeometryBase
 } // namespace PsimagLite
 
 /*@}*/
-#endif
+#endif // GEOMETRY_BASE_H

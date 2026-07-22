@@ -81,7 +81,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef GEN_IJ_PATCH_HEADER_H
 #define GEN_IJ_PATCH_HEADER_H
 
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 #include <cassert>
 
 namespace Dmrg {

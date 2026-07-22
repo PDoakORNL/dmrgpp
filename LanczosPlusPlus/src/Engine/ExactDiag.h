@@ -1,9 +1,9 @@
 #ifndef EXACTDIAG_H
 #define EXACTDIAG_H
 #include "InputCheck.h"
-#include "InputNg.h"
-#include "Matrix.h"
-#include "Vector.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Vector.h>
 
 namespace LanczosPlusPlus {
 

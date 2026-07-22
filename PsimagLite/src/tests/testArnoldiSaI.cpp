@@ -1,7 +1,7 @@
-#include "ArnoldiSaI.hh"
-#include "CrsMatrix.h"
-#include "Matrix.h"
-#include "PsimagLite.h"
+#include <PsimagLite/ArnoldiSaI.hh>
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/PsimagLite.h>
 #include <cassert>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>

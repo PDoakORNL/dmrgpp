@@ -79,7 +79,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define TargetQuantumElectrons_H
 #include "AlgebraicStringToNumber.h"
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 //! Hubbard Model Parameters

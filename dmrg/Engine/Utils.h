@@ -71,8 +71,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef UTILS_HEADER_H
 #define UTILS_HEADER_H
 
-#include "CrsMatrix.h"
-#include "Vector.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Vector.h>
 
 namespace std {
 

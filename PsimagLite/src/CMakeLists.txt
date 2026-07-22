@@ -1,38 +1,49 @@
 # Add -Wextra in the future
 add_library(
   psimaglite
-  MersenneTwister.cpp
-  Matrix.cpp
-  Mpi.cpp
-  Concurrency.cpp
-  ProgressIndicator.cpp
-  MemResolv.cpp
-  PsimagLite.cpp
-  PsiBase64.cpp
-  SpecialFunctions.cpp
-  Io/TypeToH5.cpp
-  TridiagonalMatrix.cpp
-  PredicateSimple.cpp
-  Ainur/AinurSpirit.cpp
-  Ainur/AinurConvert.cpp)
+  PsimagLite/MersenneTwister.cpp
+  PsimagLite/Matrix.cpp
+  PsimagLite/Mpi.cpp
+  PsimagLite/Concurrency.cpp
+  PsimagLite/ProgressIndicator.cpp
+  PsimagLite/MemResolv.cpp
+  PsimagLite/PsimagLite.cpp
+  PsimagLite/PsiBase64.cpp
+  PsimagLite/SpecialFunctions.cpp
+  PsimagLite/Io/TypeToH5.cpp
+  PsimagLite/TridiagonalMatrix.cpp
+  PsimagLite/PredicateSimple.cpp
+  PsimagLite/Ainur/AinurSpirit.cpp
+  PsimagLite/Ainur/AinurConvert.cpp)
 
-# If Kokkos support is enabled, compile in the Kokkos-based GEMM wrapper
-option(PSIMAGLITE_USE_KOKKOS "Enable Kokkos support" OFF)
-if(PSIMAGLITE_USE_KOKKOS)
-  find_package(KokkosKernels 5.1 REQUIRED)
-  target_link_libraries(psimaglite PUBLIC Kokkos::kokkoskernels Kokkos::kokkos)
-  target_sources(psimaglite PRIVATE kokkos_gemm.cpp)
-endif()
+# Ensure Kokkos and KokkosKernels are available
+include(FetchContent)
+list(APPEND CMAKE_MESSAGE_INDENT "[Kokkos] ")
+FetchContent_Declare(
+  Kokkos
+  GIT_REPOSITORY https://github.com/kokkos/kokkos
+  GIT_TAG 5.1.1
+  SYSTEM FIND_PACKAGE_ARGS 5.1 NAMES Kokkos)
+FetchContent_MakeAvailable(Kokkos)
+list(POP_BACK CMAKE_MESSAGE_INDENT)
+
+list(APPEND CMAKE_MESSAGE_INDENT "[KokkosKernels] ")
+FetchContent_Declare(
+  KokkosKernels
+  GIT_REPOSITORY https://github.com/kokkos/kokkos-kernels
+  GIT_TAG 5.1.1
+  SYSTEM FIND_PACKAGE_ARGS 5.1 NAMES KokkosKernels)
+FetchContent_MakeAvailable(KokkosKernels)
+list(POP_BACK CMAKE_MESSAGE_INDENT)
+
+target_link_libraries(psimaglite PUBLIC Kokkos::kokkoskernels Kokkos::kokkos)
+target_sources(psimaglite PRIVATE PsimagLite/kokkos_gemm.cpp)
+
 target_include_directories(psimaglite PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/Io
                                              ${CMAKE_CURRENT_SOURCE_DIR}/Ainur)
 
 target_compile_features(psimaglite PUBLIC cxx_std_17)
 target_link_libraries(psimaglite PUBLIC loki)
-
-# Generate configuration header for PsimagLite
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/PsimagLiteConfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/PsimagLiteConfig.h @ONLY)
-# Ensure consumers can include generated header
-target_include_directories(psimaglite PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(psimaglite::psimaglite ALIAS psimaglite)
 
@@ -78,13 +89,13 @@ endif()
 if(BUILD_TESTING)
   add_subdirectory(tests)
 
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Ainur/function.txt ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-  add_executable(Ainur_Test1 Ainur/test.cpp)
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/PsimagLite/Ainur/function.txt ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+  add_executable(Ainur_Test1 PsimagLite/Ainur/test.cpp)
   target_link_libraries(Ainur_Test1 psimaglite::psimaglite)
-  add_test(NAME Ainur_Test1 COMMAND Ainur_Test1 ${CMAKE_CURRENT_SOURCE_DIR}/Ainur/prelude.ain
-                                    ${CMAKE_CURRENT_SOURCE_DIR}/Ainur/input0.ain)
+  add_test(NAME Ainur_Test1 COMMAND Ainur_Test1 ${CMAKE_CURRENT_SOURCE_DIR}/PsimagLite/Ainur/prelude.ain
+                                    ${CMAKE_CURRENT_SOURCE_DIR}/PsimagLite/Ainur/input0.ain)
 
-  add_executable(Ainur_Test2 Ainur/testReal.cpp)
+  add_executable(Ainur_Test2 PsimagLite/Ainur/testReal.cpp)
   target_link_libraries(Ainur_Test2 psimaglite::psimaglite)
-  add_test(NAME Ainur_Test2 COMMAND Ainur_Test2 ${CMAKE_CURRENT_SOURCE_DIR}/Ainur/input1.ain)
+  add_test(NAME Ainur_Test2 COMMAND Ainur_Test2 ${CMAKE_CURRENT_SOURCE_DIR}/PsimagLite/Ainur/input1.ain)
 endif()

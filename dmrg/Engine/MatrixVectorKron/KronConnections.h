@@ -82,10 +82,10 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define KRON_CONNECTIONS_H
 
 #include "../KronUtil/MatrixDenseOrSparse.h"
-#include "Concurrency.h"
-#include "GemmR.h"
 #include "KronLogger.hh"
-#include "Matrix.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/GemmR.h>
+#include <PsimagLite/Matrix.h>
 
 namespace Dmrg {
 

@@ -1,7 +1,7 @@
 #ifndef STRINGORDERPOST_H
 #define STRINGORDERPOST_H
 #include "Braket.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

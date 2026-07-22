@@ -79,7 +79,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef LANCZOS_PARAMS_MODELFEAS_H
 #define LANCZOS_PARAMS_MODELFEAS_H
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 
 namespace LanczosPlusPlus {
 //! FeAs Model Parameters

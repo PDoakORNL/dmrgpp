@@ -1,12 +1,12 @@
 #ifndef SPECFORTARGETINGEXPRESSION_H
 #define SPECFORTARGETINGEXPRESSION_H
 #include "AlgebraForTargetingExpression.h"
-#include "CanonicalExpression.h"
-#include "GetBraOrKet.h"
-#include "OneOperatorSpec.h"
-#include "PackIndices.h"
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/CanonicalExpression.h>
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/OneOperatorSpec.h>
+#include <PsimagLite/PackIndices.h>
+#include <PsimagLite/Vector.h>
 #include <numeric>
 
 namespace Dmrg {

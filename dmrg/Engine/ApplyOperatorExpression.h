@@ -73,16 +73,16 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #include "ApplyOperatorLocal.h"
 #include "CorrelationsSkeleton.h"
-#include "Io/IoSelector.h"
 #include "LastKrylovSlots.h"
 #include "MultiSiteExpressionHelper.h"
-#include "ProgressIndicator.h"
 #include "StageEnum.h"
 #include "TargetParamsBase.h"
 #include "TimeVectorsChebyshev.h"
 #include "TimeVectorsKrylov.h"
 #include "TimeVectorsRungeKutta.h"
 #include "TimeVectorsSuzukiTrotter.h"
+#include <PsimagLite/Io/IoSelector.h>
+#include <PsimagLite/ProgressIndicator.h>
 
 namespace Dmrg {
 

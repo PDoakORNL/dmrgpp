@@ -1,9 +1,10 @@
 #ifndef KRON_UTIL_HEADER_H
 #define KRON_UTIL_HEADER_H
-#include "CrsMatrix.h"
-#include "GemmR.h"
-#include "Matrix.h"
-#include "Vector.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/GemmR.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Vector.h>
+
 #include <complex>
 
 template <typename ComplexOrRealType>

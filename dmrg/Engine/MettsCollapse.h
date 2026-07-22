@@ -80,10 +80,10 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #ifndef METTS_COLLAPSE_H
 #define METTS_COLLAPSE_H
-#include "Matrix.h"
-#include "PackIndices.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/PackIndices.h>
+#include <PsimagLite/ProgressIndicator.h>
 #include <cassert>
 #include <iostream>
 #include <vector>

@@ -22,7 +22,7 @@ Please see full open source license included in file LICENSE.
 #define LANCZOS_BASIS_BASE_H
 #include "LabeledOperator.h"
 #include "LanczosGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace LanczosPlusPlus {
 

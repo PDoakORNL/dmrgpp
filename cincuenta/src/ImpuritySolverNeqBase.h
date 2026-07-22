@@ -1,11 +1,11 @@
 #ifndef IMPURITYSOLVER_NEQ_BASE_H
 #define IMPURITYSOLVER_NEQ_BASE_H
 #include "CincuentaInputCheck.h"
-#include "InputNg.h"
 #include "KadanoffBaym.h"
-#include "Matsubaras.h"
 #include "ModelParams.h"
-#include "Vector.h"
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/Matsubaras.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmft {
 

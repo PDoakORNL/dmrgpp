@@ -4,9 +4,9 @@
  */
 #ifndef CINCUENTA_INPUT_CHECK_H
 #define CINCUENTA_INPUT_CHECK_H
-#include "../../PsimagLite/src/Options.h"
-#include "Geometry/Geometry.h"
 #include "InputCheck.h"
+#include <PsimagLite/Geometry/Geometry.h>
+#include <PsimagLite/Options.h>
 #include <stdexcept>
 #include <vector>
 // #include "ProgramGlobals.h"
@@ -62,6 +62,7 @@ public:
 		str += "integer NtNeq;\n";
 		str += "integer NeqDmftIter;\n";
 		str += "real NeqDmftTolerance;\n";
+		str += "string NeqSolver;\n"; // "tdmrg" to select ImpuritySolverNeqTdmrg
 		str += "real BandwidthFinal;\n"; // W_f for hopping quench; default 0 = no quench
 		str += "string NeqOutputPrefix;\n"; // prefix for output Green's function files
 

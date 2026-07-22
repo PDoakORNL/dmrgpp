@@ -80,8 +80,6 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_KITAEV_H
 #define DMRG_KITAEV_H
 
-#include "Complex.h"
-#include "CrsMatrix.h"
 #include "ModelBase.h"
 #include "ParametersKitaev.h"
 #include "ProgramGlobals.h"
@@ -89,6 +87,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "SpinSquaredHelper.h"
 #include "Utils.h"
 #include "VerySparseMatrix.h"
+#include <PsimagLite/Complex.h>
+#include <PsimagLite/CrsMatrix.h>
 #include <algorithm>
 
 namespace Dmrg {

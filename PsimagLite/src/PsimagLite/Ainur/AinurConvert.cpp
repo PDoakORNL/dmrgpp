@@ -1,8 +1,8 @@
 #include "AinurConvert.hh"
-#include "AST/ExpressionForAST.h"
-#include "AST/PlusMinusMultiplyDivide.h"
 #include "AinurComplex.hh"
 #include "AinurDoubleOrFloat.h"
+#include "PsimagLite/AST/ExpressionForAST.h"
+#include "PsimagLite/AST/PlusMinusMultiplyDivide.h"
 #include <boost/config/warning_disable.hpp>
 #include <boost/phoenix/core.hpp>
 #include <boost/phoenix/operator.hpp>

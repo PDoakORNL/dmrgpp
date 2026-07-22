@@ -2,8 +2,8 @@
 #define MODEL_LINKS_H
 #include "OneLink.hh"
 #include "ProgramGlobals.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 #include <map>
 
 namespace Dmrg {

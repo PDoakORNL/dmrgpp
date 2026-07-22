@@ -2,7 +2,7 @@
 #define OPSFORLINK_HH
 #include "Link.h"
 #include "OperatorsCached.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

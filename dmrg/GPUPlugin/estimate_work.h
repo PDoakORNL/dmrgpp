@@ -1,7 +1,7 @@
 #ifndef ESTIMATE_WORK_H
 #define ESTIMATE_WORK_H
 
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 typedef PsimagLite::Vector<SizeType>::Type VectorSizeType;
 

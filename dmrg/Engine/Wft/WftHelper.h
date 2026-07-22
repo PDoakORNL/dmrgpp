@@ -1,7 +1,7 @@
 #ifndef WFTHELPER_H
 #define WFTHELPER_H
 #include "OneSiteSpaces.hh"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

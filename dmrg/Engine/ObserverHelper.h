@@ -79,14 +79,14 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef PRECOMPUTED_H
 #define PRECOMPUTED_H
 #include "DmrgSerializer.h"
-#include "GetBraOrKet.h"
-#include "Io/HDF5DisableExceptionPrinting.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
-#include "SparseVector.h"
 #include "TimeSerializer.h"
 #include "VectorWithOffset.h" // to include norm
 #include "VectorWithOffsets.h" // to include norm
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/Io/HDF5DisableExceptionPrinting.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/SparseVector.h>
 
 #include <memory>
 

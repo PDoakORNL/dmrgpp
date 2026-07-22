@@ -2,7 +2,7 @@
 #define PROCOMEGAS_H
 #include "OmegaParams.h"
 #include "OmegasFourier.h"
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 
 /* Limitations and Missing Features
  *

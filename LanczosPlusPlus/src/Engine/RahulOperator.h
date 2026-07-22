@@ -1,6 +1,6 @@
 #ifndef RAHULOPERATOR_H
 #define RAHULOPERATOR_H
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace LanczosPlusPlus {
 

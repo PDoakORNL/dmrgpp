@@ -80,7 +80,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 
 #include "GeometryEx.h"
 #include "GeometryTerm.h"
-#include "Io/IoSerializerStub.h"
+#include <PsimagLite/Io/IoSerializerStub.h>
 
 namespace PsimagLite {
 

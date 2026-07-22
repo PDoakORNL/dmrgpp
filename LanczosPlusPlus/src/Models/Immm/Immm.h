@@ -22,7 +22,7 @@ Please see full open source license included in file LICENSE.
 #include "BasisImmm.h"
 #include "LanczosModelBase.hpp"
 #include "ParametersImmm.h"
-#include "SparseRowCached.h"
+#include <PsimagLite/SparseRowCached.h>
 
 namespace LanczosPlusPlus {
 

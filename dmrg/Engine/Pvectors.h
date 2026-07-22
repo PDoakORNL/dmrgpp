@@ -1,10 +1,10 @@
 #ifndef PVECTORS_H
 #define PVECTORS_H
-#include "GetBraOrKet.h"
 #include "InputCheck.h"
-#include "InputNg.h"
 #include "Pvector.h"
 #include "TargetParamsTimeVectors.h"
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/InputNg.h>
 
 namespace Dmrg {
 

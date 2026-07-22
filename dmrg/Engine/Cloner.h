@@ -83,7 +83,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define CLONER_HEADER_H
 
 #include "String.h"
-#include "TypeToString.h"
+#include <PsimagLite/TypeToString.h>
 #include <fstream>
 #include <iostream>
 #include <vector>

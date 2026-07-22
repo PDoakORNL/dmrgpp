@@ -1,8 +1,6 @@
 #ifndef IMPURITYSOLVER_EXACTD_H
 #define IMPURITYSOLVER_EXACTD_H
 
-#include "ContinuedFractionCollection.h"
-#include "CrsMatrix.h"
 #include "ImpuritySolverBase.h"
 #include "InputCheck.h"
 #include "LanczosPlusPlus/src/Engine/DefaultSymmetry.h"
@@ -11,10 +9,12 @@
 #include "LanczosPlusPlus/src/Engine/LabeledOperator.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
 #include "LanczosPlusPlus/src/Engine/ModelSelector.h"
-#include "Matsubaras.h"
 #include "ParamsDmftSolver.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/ContinuedFractionCollection.h>
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Matsubaras.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmft {
 

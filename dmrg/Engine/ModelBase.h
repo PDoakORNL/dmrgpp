@@ -80,18 +80,18 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define MODEL_BASE_H
 
 #include "Braket.h"
-#include "CanonicalExpression.h"
-#include "Io/IoSerializerStub.h"
-#include "MemResolv.h"
 #include "ModelCommon.h"
 #include "OperatorSpec.h"
 #include "OutputFileOrNot.h"
 #include "ParallelHamiltonianConnection.h"
 #include "QnHash.h"
-#include "Sort.h"
 #include "SuperOpHelperBase.h"
 #include "TargetQuantumElectrons.h"
-#include "Vector.h"
+#include <PsimagLite/CanonicalExpression.h>
+#include <PsimagLite/Io/IoSerializerStub.h>
+#include <PsimagLite/MemResolv.h>
+#include <PsimagLite/Sort.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

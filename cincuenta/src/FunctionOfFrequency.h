@@ -1,7 +1,7 @@
 #ifndef FUNCTIONOFFREQUENCY_H
 #define FUNCTIONOFFREQUENCY_H
-#include "Matsubaras.h"
-#include "Vector.h"
+#include <PsimagLite/Matsubaras.h>
+#include <PsimagLite/Vector.h>
 #include <cassert>
 
 namespace Dmft {

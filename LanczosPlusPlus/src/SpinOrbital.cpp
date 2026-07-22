@@ -1,6 +1,6 @@
-#include "CrsMatrix.h"
-#include "LanczosSolver.h"
-#include "Matrix.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/LanczosSolver.h>
+#include <PsimagLite/Matrix.h>
 #include <cassert>
 #include <cmath>
 #include <iostream>

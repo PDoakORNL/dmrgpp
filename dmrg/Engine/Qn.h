@@ -2,11 +2,11 @@
 #define QN_H
 
 #include "Array.h"
-#include "Io/HDF5DisableExceptionPrinting.h"
-#include "Io/IoNg.h"
-#include "Profiling.h"
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/Io/HDF5DisableExceptionPrinting.h>
+#include <PsimagLite/Io/IoNg.h>
+#include <PsimagLite/Profiling.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

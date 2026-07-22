@@ -1,6 +1,6 @@
 #ifndef PERSISTENTSVD_H
 #define PERSISTENTSVD_H
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

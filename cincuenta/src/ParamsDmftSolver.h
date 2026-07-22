@@ -1,10 +1,10 @@
 #ifndef PARAMSDMFTSOLVER_H
 #define PARAMSDMFTSOLVER_H
 #include "CincuentaInputCheck.h"
-#include "Geometry/Star.h"
-#include "InputNg.h"
 #include "MinParams.h"
-#include "Vector.h"
+#include <PsimagLite/Geometry/Star.h>
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmft {
 

@@ -2,7 +2,7 @@
 #define SuperOpHelperBase_H
 #include "MetaOpForConnection.hh"
 #include "ProgramGlobals.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

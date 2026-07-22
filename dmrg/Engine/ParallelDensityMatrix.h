@@ -77,8 +77,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef PARALLEL_DENSITY_MATRIX_H
 #define PARALLEL_DENSITY_MATRIX_H
 
-#include "Concurrency.h"
 #include "ProgramGlobals.h"
+#include <PsimagLite/Concurrency.h>
 
 namespace Dmrg {
 

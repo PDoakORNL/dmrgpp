@@ -1,11 +1,7 @@
 #include "KronUtil.h"
 #include "util.h"
 
-#include "PsimagLiteConfig.h"
-
-#ifdef PSIMAGLITE_USE_KOKKOS
 #include <Kokkos_Core.hpp>
-#endif
 
 #ifndef USE_FLOAT
 using RealType = double;
@@ -15,9 +11,7 @@ using RealType = float;
 
 int main()
 {
-#ifdef PSIMAGLITE_USE_KOKKOS
 	Kokkos::ScopeGuard scope_guard;
-#endif
 
 	const RealType denseFlopDiscount = 0.2;
 	const int      idebug            = 0;

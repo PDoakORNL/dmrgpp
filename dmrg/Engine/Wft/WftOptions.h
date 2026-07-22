@@ -1,6 +1,6 @@
 #ifndef WFTOPTIONS_H
 #define WFTOPTIONS_H
-#include "Complex.h"
+#include <PsimagLite/Complex.h>
 
 namespace Dmrg {
 

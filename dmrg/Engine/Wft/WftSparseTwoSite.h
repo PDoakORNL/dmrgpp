@@ -1,8 +1,8 @@
 #ifndef WFTSPARSETWOSITE_H
 #define WFTSPARSETWOSITE_H
-#include "Matrix.h"
 #include "ProgramGlobals.h"
-#include "PsimagLite.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmrg {
 

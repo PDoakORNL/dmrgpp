@@ -18,11 +18,11 @@ Please see full open source license included in file LICENSE.
 
 #ifndef DEFAULT_SYMM_H
 #define DEFAULT_SYMM_H
-#include "CrsMatrix.h"
 #include "LanczosGlobals.h"
-#include "Matrix.h"
-#include "ProgressIndicator.h"
-#include "Vector.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Vector.h>
 #include <iostream>
 
 namespace LanczosPlusPlus {

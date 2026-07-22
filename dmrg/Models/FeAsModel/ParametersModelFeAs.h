@@ -79,8 +79,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef PARAMETERSMODELFEAS_H
 #define PARAMETERSMODELFEAS_H
-#include "Matrix.h"
 #include "ParametersModelBase.h"
+#include <PsimagLite/Matrix.h>
 #include <stdexcept>
 #include <vector>
 

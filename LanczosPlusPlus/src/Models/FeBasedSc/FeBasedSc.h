@@ -21,11 +21,11 @@ Please see full open source license included in file LICENSE.
 #ifndef FEBASED_SC_H
 #define FEBASED_SC_H
 
-#include "Geometry/GeometryDca.h"
 #include "LanczosModelBase.hpp"
-#include "Parallelizer.h"
 #include "ParametersModelFeAs.h"
-#include "SparseRow.h"
+#include <PsimagLite/Geometry/GeometryDca.h>
+#include <PsimagLite/Parallelizer.h>
+#include <PsimagLite/SparseRow.h>
 
 namespace LanczosPlusPlus {
 

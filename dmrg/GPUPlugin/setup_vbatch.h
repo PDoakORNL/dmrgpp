@@ -2,16 +2,10 @@
 #define SETUP_VBATCH_H
 
 #include "DMRGConfig.h"
-#include "Vector.h"
 #include "dmrg_types.h"
+#include <PsimagLite/Vector.h>
 
 typedef PsimagLite::Vector<SizeType>::Type VectorSizeType;
-
-#if defined(USE_COMPLEX_Z)
-double ABS(std::complex<double> x);
-#else
-double ABS(double x);
-#endif
 
 template <typename T>
 void setup_vbatch(

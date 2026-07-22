@@ -80,10 +80,11 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef IOSIMPLE_HEADER_H
 #define IOSIMPLE_HEADER_H
 
-#include "Concurrency.h"
-#include "Map.h"
-#include "Matrix.h"
-#include "Stack.h"
+#include "PsimagLite/Concurrency.h"
+#include "PsimagLite/Map.h"
+#include "PsimagLite/Matrix.h"
+#include "PsimagLite/Stack.h"
+
 #include <cstdlib>
 #include <fstream>
 #include <iostream>

@@ -21,9 +21,11 @@
  * your batch system script
  *
  */
+
 #define USE_PTHREADS_OR_NOT_NG
-#include "Concurrency.h"
-#include "Parallelizer.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Parallelizer.h>
+
 #include <iostream>
 #include <unistd.h>
 

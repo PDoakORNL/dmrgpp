@@ -1,9 +1,9 @@
 #ifndef DMRGPPPLUGINSC_H
 #define DMRGPPPLUGINSC_H
 
-#include "Matrix.h"
-#include "Vector.h"
 #include "dmrg_types.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Vector.h>
 
 template <typename T> class BatchedGemm {
 

@@ -3,9 +3,9 @@
 // Don't include this file directly; use BatchedGemmInclude.hh
 
 #include "BatchedGemm.h"
-#include "Matrix.h"
-#include "ProgressIndicator.h"
-#include "Vector.h"
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/Vector.h>
 #include <cassert>
 #include <complex>
 

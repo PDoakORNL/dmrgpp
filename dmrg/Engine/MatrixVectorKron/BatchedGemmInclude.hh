@@ -8,7 +8,7 @@
 #include "BatchedGemmCpu.h"
 #define BATCHED_GEMM BatchedGemmCpu
 #endif
-#include "PsimagLite.h"
+#include <PsimagLite/PsimagLite.h>
 
 namespace Dmrg {
 

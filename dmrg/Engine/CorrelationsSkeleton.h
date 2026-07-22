@@ -81,10 +81,10 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define CORRELATIONS_SK_H
 #include "ApplyOperatorLocal.h"
 #include "Braket.h"
-#include "CrsMatrix.h"
-#include "Matrix.h"
 #include "ObserverHelper.h"
-#include "PackIndices.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/PackIndices.h>
 #include <numeric>
 
 namespace Dmrg {

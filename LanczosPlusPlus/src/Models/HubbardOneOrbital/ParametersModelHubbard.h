@@ -79,7 +79,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
  */
 #ifndef LANCZOS_PARAMS_HUBBARD_H
 #define LANCZOS_PARAMS_HUBBARD_H
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 #include <stdexcept>
 
 namespace LanczosPlusPlus {

@@ -81,10 +81,10 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef TARGETING_GS_H
 #define TARGETING_GS_H
 #include "ApplyOperatorLocal.h"
-#include "ParametersForSolver.h"
-#include "PsimagLite.h"
 #include "TargetParamsGroundState.h"
 #include "TargetingBase.h"
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/PsimagLite.h>
 #include <iostream>
 #include <stdexcept>
 

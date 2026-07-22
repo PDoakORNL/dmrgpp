@@ -12,7 +12,7 @@
 #include "../Models/Kitaev/Kitaev.h"
 #include "../Models/TjMultiOrb/TjMultiOrb.h"
 #include "LanczosModelBase.hpp"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace LanczosPlusPlus {
 

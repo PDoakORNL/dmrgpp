@@ -8,12 +8,12 @@
 
 #ifndef COOKINPUTEXPRESSION_HH
 #define COOKINPUTEXPRESSION_HH
-#include "AST/ExpressionForAST.h"
-#include "AST/PlusMinusMultiplyDivide.h"
 #include "InputCheck.h"
-#include "InputNg.h"
-#include "Matrix.h"
-#include "PsimagLite.h"
+#include <PsimagLite/AST/ExpressionForAST.h>
+#include <PsimagLite/AST/PlusMinusMultiplyDivide.h>
+#include <PsimagLite/InputNg.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/PsimagLite.h>
 #include <string>
 #include <vector>
 

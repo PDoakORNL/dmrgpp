@@ -1,9 +1,9 @@
-#include "BLAS.h"
-#include "Matrix.h"
-#include "Random48.h"
+#include <PsimagLite/BLAS.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Random48.h>
 #include <cstdlib> // for atoi
 #define USE_PTHREADS_OR_NOT_NG
-#include "Parallelizer.h"
+#include <PsimagLite/Parallelizer.h>
 
 typedef double                         MyRealType;
 typedef PsimagLite::Matrix<MyRealType> MatrixType;

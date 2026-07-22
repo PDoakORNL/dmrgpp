@@ -5,12 +5,12 @@
 #define LANCZOS_TJ_MULTIORB_H
 
 #include "BasisTjMultiOrbLanczos.h"
-#include "BitManip.h"
-#include "CrsMatrix.h"
 #include "LanczosModelBase.hpp"
 #include "ParametersTjMultiOrb.h"
-#include "SparseRow.h"
-#include "TypeToString.h"
+#include <PsimagLite/BitManip.h>
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/SparseRow.h>
+#include <PsimagLite/TypeToString.h>
 
 namespace LanczosPlusPlus {
 

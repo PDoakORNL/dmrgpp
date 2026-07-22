@@ -80,9 +80,9 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #define LEFT_RIGHT_SUPER_H
 
 #include "BasisTraits.hh"
-#include "Io/IoNg.h"
 #include "ProgramGlobals.h"
-#include "ProgressIndicator.h"
+#include <PsimagLite/Io/IoNg.h>
+#include <PsimagLite/ProgressIndicator.h>
 
 namespace Dmrg {
 

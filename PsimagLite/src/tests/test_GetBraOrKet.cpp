@@ -1,5 +1,5 @@
-#include "GetBraOrKet.h"
-#include "PsimagLite.h"
+#include <PsimagLite/GetBraOrKet.h>
+#include <PsimagLite/PsimagLite.h>
 #include <catch2/catch_test_macros.hpp>
 
 using G = PsimagLite::GetBraOrKet;

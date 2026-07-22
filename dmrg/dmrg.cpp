@@ -1,9 +1,9 @@
 #include "BlockDiagonalMatrix.h"
 #include "CmdLineOptions.hh"
-#include "Concurrency.h"
 #include "DmrgRunner.h"
-#include "Io/IoNg.h"
 #include "Provenance.h"
+#include <PsimagLite/Concurrency.h>
+#include <PsimagLite/Io/IoNg.h>
 
 typedef PsimagLite::Vector<PsimagLite::String>::Type VectorStringType;
 

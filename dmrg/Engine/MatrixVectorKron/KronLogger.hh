@@ -2,12 +2,12 @@
 #define KRONLOGGER_HH
 #include "Basis.h"
 #include "BasisWithOperators.h"
-#include "CrsMatrix.h"
 #include "InitKronHamiltonian.h"
 #include "LeftRightSuper.h"
 #include "MatrixMarket.hh"
-#include "ProgressIndicator.h"
-#include "PsimagLite.h"
+#include <PsimagLite/CrsMatrix.h>
+#include <PsimagLite/ProgressIndicator.h>
+#include <PsimagLite/PsimagLite.h>
 #include <cstddef>
 #include <fstream>
 #include <optional>

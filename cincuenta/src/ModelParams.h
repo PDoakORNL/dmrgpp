@@ -1,9 +1,9 @@
 #ifndef CINC_MODELPARAMS_H
 #define CINC_MODELPARAMS_H
 #include "CincuentaInputCheck.h"
-#include "Geometry/Star.h"
-#include "Matrix.h"
-#include "Vector.h"
+#include <PsimagLite/Geometry/Star.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmft {
 

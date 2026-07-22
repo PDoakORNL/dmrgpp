@@ -1,8 +1,8 @@
 #ifndef CORRECTIONVECTORACTION_H
 #define CORRECTIONVECTORACTION_H
-#include "AnsiColors.h"
-#include "FreqEnum.h"
-#include "Vector.h"
+#include <PsimagLite/AnsiColors.h>
+#include <PsimagLite/FreqEnum.h>
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 

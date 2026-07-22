@@ -80,12 +80,12 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_MODEL_GAUGESPIN_H
 #define DMRG_MODEL_GAUGESPIN_H
 
-#include "CrsMatrix.h"
 #include "ParametersGaugeSpin.h"
 #include "ProgramGlobals.h"
 #include "SuperOpHelperPlaquette.h"
 #include "Utils.h"
 #include "VerySparseMatrix.h"
+#include <PsimagLite/CrsMatrix.h>
 #include <algorithm>
 
 namespace Dmrg {

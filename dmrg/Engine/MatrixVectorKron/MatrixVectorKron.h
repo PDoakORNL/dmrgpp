@@ -83,7 +83,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "InitKronHamiltonian.h"
 #include "KronMatrix.h"
 #include "MatrixVectorBase.h"
-#include "Vector.h"
+#include <PsimagLite/Vector.h>
 
 namespace Dmrg {
 template <typename ModelType_> class MatrixVectorKron : public MatrixVectorBase<ModelType_> {
