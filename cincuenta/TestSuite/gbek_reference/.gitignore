@@ -23,3 +23,7 @@ report-summary.toc
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+
+# Not-for-git debugging/investigation history extracted out of README.md so
+# the README can stay a succinct, current-state description of the directory.
+PROJECT_HISTORY.md
