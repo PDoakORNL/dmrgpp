@@ -11,15 +11,15 @@
 #include "LanczosPlusPlus/src/Engine/LabeledOperator.h"
 #include "LanczosPlusPlus/src/Engine/LanczosGlobals.h"
 #include "LanczosPlusPlus/src/Engine/ModelSelector.h"
-#include "LanczosSolver.h"
-#include "Matrix.h"
 #include "NeqBathDecomposition.h"
-#include "ParametersForSolver.h"
 #include "ParamsNeqDmftSolver.h"
-#include "PsimagLite.h"
-#include "Vector.h"
+#include <PsimagLite/LanczosSolver.h>
+#include <PsimagLite/Matrix.h>
+#include <PsimagLite/ParametersForSolver.h>
+#include <PsimagLite/PsimagLite.h>
+#include <PsimagLite/Vector.h>
 
-#include "CrsMatrix.h"
+#include <PsimagLite/CrsMatrix.h>
 
 #include <algorithm>
 #include <cassert>
@@ -382,13 +382,17 @@ private:
 			eigvecsN = lanczosGS(model, geom, nBath_, L, impurityUp, impurityDown);
 		}
 
-		// Build N-1 and N+1 sector bases for the extended system
-		std::unique_ptr<BasisBaseType> bNm1(model.createBasis(nupExt - 1, ndownExt));
-		std::unique_ptr<BasisBaseType> bNp1(model.createBasis(nupExt + 1, ndownExt));
+		// Build N-1 and N+1 sector bases for the extended system.
+		// model owns the returned basis pointers via its internal garbage_
+		// list; do not wrap in unique_ptr (double-delete crashes
+		// ~HubbardOneOrbital) -- same footgun documented in
+		// ImpuritySolverNeqExactDiag.h's solve().
+		const BasisBaseType& bNm1 = *model.createBasis(nupExt - 1, ndownExt);
+		const BasisBaseType& bNp1 = *model.createBasis(nupExt + 1, ndownExt);
 
 		// Build fast-lookup tables from sorted Fock words
-		buildFockLookup(*bNm1, sector.upWordsNm1, sector.dnWordsNm1, sector.dim1Nm1);
-		buildFockLookup(*bNp1, sector.upWordsNp1, sector.dnWordsNp1, sector.dim1Np1);
+		buildFockLookup(bNm1, sector.upWordsNm1, sector.dnWordsNm1, sector.dim1Nm1);
+		buildFockLookup(bNp1, sector.upWordsNp1, sector.dnWordsNp1, sector.dim1Np1);
 		buildFockLookup(model.basis(), sector.upWordsN, sector.dnWordsN, sector.dim1N);
 
 		// Build CSR sparse matrices for H_ext and validate against applyHext
@@ -419,16 +423,16 @@ private:
 		// at every time step to reseed against PhiNHist[n] -- see
 		// propagateOneStep's doc comment for why this reseeding matters.
 		sector.cUpNm1 = buildCOperatorCSR(
-		    model.basis(), *bNm1, LabeledOperatorType::Label::OPERATOR_C);
+		    model.basis(), bNm1, LabeledOperatorType::Label::OPERATOR_C);
 		sector.cUpDagNp1 = buildCOperatorCSR(
-		    model.basis(), *bNp1, LabeledOperatorType::Label::OPERATOR_CDAGGER);
+		    model.basis(), bNp1, LabeledOperatorType::Label::OPERATOR_CDAGGER);
 
 		// Allocate history arrays
 		const SizeType nSteps = params_.nT + 1;
 		const SizeType dimN   = model.basis().size();
 		sector.PhiNHist.assign(nSteps, VectorComplexType(dimN, ComplexType(0)));
-		sector.bStates.assign(nSteps, VectorComplexType(bNm1->size(), ComplexType(0)));
-		sector.dStates.assign(nSteps, VectorComplexType(bNp1->size(), ComplexType(0)));
+		sector.bStates.assign(nSteps, VectorComplexType(bNm1.size(), ComplexType(0)));
+		sector.dStates.assign(nSteps, VectorComplexType(bNp1.size(), ComplexType(0)));
 
 		// Seed step 0: PhiNHist[0] = pre-quench GS; bStates[0]/dStates[0]
 		// follow by applying the (now reusable) c/c† operators to it -- must
@@ -856,6 +860,18 @@ private:
 	// Krylov approximation using precomputed CSR sparse matrix.
 	// Caller must call updateCSR before this to load current vMid values.
 	// Identical algorithm to krylovExpmv; SpMV replaces applyHext.
+	//
+	// For dim small enough that the Krylov recursion below (unreorthogonalized
+	// Lanczos, standard for this kind of propagator) nearly exhausts the
+	// invariant subspace before its early-exit check fires, the recursion
+	// becomes ill-conditioned in the classic Lanczos "ghost eigenvalue" sense:
+	// ULP-level input differences (BLAS threading order, SIMD codepath) can
+	// flip whether one more, barely-linearly-independent Krylov vector gets
+	// built, changing the propagated result by ~1e-4 -- found via this class's
+	// own seed-scheme Catch2 test becoming flaky (nBath=0 sectors, dim=3-9).
+	// Below this threshold, go via exact dense diagonalization instead: cost
+	// is O(dim^3), negligible at this size, and exact regardless of any
+	// degenerate/near-degenerate eigenvalues.
 	VectorComplexType krylovExpmvCSR(const VectorComplexType&    psi,
 	                                 const CrsMatrixComplexType& csr,
 	                                 RealType                    dt,
@@ -865,6 +881,9 @@ private:
 		const RealType norm0 = std::sqrt(std::real(innerProduct(psi, psi)));
 		if (norm0 < RealType(1e-14))
 			return psi;
+
+		if (dim <= 64)
+			return denseExpmv(csr, psi, dt);
 
 		std::vector<VectorComplexType> Q;
 		Q.reserve(m + 1);
@@ -923,6 +942,32 @@ private:
 			for (SizeType i = 0; i < dim; ++i)
 				result[i] += c * Q[j][i];
 		}
+		return result;
+	}
+
+	// Exact exp(-i*H*dt)|psi> via dense diagonalization of csr (converted to a
+	// full matrix). See krylovExpmvCSR's doc comment for why this is used
+	// instead of the Lanczos recursion below a dim threshold.
+	VectorComplexType
+	denseExpmv(const CrsMatrixComplexType& csr, const VectorComplexType& psi, RealType dt) const
+	{
+		MatrixComplexType H = csr.toDense();
+		VectorRealType    eigs;
+		PsimagLite::diag(H, eigs, 'V');
+
+		const SizeType    dim = psi.size();
+		VectorComplexType coeff(dim, ComplexType(0));
+		for (SizeType k = 0; k < dim; ++k) {
+			ComplexType overlap(0);
+			for (SizeType i = 0; i < dim; ++i)
+				overlap += std::conj(H(i, k)) * psi[i];
+			coeff[k] = overlap * std::exp(ComplexType(0, -eigs[k] * dt));
+		}
+
+		VectorComplexType result(dim, ComplexType(0));
+		for (SizeType k = 0; k < dim; ++k)
+			for (SizeType i = 0; i < dim; ++i)
+				result[i] += H(i, k) * coeff[k];
 		return result;
 	}
 

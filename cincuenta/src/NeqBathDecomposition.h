@@ -1,8 +1,8 @@
 #ifndef NEQ_BATH_DECOMPOSITION_H
 #define NEQ_BATH_DECOMPOSITION_H
 #include "KadanoffBaym.h"
-#include "Svd.h"
-#include "Vector.h"
+#include <PsimagLite/Svd.h>
+#include <PsimagLite/Vector.h>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
