@@ -13,4 +13,6 @@ if(BUILD_TESTING)
   add_executable(KronUtil_Test2 test2.cpp)
   target_link_libraries(KronUtil_Test2 kronutil)
   add_test(NAME KronUtil_Test2 COMMAND KronUtil_Test2)
+
+  add_subdirectory(tests)
 endif()
