@@ -46,11 +46,11 @@ public:
 	    : rank_(rank)
 	    , beta_(beta)
 	    , mu_(mu)
-	    , nT_(nT)
-	    , nTau_(nTau)
 	    , dt_(dt)
 	    , dtau_(dtau)
 	    , maxDiagSeen_(0)
+	    , nT_(nT)
+	    , nTau_(nTau)
 	    , V_(nT + 1, std::max(rank, SizeType(1)), ComplexType(0))
 	{
 		const SizeType nBath = bathParams.size() / 2;
