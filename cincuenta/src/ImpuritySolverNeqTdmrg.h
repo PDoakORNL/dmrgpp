@@ -526,6 +526,38 @@ public:
 			}
 		}
 
+		// Column nT is never birthed inside the loop above (birth only
+		// happens when n < nT, since a column born at the very last step
+		// would never be advanced further for OFF-diagonal purposes) --
+		// but its diagonal G(nT,nT) is still wanted. Birth it from column
+		// 0's FINAL state, then advance it ONCE (to a throwaway step
+		// beyond nT, never written into fullGimp -- see the n=j+1..nT loop
+		// below, which is empty for j=nT) purely to trigger the
+		// diagonal-capture byproduct in advanceColumn's first-advance
+		// path.
+		if (nT > 0) {
+			columns.emplace_back();
+			columns.back().born = nT;
+			birthColumn(columns.back(),
+			            columns[0].particleRoot,
+			            columns[0].particleSrcTv,
+			            columns[0].holeRoot,
+			            columns[0].holeSrcTv,
+			            chainRoot,
+			            "column" + ttos(nT),
+			            params_.uFinal,
+			            hoppings,
+			            potTdmrg,
+			            nsites);
+			advanceColumn(columns.back(),
+			              nT + 1,
+			              chainRoot,
+			              params_.uFinal,
+			              hoppings,
+			              potTdmrg,
+			              nsites);
+		}
+
 		KBType fullGimp(params_.nT,
 		                params_.eqParams.nMatsubaras,
 		                params_.dt,
@@ -549,6 +581,18 @@ public:
 			}
 
 			const int j = col.born;
+
+			// Diagonal G(j,j): captured once at birth, gauge-invariant by
+			// construction (see Column::ggtDiag/gltDiag doc comment) --
+			// no sign-flip/phase correction needed, unlike the
+			// off-diagonal history below.
+			{
+				const ComplexType ggt   = ComplexType(0, -1) * col.ggtDiag;
+				const ComplexType glt   = ComplexType(0, 1) * col.gltDiag;
+				fullGimp.lesser(j, j)   = glt;
+				fullGimp.retarded(j, j) = ggt - glt;
+			}
+
 			for (int n = j + 1; n <= nT; ++n) {
 				auto itG = col.ggtRaw.find(n);
 				auto itL = col.gltRaw.find(n);
@@ -586,6 +630,10 @@ private:
 		int                        holeMapTv = 0, holeSrcTv = -1;
 		std::map<int, ComplexType> ggtRaw, gaugePRaw; // keyed by n, n > born
 		std::map<int, ComplexType> gltRaw, gaugeHRaw;
+		// Equal-time diagonal G(born,born), captured once at birth (see
+		// birthColumn) -- gauge-invariant by construction, no sign-flip/
+		// phase correction needed (unlike ggtRaw/gltRaw above).
+		ComplexType ggtDiag = 0, gltDiag = 0;
 	};
 
 	// Birth a new column at time col.born. The particle and hole branches
@@ -700,6 +748,19 @@ private:
 				col.gaugePRaw[n] = gauge;
 			col.ggtRaw[n] = ggt;
 
+			// A column's own FIRST advance since birth (takeLast==true) is
+			// restarting from a plain, single-TV birth checkpoint with NO
+			// RestartSourceTvForPsi involved -- structurally identical to
+			// column 0's very own first advance. The FIRST occurrence in
+			// THAT specific case is the equal-time diagonal G(born,born)
+			// (confirmed empirically: matches ImpuritySolverNeqExactDiag's
+			// G(0,0) exactly for column 0 -- see project_tdmrg_evolving_bath
+			// memory). Capture it here instead of via a separate, fragile
+			// birth-time measurement.
+			if (takeLast)
+				parseSingleMeasurement(
+				    opts.logfile, "<P2|c|P1>", col.ggtDiag, false);
+
 			col.particleRoot  = outRoot;
 			col.particleMapTv = 1;
 			col.particleSrcTv = 2;
@@ -729,6 +790,10 @@ private:
 			if (parseSingleMeasurement(opts.logfile, "<P2.last|P2>", gauge, takeLast))
 				col.gaugeHRaw[n] = gauge;
 			col.gltRaw[n] = glt;
+
+			if (takeLast)
+				parseSingleMeasurement(
+				    opts.logfile, "<P1|c|P2>", col.gltDiag, false);
 
 			col.holeRoot  = outRoot;
 			col.holeMapTv = 1;

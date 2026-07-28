@@ -171,8 +171,9 @@ TEST_CASE("ImpuritySolverNeqTdmrg chained column-0 matches monolithic solve() (U
 // ImpuritySolverNeqExactDiag's general (nonzero-bath) full grid is the
 // right reference for this solver.
 //
-// Diagonal (n==n) is EXCLUDED: computeFullGrid does not fill it yet (see
-// its doc comment -- a known, explicitly flagged gap, not a silent one).
+// Diagonal (n==j) IS included: computeFullGrid now fills it via a
+// gauge-invariant equal-time measurement taken at each column's birth
+// (see Column::ggtDiag/gltDiag).
 static void runFullGridVsExactDiagComparison(const std::string& uValue)
 {
 	int    argc    = 1;
@@ -218,8 +219,8 @@ static void runFullGridVsExactDiagComparison(const std::string& uValue)
 	std::cout << "=== Phase 1 full-grid vs ExactDiag comparison (U=" << uValue << ") ===\n";
 	const int      nT  = static_cast<int>(params.nT);
 	const RealType tol = 1e-6;
-	for (int n = 1; n <= nT; ++n) {
-		for (int j = 0; j < n; ++j) {
+	for (int n = 0; n <= nT; ++n) {
+		for (int j = 0; j <= n; ++j) {
 			const ComplexType refRet  = reference.retarded(n, j);
 			const ComplexType refLes  = reference.lesser(n, j);
 			const ComplexType gridRet = grid.retarded(n, j);
