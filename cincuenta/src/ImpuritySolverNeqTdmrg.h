@@ -1051,13 +1051,23 @@ private:
 	// FiniteLoops row (one time advance) instead of the whole-trajectory
 	// finiteLoopsTdmrg_ matrix.
 
-	std::string buildGsInputAt(const std::string&    outRoot,
-	                           RealType              U,
-	                           const VectorRealType& hoppings,
-	                           const VectorRealType& potV,
-	                           SizeType              nup,
-	                           SizeType              ndown,
-	                           SizeType              nsites) const
+	// secondBathConnectors (default empty): when non-empty, its entries are
+	// appended (as complex literals) after hoppings' real entries in
+	// dir0:Connectors -- the evolving-bath second-bath couplings, already
+	// duplicated once per occupied-p/empty-p site pair by the caller (see
+	// fancy-painting-moon.md's Phase 2 architecture section for why no
+	// extra conjugation is needed). Empty (the default) reproduces today's
+	// NeqBathRank=0 output exactly (buildConnectorsStrWithSecondBath with
+	// an empty second argument formats identically to buildConnectorsStr).
+	std::string buildGsInputAt(const std::string&       outRoot,
+	                           RealType                 U,
+	                           const VectorRealType&    hoppings,
+	                           const VectorRealType&    potV,
+	                           SizeType                 nup,
+	                           SizeType                 ndown,
+	                           SizeType                 nsites,
+	                           const VectorComplexType& secondBathConnectors
+	                           = VectorComplexType()) const
 	{
 		std::string s = "##Ainur1.0\n\n";
 		s += geomHeader(nsites, U);
@@ -1068,7 +1078,8 @@ private:
 		s += "FiniteLoops=" + finiteLoopsGs_ + ";\n";
 		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
 		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
-		s += "dir0:Connectors=" + buildConnectorsStr(hoppings) + ";\n";
+		s += "dir0:Connectors="
+		    + buildConnectorsStrWithSecondBath(hoppings, secondBathConnectors) + ";\n";
 		s += "potentialV=" + buildPotentialVStr(potV) + ";\n";
 		return s;
 	}
@@ -1088,29 +1099,42 @@ private:
 	//   for column 0's original birth from the plain GS run; true is
 	//   needed when birthing a later column from an already-advanced
 	//   (hence complex) column's checkpoint.
-	std::string buildInitInputAt(const std::string&    outRoot,
-	                             const std::string&    restartRoot,
-	                             RealType              U_f,
-	                             const VectorRealType& hoppings,
-	                             const VectorRealType& potV,
-	                             SizeType              nup,
-	                             SizeType              ndown,
-	                             SizeType              nsites,
-	                             const std::string&    opChar,
-	                             int                   sourceTv      = -1,
-	                             bool                  complexSource = false) const
+	std::string buildInitInputAt(const std::string&       outRoot,
+	                             const std::string&       restartRoot,
+	                             RealType                 U_f,
+	                             const VectorRealType&    hoppings,
+	                             const VectorRealType&    potV,
+	                             SizeType                 nup,
+	                             SizeType                 ndown,
+	                             SizeType                 nsites,
+	                             const std::string&       opChar,
+	                             int                      sourceTv      = -1,
+	                             bool                     complexSource = false,
+	                             const VectorComplexType& secondBathConnectors
+	                             = VectorComplexType()) const
 	{
+		// This run's own OUTPUT needs usecomplex whenever ITS Hamiltonian is
+		// complex, not only when the restart SOURCE was (complexSource) --
+		// in practice these always coincide for how birthColumn is actually
+		// invoked (Vplus(0,p)=0 is real, and by the time Vplus is complex
+		// the birth source is already an advanced, complex column), but
+		// checking directly rather than relying on that coincidence.
+		bool hasComplexSecondBath = false;
+		for (SizeType p = 0; p < secondBathConnectors.size() && !hasComplexSecondBath; ++p)
+			hasComplexSecondBath = (std::imag(secondBathConnectors[p]) != RealType(0));
+
 		std::string s = "##Ainur1.0\n\n";
 		s += geomHeader(nsites, U_f);
 		s += "SolverOptions=twositedmrg,geometryallinsystem,TargetingExpression,restart";
-		s += complexSource ? ",usecomplex;\n" : ";\n";
+		s += (complexSource || hasComplexSecondBath) ? ",usecomplex;\n" : ";\n";
 		s += "Version=neqTdmrg;\n";
 		s += "OutputFile=" + outRoot + ";\n";
 		s += "InfiniteLoopKeptStates=" + ttos(infiniteLoops_) + ";\n";
 		s += "FiniteLoops=" + enforceFlag2(finiteLoopsGs_) + ";\n";
 		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
 		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
-		s += "dir0:Connectors=" + buildConnectorsStr(hoppings) + ";\n";
+		s += "dir0:Connectors="
+		    + buildConnectorsStrWithSecondBath(hoppings, secondBathConnectors) + ";\n";
 		s += "potentialV=" + buildPotentialVStr(potV) + ";\n";
 		s += "RestartFilename=" + restartRoot + ";\n";
 		if (sourceTv >= 0)
@@ -1126,16 +1150,18 @@ private:
 	//   (RestartSourceTvForPsi); -1 (omit the key) means "use whatever |gs>
 	//   already is in restartRoot" -- correct only for the very first segment
 	//   (n=1), which restarts from the *_init checkpoint's untouched |gs>.
-	std::string buildStepInput(RealType              U_f,
-	                           const VectorRealType& hoppings,
-	                           const VectorRealType& potV,
-	                           SizeType              nup,
-	                           SizeType              ndown,
-	                           SizeType              nsites,
-	                           const std::string&    restartRoot,
-	                           int                   mappedP0Tv,
-	                           int                   sourceTvForPsi,
-	                           const std::string&    outRoot) const
+	std::string buildStepInput(RealType                 U_f,
+	                           const VectorRealType&    hoppings,
+	                           const VectorRealType&    potV,
+	                           SizeType                 nup,
+	                           SizeType                 ndown,
+	                           SizeType                 nsites,
+	                           const std::string&       restartRoot,
+	                           int                      mappedP0Tv,
+	                           int                      sourceTvForPsi,
+	                           const std::string&       outRoot,
+	                           const VectorComplexType& secondBathConnectors
+	                           = VectorComplexType()) const
 	{
 		std::string s = "##Ainur1.0\n\n";
 		s += geomHeader(nsites, U_f);
@@ -1154,7 +1180,8 @@ private:
 		    + ttos(infiniteLoops_) + ", 2]];\n";
 		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
 		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
-		s += "dir0:Connectors=" + buildConnectorsStr(hoppings) + ";\n";
+		s += "dir0:Connectors="
+		    + buildConnectorsStrWithSecondBath(hoppings, secondBathConnectors) + ";\n";
 		s += "potentialV=" + buildPotentialVStr(potV) + ";\n";
 		s += "RestartFilename=" + restartRoot + ";\n";
 		s += "RestartMappingTvs=[" + ttos(mappedP0Tv) + ", -1, -1];\n";
