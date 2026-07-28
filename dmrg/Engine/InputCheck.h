@@ -297,6 +297,13 @@ public:
 		str += "string Ancillas;\n";
 		str += "integer RestartMapStages;\n";
 		str += "vectorIntegers RestartMappingTvs;\n";
+		// Documented in RestartStruct.h and read by RestartStruct::read(), but
+		// never pre-declared here -- Ainur rejected any input assigning it as
+		// "Undeclared RestartSourceTvForPsi" (found while chaining per-step
+		// tDMRG restarts for the neq-DMFT evolving-bath project; see
+		// TargetingCommon.h's own "FIXME TODO WARNING: Need better spec for
+		// TvForPsi" next to where this value is consumed).
+		str += "integer RestartSourceTvForPsi;\n";
 
 		return str;
 	}

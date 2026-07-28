@@ -211,6 +211,187 @@ public:
 
 	const KBType& gimp() const override { return gimp_; }
 
+	// ---- Phase 1 (evolving-bath project) diagnostic: chained column 0 -----
+	//
+	// Verification-only entry point, NOT wired into solve()/computeGimp()'s
+	// existing dispatch. Recomputes G^>(t_n,0)/G^<(t_n,0) by chaining nT
+	// single-step restarts (one DmrgRunner call per step, each restarting
+	// from the previous step's checkpoint) instead of today's single
+	// monolithic Run3/Run5 call spanning the whole trajectory. This is the
+	// narrowest possible slice of the full multi-column two-time grid: it
+	// only re-derives the SAME column (j=0) today's solve() already
+	// computes, so its result can be diffed directly against
+	// ImpuritySolverNeqTdmrg::solve()'s own gimp_ as a correctness check on
+	// the chaining/restart machinery itself (RestartMappingTvs,
+	// RestartSourceTvForPsi) before any new-column-birthing logic is added.
+	// See /Users/epd/.claude/plans/fancy-painting-moon.md, Phase 1.
+	struct ChainedResult {
+		std::map<int, ComplexType> ggt0; // G^>(t_n, 0), gauge-corrected
+		std::map<int, ComplexType> glt0; // G^<(t_n, 0), gauge-corrected
+	};
+
+	ChainedResult solveChainedColumn0(const VectorRealType& bathParams) const
+	{
+		const SizeType nBath  = bathParams.size() / 2;
+		const SizeType nsites = nBath + 1;
+
+		VectorRealType hoppings(nBath), bathEps(nBath);
+		for (SizeType i = 0; i < nBath; ++i) {
+			hoppings[i] = bathParams[i];
+			bathEps[i]  = bathParams[nBath + i];
+		}
+
+		VectorRealType potGS(nsites), potTdmrg(nsites);
+		potGS[0]    = -RealType(0.5) * params_.uInitial;
+		potTdmrg[0] = -RealType(0.5) * params_.uFinal;
+		for (SizeType i = 0; i < nBath; ++i) {
+			potGS[i + 1]    = bathEps[i];
+			potTdmrg[i + 1] = bathEps[i];
+		}
+
+		const std::string chainRoot = root_ + "chain_";
+
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = chainRoot + "gs.log";
+			DmrgRunnerType runner(app_,
+			                      buildGsInputAt(chainRoot + "gs",
+			                                     params_.uInitial,
+			                                     hoppings,
+			                                     potGS,
+			                                     nup_,
+			                                     ndown_,
+			                                     nsites),
+			                      opts);
+			runner.doOneRun();
+		}
+
+		std::string particleRoot = chainRoot + "particle0";
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = chainRoot + "particle_init.log";
+			DmrgRunnerType runner(app_,
+			                      buildInitInputAt(particleRoot,
+			                                       chainRoot + "gs",
+			                                       params_.uFinal,
+			                                       hoppings,
+			                                       potTdmrg,
+			                                       nup_,
+			                                       ndown_,
+			                                       nsites,
+			                                       "'"),
+			                      opts);
+			runner.doOneRun();
+		}
+
+		std::string holeRoot = chainRoot + "hole0";
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = chainRoot + "hole_init.log";
+			DmrgRunnerType runner(app_,
+			                      buildInitInputAt(holeRoot,
+			                                       chainRoot + "gs",
+			                                       params_.uFinal,
+			                                       hoppings,
+			                                       potTdmrg,
+			                                       nup_,
+			                                       ndown_,
+			                                       nsites,
+			                                       ""),
+			                      opts);
+			runner.doOneRun();
+		}
+
+		ChainedResult              result;
+		std::map<int, ComplexType> gaugeP, gaugeH;
+		int                        particleMapTv = 0, particleSrcTv = -1;
+		int                        holeMapTv = 0, holeSrcTv = -1;
+
+		for (int n = 1; n <= static_cast<int>(params_.nT); ++n) {
+			{
+				const std::string    outRoot = chainRoot + "particle" + ttos(n);
+				Dmrg::CmdLineOptions opts;
+				opts.logfile = chainRoot + "particle_step" + ttos(n) + ".log";
+				opts.in_situ_measurements = "<P2|c|P1>,<P2.last|P2>";
+				DmrgRunnerType runner(app_,
+				                      buildStepInput(params_.uFinal,
+				                                     hoppings,
+				                                     potTdmrg,
+				                                     nup_,
+				                                     ndown_,
+				                                     nsites,
+				                                     particleRoot,
+				                                     particleMapTv,
+				                                     particleSrcTv,
+				                                     outRoot),
+				                      opts);
+				runner.doOneRun();
+
+				ComplexType ggt(0), gauge(0);
+				parseSingleMeasurement(opts.logfile, "<P2|c|P1>", ggt);
+				if (parseSingleMeasurement(opts.logfile, "<P2.last|P2>", gauge))
+					gaugeP[n] = gauge;
+				result.ggt0[n] = ComplexType(0, -1) * ggt;
+
+				particleRoot  = outRoot;
+				particleMapTv = 1; // next step continues from this step's P1
+				particleSrcTv = 2; // next step's |gs> seed is this step's P2
+			}
+			{
+				const std::string    outRoot = chainRoot + "hole" + ttos(n);
+				Dmrg::CmdLineOptions opts;
+				opts.logfile = chainRoot + "hole_step" + ttos(n) + ".log";
+				opts.in_situ_measurements = "<P1|c|P2>,<P2.last|P2>";
+				DmrgRunnerType runner(app_,
+				                      buildStepInput(params_.uFinal,
+				                                     hoppings,
+				                                     potTdmrg,
+				                                     nup_,
+				                                     ndown_,
+				                                     nsites,
+				                                     holeRoot,
+				                                     holeMapTv,
+				                                     holeSrcTv,
+				                                     outRoot),
+				                      opts);
+				runner.doOneRun();
+
+				ComplexType glt(0), gauge(0);
+				parseSingleMeasurement(opts.logfile, "<P1|c|P2>", glt);
+				if (parseSingleMeasurement(opts.logfile, "<P2.last|P2>", gauge))
+					gaugeH[n] = gauge;
+				result.glt0[n] = ComplexType(0, 1) * glt;
+
+				holeRoot  = outRoot;
+				holeMapTv = 1;
+				holeSrcTv = 2;
+			}
+		}
+
+		applySignFlip(result.ggt0);
+		for (auto& kv : result.ggt0) {
+			auto it = gaugeP.find(kv.first);
+			if (it != gaugeP.end() && std::abs(it->second) > RealType(1e-10))
+				kv.second /= it->second;
+		}
+
+		applySignFlip(result.glt0);
+		for (auto& kv : result.glt0) {
+			auto it = gaugeH.find(kv.first);
+			if (it != gaugeH.end() && std::abs(it->second) > RealType(1e-10))
+				kv.second *= it->second;
+		}
+
+		// Note: applyGlobalPhase (existing helper) anchors at n=0, which this
+		// chain never measures directly (Run "particle_init"/"hole_init" only
+		// prepare states, they don't measure). Left unnormalized here
+		// deliberately -- the Phase 1 test compares against the monolithic
+		// path's OWN un-normalized-at-this-stage values, or compares
+		// magnitudes, rather than assuming a shared phase convention.
+
+		return result;
+	}
+
 private:
 
 	// ---- Input construction ------------------------------------------------
@@ -344,6 +525,113 @@ private:
 		s += "potentialV=" + buildPotentialVStr(potV) + ";\n";
 		s += "RestartFilename=" + root_ + "hole;\n";
 		s += "RestartMappingTvs=[0, -1, -1];\n";
+		s += "GsWeight=0.1;\n";
+		s += "string P0=|P0>;\n";
+		s += "string P1=\"TimeEvolve{tau=" + ttos(params_.dt) + ",steps="
+		    + ttos(tspTimeSteps_) + ",advanceEach=" + ttos(tspAdvanceEach_) + "}*|P0>\";\n";
+		s += "string P2=\"TimeEvolve{tau=" + ttos(params_.dt) + ",steps="
+		    + ttos(tspTimeSteps_) + ",advanceEach=" + ttos(tspAdvanceEach_) + "}*|gs>\";\n";
+		return s;
+	}
+
+	// ---- Phase 1 diagnostic: parameterized single-step builders -----------
+	// Mirror buildGsInput/buildParticleInitInput/buildHoleInitInput/
+	// buildTdmrgInput/buildHoleTdmrgInput above, but with an explicit output
+	// root (so a chained run doesn't clobber solve()'s own checkpoint files)
+	// and, for buildStepInput, an explicit restart source and a SINGLE
+	// FiniteLoops row (one time advance) instead of the whole-trajectory
+	// finiteLoopsTdmrg_ matrix.
+
+	std::string buildGsInputAt(const std::string&    outRoot,
+	                           RealType              U,
+	                           const VectorRealType& hoppings,
+	                           const VectorRealType& potV,
+	                           SizeType              nup,
+	                           SizeType              ndown,
+	                           SizeType              nsites) const
+	{
+		std::string s = "##Ainur1.0\n\n";
+		s += geomHeader(nsites, U);
+		s += "SolverOptions=twositedmrg,geometryallinsystem;\n";
+		s += "Version=neqTdmrg;\n";
+		s += "OutputFile=" + outRoot + ";\n";
+		s += "InfiniteLoopKeptStates=" + ttos(infiniteLoops_) + ";\n";
+		s += "FiniteLoops=" + finiteLoopsGs_ + ";\n";
+		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
+		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
+		s += "dir0:Connectors=" + buildConnectorsStr(hoppings) + ";\n";
+		s += "potentialV=" + buildPotentialVStr(potV) + ";\n";
+		return s;
+	}
+
+	// opChar: "'" for the particle branch (c'[0]), "" for the hole branch (c[0]).
+	std::string buildInitInputAt(const std::string&    outRoot,
+	                             const std::string&    restartRoot,
+	                             RealType              U_f,
+	                             const VectorRealType& hoppings,
+	                             const VectorRealType& potV,
+	                             SizeType              nup,
+	                             SizeType              ndown,
+	                             SizeType              nsites,
+	                             const std::string&    opChar) const
+	{
+		std::string s = "##Ainur1.0\n\n";
+		s += geomHeader(nsites, U_f);
+		s += "SolverOptions=twositedmrg,geometryallinsystem,TargetingExpression,restart;\n";
+		s += "Version=neqTdmrg;\n";
+		s += "OutputFile=" + outRoot + ";\n";
+		s += "InfiniteLoopKeptStates=" + ttos(infiniteLoops_) + ";\n";
+		s += "FiniteLoops=" + enforceFlag2(finiteLoopsGs_) + ";\n";
+		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
+		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
+		s += "dir0:Connectors=" + buildConnectorsStr(hoppings) + ";\n";
+		s += "potentialV=" + buildPotentialVStr(potV) + ";\n";
+		s += "RestartFilename=" + restartRoot + ";\n";
+		s += "GsWeight=0.1;\n";
+		s += "string P0=\"c" + opChar + "[0]*|gs>\";\n";
+		return s;
+	}
+
+	// One single time-advance segment, restarting from restartRoot.
+	// mappedP0Tv: old-run TV index to seed this run's P0 from (RestartMappingTvs).
+	// sourceTvForPsi: old-run TV index to seed this run's |gs> reference from
+	//   (RestartSourceTvForPsi); -1 (omit the key) means "use whatever |gs>
+	//   already is in restartRoot" -- correct only for the very first segment
+	//   (n=1), which restarts from the *_init checkpoint's untouched |gs>.
+	std::string buildStepInput(RealType              U_f,
+	                           const VectorRealType& hoppings,
+	                           const VectorRealType& potV,
+	                           SizeType              nup,
+	                           SizeType              ndown,
+	                           SizeType              nsites,
+	                           const std::string&    restartRoot,
+	                           int                   mappedP0Tv,
+	                           int                   sourceTvForPsi,
+	                           const std::string&    outRoot) const
+	{
+		std::string s = "##Ainur1.0\n\n";
+		s += geomHeader(nsites, U_f);
+		s += "SolverOptions=twositedmrg,geometryallinsystem,TargetingExpression,restart,"
+		     "usecomplex;\n";
+		s += "Version=neqTdmrg;\n";
+		s += "OutputFile=" + outRoot + ";\n";
+		s += "InfiniteLoopKeptStates=" + ttos(infiniteLoops_) + ";\n";
+		// Two rows (there-and-back sweep), not one: a single row's sweep is
+		// not guaranteed to reach site 0, where the in-situ measurement this
+		// segment exists to produce actually lives (confirmed empirically --
+		// see project_tdmrg_evolving_bath memory, "Phase 1 narrow-slice
+		// progress" -- a single row left site-0 measurements missing
+		// entirely from the log starting at the second chained segment).
+		s += "FiniteLoops=[[@auto, " + ttos(infiniteLoops_) + ", 2],[@auto, "
+		    + ttos(infiniteLoops_) + ", 2]];\n";
+		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
+		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
+		s += "dir0:Connectors=" + buildConnectorsStr(hoppings) + ";\n";
+		s += "potentialV=" + buildPotentialVStr(potV) + ";\n";
+		s += "RestartFilename=" + restartRoot + ";\n";
+		s += "RestartMappingTvs=[" + ttos(mappedP0Tv) + ", -1, -1];\n";
+		if (sourceTvForPsi >= 0)
+			s += "RestartSourceTvForPsi=" + ttos(sourceTvForPsi) + ";\n";
 		s += "GsWeight=0.1;\n";
 		s += "string P0=|P0>;\n";
 		s += "string P1=\"TimeEvolve{tau=" + ttos(params_.dt) + ",steps="
@@ -565,6 +853,38 @@ private:
 		} catch (...) {
 			return false;
 		}
+	}
+
+	// Phase 1 diagnostic: a single-step segment's log has exactly one
+	// measurement point, so (unlike parseTdmrgLog/parseHoleTdmrgLog, which
+	// index a whole trajectory's log by rounded time) this just grabs the
+	// first line matching the requested label at site 0.
+	static bool parseSingleMeasurement(const std::string& logfile,
+	                                   const std::string& label,
+	                                   ComplexType&       outVal)
+	{
+		std::ifstream fin(logfile);
+		if (!fin || !fin.good())
+			return false;
+
+		std::string line;
+		while (std::getline(fin, line)) {
+			SizeType    site = 0;
+			std::string valStr, lbl;
+			RealType    t = 0;
+			if (!parseMeasurementLine(line, site, valStr, t, lbl))
+				continue;
+			if (site != 0 || lbl != label)
+				continue;
+
+			RealType re = 0, im = 0;
+			if (!parseComplex(valStr, re, im))
+				continue;
+
+			outVal = ComplexType(re, im);
+			return true;
+		}
+		return false;
 	}
 
 	// Replace FiniteLoops flag 0 with flag 2 to prevent |gs⟩ re-optimisation.
