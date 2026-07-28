@@ -309,7 +309,18 @@ public:
 
 		for (int n = 1; n <= static_cast<int>(params_.nT); ++n) {
 			{
-				const std::string    outRoot = chainRoot + "particle" + ttos(n);
+				const std::string outRoot = chainRoot + "particle" + ttos(n);
+				// A segment restarting straight from the *_init checkpoint
+				// (accumulated time 0) reports its OWN measurement at
+				// (local) time 0 first, then the wanted post-advance value
+				// second -- take the LAST match. A segment restarting via
+				// RestartSourceTvForPsi from a PREVIOUS chained step (which
+				// already carries accumulated time forward) reports the
+				// wanted value FIRST, then a further, unwanted one-more-
+				// advance value second -- take the FIRST match. Confirmed
+				// empirically by diffing against solve()'s monolithic
+				// result; see project_tdmrg_evolving_bath memory.
+				const bool           takeLast = (particleSrcTv < 0);
 				Dmrg::CmdLineOptions opts;
 				opts.logfile = chainRoot + "particle_step" + ttos(n) + ".log";
 				opts.in_situ_measurements = "<P2|c|P1>,<P2.last|P2>";
@@ -328,8 +339,9 @@ public:
 				runner.doOneRun();
 
 				ComplexType ggt(0), gauge(0);
-				parseSingleMeasurement(opts.logfile, "<P2|c|P1>", ggt);
-				if (parseSingleMeasurement(opts.logfile, "<P2.last|P2>", gauge))
+				parseSingleMeasurement(opts.logfile, "<P2|c|P1>", ggt, takeLast);
+				if (parseSingleMeasurement(
+				        opts.logfile, "<P2.last|P2>", gauge, takeLast))
 					gaugeP[n] = gauge;
 				result.ggt0[n] = ComplexType(0, -1) * ggt;
 
@@ -338,7 +350,8 @@ public:
 				particleSrcTv = 2; // next step's |gs> seed is this step's P2
 			}
 			{
-				const std::string    outRoot = chainRoot + "hole" + ttos(n);
+				const std::string outRoot = chainRoot + "hole" + ttos(n);
+				const bool takeLast = (holeSrcTv < 0); // see particle branch above
 				Dmrg::CmdLineOptions opts;
 				opts.logfile = chainRoot + "hole_step" + ttos(n) + ".log";
 				opts.in_situ_measurements = "<P1|c|P2>,<P2.last|P2>";
@@ -357,8 +370,9 @@ public:
 				runner.doOneRun();
 
 				ComplexType glt(0), gauge(0);
-				parseSingleMeasurement(opts.logfile, "<P1|c|P2>", glt);
-				if (parseSingleMeasurement(opts.logfile, "<P2.last|P2>", gauge))
+				parseSingleMeasurement(opts.logfile, "<P1|c|P2>", glt, takeLast);
+				if (parseSingleMeasurement(
+				        opts.logfile, "<P2.last|P2>", gauge, takeLast))
 					gaugeH[n] = gauge;
 				result.glt0[n] = ComplexType(0, 1) * glt;
 
@@ -855,18 +869,29 @@ private:
 		}
 	}
 
-	// Phase 1 diagnostic: a single-step segment's log has exactly one
-	// measurement point, so (unlike parseTdmrgLog/parseHoleTdmrgLog, which
-	// index a whole trajectory's log by rounded time) this just grabs the
-	// first line matching the requested label at site 0.
+	// Phase 1 diagnostic: a single-step segment's own FiniteLoops has TWO
+	// rows (see buildStepInput), so its log has TWO site-0 measurement
+	// lines for a given label. Which one is the wanted post-advance value
+	// depends on how this segment was restarted (confirmed empirically by
+	// diffing against ImpuritySolverNeqTdmrg::solve()'s monolithic result;
+	// see project_tdmrg_evolving_bath memory):
+	//   - restarting straight from the *_init checkpoint (accumulated time
+	//     0): the FIRST match is the trivial t=0 value, the SECOND is the
+	//     wanted one -- takeLast=true.
+	//   - restarting via RestartSourceTvForPsi from a PREVIOUS chained step
+	//     (which already carries accumulated time forward): the FIRST
+	//     match is the wanted value, the SECOND is one advance too far --
+	//     takeLast=false.
 	static bool parseSingleMeasurement(const std::string& logfile,
 	                                   const std::string& label,
-	                                   ComplexType&       outVal)
+	                                   ComplexType&       outVal,
+	                                   bool               takeLast)
 	{
 		std::ifstream fin(logfile);
 		if (!fin || !fin.good())
 			return false;
 
+		bool        found = false;
 		std::string line;
 		while (std::getline(fin, line)) {
 			SizeType    site = 0;
@@ -882,9 +907,11 @@ private:
 				continue;
 
 			outVal = ComplexType(re, im);
-			return true;
+			found  = true;
+			if (!takeLast)
+				return true;
 		}
-		return false;
+		return found;
 	}
 
 	// Replace FiniteLoops flag 0 with flag 2 to prevent |gs⟩ re-optimisation.
