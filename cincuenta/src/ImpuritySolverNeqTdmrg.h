@@ -57,15 +57,16 @@ class ImpuritySolverNeqTdmrg : public ImpuritySolverNeqBase<ComplexOrRealType> {
 
 public:
 
-	using BaseType        = ImpuritySolverNeqBase<ComplexOrRealType>;
-	using RealType        = typename BaseType::RealType;
-	using ComplexType     = typename BaseType::ComplexType;
-	using VectorRealType  = typename BaseType::VectorRealType;
-	using KBType          = typename BaseType::KBType;
-	using InputNgType     = typename BaseType::InputNgType;
-	using ParamsNeqType   = ParamsNeqDmftSolver<ComplexOrRealType>;
-	using DmrgRunnerType  = Dmrg::DmrgRunner<RealType>;
-	using ApplicationType = PsimagLite::PsiApp;
+	using BaseType          = ImpuritySolverNeqBase<ComplexOrRealType>;
+	using RealType          = typename BaseType::RealType;
+	using ComplexType       = typename BaseType::ComplexType;
+	using VectorRealType    = typename BaseType::VectorRealType;
+	using VectorComplexType = typename PsimagLite::Vector<ComplexType>::Type;
+	using KBType            = typename BaseType::KBType;
+	using InputNgType       = typename BaseType::InputNgType;
+	using ParamsNeqType     = ParamsNeqDmftSolver<ComplexOrRealType>;
+	using DmrgRunnerType    = Dmrg::DmrgRunner<RealType>;
+	using ApplicationType   = PsimagLite::PsiApp;
 
 	ImpuritySolverNeqTdmrg(const ParamsNeqType&            params,
 	                       const ApplicationType&          app,
@@ -1483,6 +1484,48 @@ private:
 			if (i > 0)
 				s += ",";
 			s += ttos(hoppings[i]);
+		}
+		return s + "]";
+	}
+
+	// Ainur's complex literal syntax is "<real>i<imag>" (e.g. "0.5i-0.3" ->
+	// 0.5-0.3i), NOT "(re,im)" or "a+bi" -- confirmed against the live
+	// AinurComplex::toComplex parser (see fancy-painting-moon.md Phase 2
+	// blocker-A). A zero imaginary part is written as a plain real literal
+	// (no "i" token at all), matching what buildConnectorsStr already emits
+	// for the (always-real) first bath.
+	static std::string formatComplexLiteral(ComplexType v)
+	{
+		const RealType re = std::real(v);
+		const RealType im = std::imag(v);
+		if (im == RealType(0))
+			return ttos(re);
+		return ttos(re) + "i" + ttos(im);
+	}
+
+	// Second-bath-aware Connectors: first-bath hoppings (always real, as
+	// today) followed by the second-bath couplings Vplus(n,p), which are
+	// genuinely complex in general (Cholesky factor of Lambda^gtrless --
+	// see NeqBathDecomposition) and so need the complex literal syntax
+	// above. Used only when neqBathRank_ > 0; the NeqBathRank=0 path
+	// keeps using the plain buildConnectorsStr unchanged.
+	static std::string
+	buildConnectorsStrWithSecondBath(const VectorRealType&    firstBathHoppings,
+	                                 const VectorComplexType& secondBathHoppings)
+	{
+		std::string s     = "[";
+		bool        first = true;
+		for (SizeType i = 0; i < firstBathHoppings.size(); ++i) {
+			if (!first)
+				s += ",";
+			s += ttos(firstBathHoppings[i]);
+			first = false;
+		}
+		for (SizeType i = 0; i < secondBathHoppings.size(); ++i) {
+			if (!first)
+				s += ",";
+			s += formatComplexLiteral(secondBathHoppings[i]);
+			first = false;
 		}
 		return s + "]";
 	}
