@@ -249,3 +249,102 @@ TEST_CASE("ImpuritySolverNeqTdmrg full grid matches ExactDiag full grid (U=0.5)"
 {
 	runFullGridVsExactDiagComparison("0.5");
 }
+
+// Phase 2 blocker-B gate: measureSecondBathOccupations must correctly seed
+// L "occupied" (<n>~2) and L "empty" (<n>~0) second-bath sites via the
+// eps-split GS potential, PROVIDED eps is scaled to the largest other
+// coupling present (here, the single first-bath hopping V=0.5). A single
+// first-bath site (nBath=1) is used, matching the standalone smoke test in
+// build/tmp/eps_split_seed/ that first found this requirement empirically
+// -- see project_tdmrg_evolving_bath memory / fancy-painting-moon.md plan.
+static std::string configForSecondBathTest()
+{
+	return "##Ainur1.0\n\n"
+	       "FicticiousBeta=20;\n"
+	       "ChemicalPotential=0.;\n"
+	       "Matsubaras=200;\n"
+	       "LatticeGf=\"energy,semicircular,4\";\n"
+	       "NumberOfBathPoints=1;\n"
+	       "DmftNumberOfIterations=1;\n"
+	       "DmftTolerance=1e-6;\n"
+	       "ImpuritySolver=\"exactdiag\";\n"
+	       "FitOptions=particleholesymmetric;\n"
+	       "MinParamsDelta=0.01;\n"
+	       "MinParamsMaxIter=10000;\n"
+	       "MinParamsDelta2=0.01;\n"
+	       "MinParamsTolerance=1e-4;\n"
+	       "MinParamsVerbose=0;\n"
+	       "vector InitBathVector=[0.5];\n"
+	       "int ImpuritySite=0;\n"
+	       "real HubbardU=0.;\n"
+	       "TargetElectronsUp=1;\n"
+	       "TargetElectronsDown=0;\n"
+	       "RootOutputname=\"testTdmrgSecondBathSeed\";\n"
+	       "InfiniteLoopKeptStates=60;\n"
+	       "matrix FiniteLoopsGs=[[@auto, 60, 0],[@auto, 60, 0]];\n"
+	       "real OmegaBegin=-6.;\n"
+	       "integer OmegaTotal=20;\n"
+	       "real OmegaStep=0.3;\n"
+	       "real OmegaDelta=0.1;\n"
+	       "integer TridiagSteps=200;\n"
+	       "real TridiagEps=1e-9;\n"
+	       "TruncationTolerance=\"1e-10,100\";\n"
+	       "CorrectionVectorEta=0.;\n"
+	       "GsWeight=0.1;\n"
+	       "matrix FiniteLoopsOmega=[[@auto, 60, 2],[@auto, 60, 2]];\n"
+	       "HubbardUFinal=0.;\n"
+	       "TmaxNeq=0.2;\n"
+	       "NtNeq=2;\n"
+	       "NeqDmftIter=1;\n"
+	       "NeqDmftTolerance=0.001;\n"
+	       "NeqSolver=\"tdmrg\";\n"
+	       "matrix FiniteLoopsTdmrg=[\n"
+	       "    [@auto, 60, 0],[@auto, 60, 0],\n"
+	       "    [@auto, 60, 0],[@auto, 60, 0]];\n"
+	       "TSPTimeSteps=5;\n"
+	       "TSPAdvanceEach=4;\n";
+}
+
+TEST_CASE("ImpuritySolverNeqTdmrg second-bath eps-split seeding requires eps "
+          "scaled to the coupling strength",
+          "[ImpuritySolverNeqTdmrg][Phase2][SecondBathSeeding]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configForSecondBathTest());
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	// nBath=1, hopping V=0.5, bathEps=0.
+	const VectorRealType bathParams = { 0.5, 0.0 };
+	const SizeType       L          = 1;
+
+	SECTION("eps comparable to V: correct L-occupied/L-empty seeding")
+	{
+		const RealType eps = 5.0 * 0.5; // several times the first-bath hopping V
+		const auto     occ = solver.measureSecondBathOccupations(bathParams, L, eps);
+		REQUIRE(occ.size() == 2 * L);
+		// occ[0] = intended-occupied site, occ[1] = intended-empty site.
+		CHECK(occ[0] == Catch::Approx(2.0).margin(1e-4));
+		CHECK(occ[1] == Catch::Approx(0.0).margin(1e-4));
+	}
+
+	SECTION("eps too small relative to V: seeding fails (documents the "
+	        "calibration requirement, not a bug)")
+	{
+		const RealType eps = 0.01; // << V=0.5, matches the failing smoke-test case
+		const auto     occ = solver.measureSecondBathOccupations(bathParams, L, eps);
+		REQUIRE(occ.size() == 2 * L);
+		// Does NOT match the intended 2/0 pattern -- this is the whole
+		// point of the test: a fixed small eps is not safe in general.
+		const bool seededCorrectly
+		    = (std::abs(occ[0] - 2.0) < 1e-4) && (std::abs(occ[1] - 0.0) < 1e-4);
+		CHECK_FALSE(seededCorrectly);
+	}
+}

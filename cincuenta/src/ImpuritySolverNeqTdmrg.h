@@ -610,6 +610,107 @@ public:
 		return fullGimp;
 	}
 
+	// ---- Phase 2 (evolving-bath project): second-bath seeding check --------
+	//
+	// GBEK's second bath is 2L extra star-geometry sites (L "occupied", L
+	// "empty") coupled to the impurity with amplitude Vplus(n,p), which is
+	// exactly 0 at n=0 (NeqBathDecomposition skips n=0) -- so at the point
+	// where tDMRG's GS run would diagonalize, these 2L sites are EXACTLY
+	// decoupled from the rest of the system. DMRG's Lanczos GS solver then
+	// faces an exactly degenerate manifold across every occupation
+	// combination among them, with no natural mechanism (unlike GBEK's own
+	// explicit ED basis-vector construction) to land on the specific
+	// L-occupied/L-empty configuration NeqBathDecomposition expects.
+	//
+	// Fix: break the degeneracy with a small potential split at the GS run
+	// only (-eps on the intended-occupied sites, +eps on the intended-empty
+	// sites); the true evolving-bath potential is 0 for all these sites at
+	// every subsequent time step, so this split is purely a GS-seeding
+	// device, not part of the physical model.
+	//
+	// IMPORTANT, confirmed empirically (see project_tdmrg_evolving_bath
+	// memory / fancy-painting-moon.md plan): eps must be scaled to the
+	// largest OTHER coupling actually present (first-bath hoppings, U),
+	// not just placed above the Lanczos convergence floor. A too-small eps
+	// lets the coupled impurity/first-bath subsystem's OWN delocalization
+	// energy gain outcompete the split, pulling electrons away from the
+	// intended second-bath occupation pattern instead of leaving them
+	// there. Callers must choose eps accordingly (e.g. several times
+	// max(|hoppings|, |bathEps|, U)) and verify with this very method --
+	// do not assume a fixed eps works across parameter regimes.
+	//
+	// Returns the measured <n_p> for each of the 2L second-bath sites,
+	// ordered [occupied_0..occupied_{L-1}, empty_0..empty_{L-1}] to match
+	// NeqBathDecomposition's/eqHybDecomp's own convention (first half
+	// occupied, second half unoccupied). Verification-only: builds one
+	// extra, throwaway GS run; not wired into solve()/computeFullGrid.
+	VectorRealType measureSecondBathOccupations(const VectorRealType& bathParams,
+	                                            SizeType              L,
+	                                            RealType              eps) const
+	{
+		const SizeType nBath     = bathParams.size() / 2;
+		const SizeType nsites    = nBath + 1;
+		const SizeType nsitesExt = nsites + 2 * L;
+
+		VectorRealType hoppings(nBath), bathEps(nBath);
+		for (SizeType i = 0; i < nBath; ++i) {
+			hoppings[i] = bathParams[i];
+			bathEps[i]  = bathParams[nBath + i];
+		}
+
+		// Extended Connectors: first-bath hoppings unchanged, second-bath
+		// hoppings all zero (Vplus(0,p)=0 by construction at t=0).
+		VectorRealType hoppingsExt(nsitesExt - 1, RealType(0));
+		for (SizeType i = 0; i < nBath; ++i)
+			hoppingsExt[i] = hoppings[i];
+
+		// Extended potentialV: impurity/first-bath unchanged, then L
+		// occupied sites at -eps, L empty sites at +eps.
+		VectorRealType potExt(nsitesExt, RealType(0));
+		potExt[0] = -RealType(0.5) * params_.uInitial;
+		for (SizeType i = 0; i < nBath; ++i)
+			potExt[i + 1] = bathEps[i];
+		for (SizeType p = 0; p < L; ++p)
+			potExt[nsites + p] = -eps;
+		for (SizeType p = 0; p < L; ++p)
+			potExt[nsites + L + p] = eps;
+
+		const SizeType nupExt   = nup_ + L;
+		const SizeType ndownExt = ndown_ + L;
+
+		const std::string outRoot = root_ + "secondbath_seed_gs";
+
+		std::string insitu;
+		for (SizeType p = 0; p < 2 * L; ++p) {
+			if (p > 0)
+				insitu += ",";
+			insitu += "<gs|n[" + ttos(nsites + p) + "]|gs>";
+		}
+
+		Dmrg::CmdLineOptions opts;
+		opts.logfile              = outRoot + ".log";
+		opts.in_situ_measurements = insitu;
+		DmrgRunnerType runner(app_,
+		                      buildGsInputAt(outRoot,
+		                                     params_.uInitial,
+		                                     hoppingsExt,
+		                                     potExt,
+		                                     nupExt,
+		                                     ndownExt,
+		                                     nsitesExt),
+		                      opts);
+		runner.doOneRun();
+
+		VectorRealType occ(2 * L);
+		for (SizeType p = 0; p < 2 * L; ++p) {
+			const std::string label = "<gs|n[" + ttos(nsites + p) + "]|gs>";
+			ComplexType       val(0);
+			parseSingleMeasurementAtSite(opts.logfile, label, nsites + p, val, true);
+			occ[p] = std::real(val);
+		}
+		return occ;
+	}
+
 private:
 
 	// ---- Phase 1 multi-column state -----------------------------------------
@@ -1299,6 +1400,19 @@ private:
 	                                   ComplexType&       outVal,
 	                                   bool               takeLast)
 	{
+		return parseSingleMeasurementAtSite(logfile, label, 0, outVal, takeLast);
+	}
+
+	// Generalizes parseSingleMeasurement's hardcoded site==0 filter (valid
+	// only for measurements anchored at the impurity). Needed for
+	// measureSecondBathOccupations, whose <gs|n[p]|gs> labels are anchored
+	// at the second-bath sites (site index p >= nsites), not site 0.
+	static bool parseSingleMeasurementAtSite(const std::string& logfile,
+	                                         const std::string& label,
+	                                         SizeType           targetSite,
+	                                         ComplexType&       outVal,
+	                                         bool               takeLast)
+	{
 		std::ifstream fin(logfile);
 		if (!fin || !fin.good())
 			return false;
@@ -1311,7 +1425,7 @@ private:
 			RealType    t = 0;
 			if (!parseMeasurementLine(line, site, valStr, t, lbl))
 				continue;
-			if (site != 0 || lbl != label)
+			if (site != targetSite || lbl != label)
 				continue;
 
 			RealType re = 0, im = 0;
