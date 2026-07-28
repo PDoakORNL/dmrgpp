@@ -406,7 +406,335 @@ public:
 		return result;
 	}
 
+	// ---- Phase 1 (evolving-bath project): genuine multi-column full grid --
+	//
+	// Generalizes solveChainedColumn0 above from "column 0 only" to a
+	// genuine two-time G(t_n,t_j) grid: one MPS trajectory per insertion
+	// time t_j (a "column"), chained forward in time, following the
+	// architecture in /Users/epd/.claude/plans/fancy-painting-moon.md.
+	// Still verification-only -- not wired into solve()/computeGimp()'s
+	// existing dispatch.
+	//
+	// Static bath only (no NeqBathDecomposition wiring yet -- that is
+	// Phase 2). Column 0 doubles as the perpetual seed source for birthing
+	// every later column (no separate shared reference thread needed --
+	// see plan file for why).
+	//
+	// KNOWN GAP, not silently dropped: does NOT fill the diagonal
+	// gimp.lesser(n,n)/retarded(n,n). Getting the equal-time diagonal
+	// requires either a zero-length TimeEvolve measurement or bundling an
+	// extra advance into birth, both added mechanisms not yet validated
+	// against the monolithic reference the way the off-diagonal chaining
+	// below has been. Left as follow-up work; see project_tdmrg_evolving_bath
+	// memory. NeqLatticeGf::updateDelta DOES read the diagonal (it feeds
+	// NeqBathDecomposition's target `d` for the Cholesky column), so this
+	// gap must be closed before Phase 2 can be correct, not just before it
+	// is "nice to have".
+	KBType computeFullGrid(const VectorRealType& bathParams) const
+	{
+		const SizeType nBath  = bathParams.size() / 2;
+		const SizeType nsites = nBath + 1;
+
+		VectorRealType hoppings(nBath), bathEps(nBath);
+		for (SizeType i = 0; i < nBath; ++i) {
+			hoppings[i] = bathParams[i];
+			bathEps[i]  = bathParams[nBath + i];
+		}
+
+		VectorRealType potGS(nsites), potTdmrg(nsites);
+		potGS[0]    = -RealType(0.5) * params_.uInitial;
+		potTdmrg[0] = -RealType(0.5) * params_.uFinal;
+		for (SizeType i = 0; i < nBath; ++i) {
+			potGS[i + 1]    = bathEps[i];
+			potTdmrg[i + 1] = bathEps[i];
+		}
+
+		const std::string chainRoot = root_ + "grid_";
+		const int         nT        = static_cast<int>(params_.nT);
+
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = chainRoot + "gs.log";
+			DmrgRunnerType runner(app_,
+			                      buildGsInputAt(chainRoot + "gs",
+			                                     params_.uInitial,
+			                                     hoppings,
+			                                     potGS,
+			                                     nup_,
+			                                     ndown_,
+			                                     nsites),
+			                      opts);
+			runner.doOneRun();
+		}
+
+		std::vector<Column> columns;
+		columns.reserve(static_cast<SizeType>(nT));
+		columns.emplace_back();
+		columns[0].born = 0;
+		birthColumn(columns[0],
+		            chainRoot + "gs",
+		            -1,
+		            chainRoot + "gs",
+		            -1,
+		            chainRoot,
+		            "column0",
+		            params_.uFinal,
+		            hoppings,
+		            potTdmrg,
+		            nsites);
+
+		for (int n = 1; n <= nT; ++n) {
+			// 1. Advance column 0 -- both extends its own trajectory (giving
+			//    G(n,0)) and produces the bare reference at t_n that step 2
+			//    below needs to birth column n.
+			advanceColumn(
+			    columns[0], n, chainRoot, params_.uFinal, hoppings, potTdmrg, nsites);
+
+			// 2. Birth column n from column 0's just-refreshed bare
+			//    reference, unless n==nT (nothing would ever advance it).
+			SizeType justBornIdx = columns.size(); // sentinel: none born this step
+			if (n < nT) {
+				columns.emplace_back();
+				columns.back().born = n;
+				birthColumn(columns.back(),
+				            columns[0].particleRoot,
+				            columns[0].particleSrcTv,
+				            columns[0].holeRoot,
+				            columns[0].holeSrcTv,
+				            chainRoot,
+				            "column" + ttos(n),
+				            params_.uFinal,
+				            hoppings,
+				            potTdmrg,
+				            nsites);
+				justBornIdx = columns.size() - 1;
+			}
+
+			// 3. Advance every OTHER existing column (not column 0, already
+			//    done in step 1; not the one just born in step 2, which has
+			//    nothing to advance yet).
+			for (SizeType idx = 1; idx < columns.size(); ++idx) {
+				if (idx == justBornIdx)
+					continue;
+				advanceColumn(columns[idx],
+				              n,
+				              chainRoot,
+				              params_.uFinal,
+				              hoppings,
+				              potTdmrg,
+				              nsites);
+			}
+		}
+
+		KBType fullGimp(params_.nT,
+		                params_.eqParams.nMatsubaras,
+		                params_.dt,
+		                params_.eqParams.ficticiousBeta
+		                    / static_cast<RealType>(params_.eqParams.nMatsubaras));
+
+		for (auto& col : columns) {
+			applySignFlip(col.ggtRaw);
+			for (auto& kv : col.ggtRaw) {
+				auto it = col.gaugePRaw.find(kv.first);
+				if (it != col.gaugePRaw.end()
+				    && std::abs(it->second) > RealType(1e-10))
+					kv.second /= it->second;
+			}
+			applySignFlip(col.gltRaw);
+			for (auto& kv : col.gltRaw) {
+				auto it = col.gaugeHRaw.find(kv.first);
+				if (it != col.gaugeHRaw.end()
+				    && std::abs(it->second) > RealType(1e-10))
+					kv.second *= it->second;
+			}
+
+			const int j = col.born;
+			for (int n = j + 1; n <= nT; ++n) {
+				auto itG = col.ggtRaw.find(n);
+				auto itL = col.gltRaw.find(n);
+				if (itG == col.ggtRaw.end() || itL == col.gltRaw.end())
+					continue;
+				const ComplexType ggt   = ComplexType(0, -1) * itG->second;
+				const ComplexType glt   = ComplexType(0, 1) * itL->second;
+				fullGimp.lesser(n, j)   = glt;
+				fullGimp.retarded(n, j) = ggt - glt;
+				if (j < n)
+					fullGimp.lesser(j, n) = -std::conj(glt);
+			}
+		}
+
+		return fullGimp;
+	}
+
 private:
+
+	// ---- Phase 1 multi-column state -----------------------------------------
+	//
+	// One "column" = one insertion time t_j = born*dt, tracked per channel
+	// (particle/hole) as: the current checkpoint root, which TV index to
+	// restart-map for the NEXT segment's P0 (mappedTv) and which TV index to
+	// use as RestartSourceTvForPsi for the NEXT segment's |gs> seed (srcTv;
+	// -1 means "use restartRoot's own natural single state", true right
+	// after birth), and the raw (pre-gauge-correction) measurement history
+	// keyed by outer step n. See computeFullGrid's final pass for why
+	// gauge correction is deferred to the end (applySignFlip needs a
+	// column's own full, chronologically-ordered history).
+	struct Column {
+		int                        born = 0;
+		std::string                particleRoot, holeRoot;
+		int                        particleMapTv = 0, particleSrcTv = -1;
+		int                        holeMapTv = 0, holeSrcTv = -1;
+		std::map<int, ComplexType> ggtRaw, gaugePRaw; // keyed by n, n > born
+		std::map<int, ComplexType> gltRaw, gaugeHRaw;
+	};
+
+	// Birth a new column at time col.born. The particle and hole branches
+	// restart from SEPARATE sources -- (particleSourceRoot, particleSourceTv)
+	// and (holeSourceRoot, holeSourceTv) -- because a source column's
+	// particle-channel and hole-channel checkpoint chains are independently
+	// propagated (see ImpuritySolverNeqTdmrg's class doc: Run2->Run3 vs
+	// Run4->Run5), not interchangeable. No measurement, no time advance --
+	// exactly today's buildParticleInitInput/buildHoleInitInput pattern (see
+	// buildInitInputAt), just parameterized to restart from an arbitrary
+	// column's current checkpoint instead of always from the t=0 gs run.
+	// After birth, col.particleRoot/holeRoot hold single-TV checkpoints, so
+	// the column's own first subsequent advanceColumn call is structurally
+	// identical to column 0's very first step (mapTv=0, srcTv=-1) --
+	// exactly the case solveChainedColumn0 already validated needs
+	// takeLast=true.
+	void birthColumn(Column&               col,
+	                 const std::string&    particleSourceRoot,
+	                 int                   particleSourceTv,
+	                 const std::string&    holeSourceRoot,
+	                 int                   holeSourceTv,
+	                 const std::string&    chainRoot,
+	                 const std::string&    tag,
+	                 RealType              uFinal,
+	                 const VectorRealType& hoppings,
+	                 const VectorRealType& potTdmrg,
+	                 SizeType              nsites) const
+	{
+		col.particleRoot = chainRoot + tag + "_particle_birth";
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = col.particleRoot + ".log";
+			DmrgRunnerType runner(app_,
+			                      buildInitInputAt(col.particleRoot,
+			                                       particleSourceRoot,
+			                                       uFinal,
+			                                       hoppings,
+			                                       potTdmrg,
+			                                       nup_,
+			                                       ndown_,
+			                                       nsites,
+			                                       "'",
+			                                       particleSourceTv,
+			                                       particleSourceTv >= 0),
+			                      opts);
+			runner.doOneRun();
+		}
+		col.particleMapTv = 0;
+		col.particleSrcTv = -1;
+
+		col.holeRoot = chainRoot + tag + "_hole_birth";
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = col.holeRoot + ".log";
+			DmrgRunnerType runner(app_,
+			                      buildInitInputAt(col.holeRoot,
+			                                       holeSourceRoot,
+			                                       uFinal,
+			                                       hoppings,
+			                                       potTdmrg,
+			                                       nup_,
+			                                       ndown_,
+			                                       nsites,
+			                                       "",
+			                                       holeSourceTv,
+			                                       holeSourceTv >= 0),
+			                      opts);
+			runner.doOneRun();
+		}
+		col.holeMapTv = 0;
+		col.holeSrcTv = -1;
+	}
+
+	// Advance column col by one step, to outer step n (n = col's
+	// last-advanced step + 1, tracked implicitly by the caller's loop
+	// order). Fills col.ggtRaw[n]/gltRaw[n] (raw, not yet gauge-corrected --
+	// see computeFullGrid). takeLast mirrors solveChainedColumn0's
+	// empirically-validated rule: true only for a column's own first
+	// advance since birth (particleSrcTv/holeSrcTv < 0), false thereafter.
+	void advanceColumn(Column&               col,
+	                   int                   n,
+	                   const std::string&    chainRoot,
+	                   RealType              uFinal,
+	                   const VectorRealType& hoppings,
+	                   const VectorRealType& potTdmrg,
+	                   SizeType              nsites) const
+	{
+		const std::string tag = "j" + ttos(col.born) + "_n" + ttos(n);
+		{
+			const bool           takeLast = (col.particleSrcTv < 0);
+			const std::string    outRoot  = chainRoot + tag + "_particle";
+			Dmrg::CmdLineOptions opts;
+			opts.logfile              = outRoot + ".log";
+			opts.in_situ_measurements = "<P2|c|P1>,<P2.last|P2>";
+			DmrgRunnerType runner(app_,
+			                      buildStepInput(uFinal,
+			                                     hoppings,
+			                                     potTdmrg,
+			                                     nup_,
+			                                     ndown_,
+			                                     nsites,
+			                                     col.particleRoot,
+			                                     col.particleMapTv,
+			                                     col.particleSrcTv,
+			                                     outRoot),
+			                      opts);
+			runner.doOneRun();
+
+			ComplexType ggt(0), gauge(0);
+			parseSingleMeasurement(opts.logfile, "<P2|c|P1>", ggt, takeLast);
+			if (parseSingleMeasurement(opts.logfile, "<P2.last|P2>", gauge, takeLast))
+				col.gaugePRaw[n] = gauge;
+			col.ggtRaw[n] = ggt;
+
+			col.particleRoot  = outRoot;
+			col.particleMapTv = 1;
+			col.particleSrcTv = 2;
+		}
+		{
+			const bool           takeLast = (col.holeSrcTv < 0);
+			const std::string    outRoot  = chainRoot + tag + "_hole";
+			Dmrg::CmdLineOptions opts;
+			opts.logfile              = outRoot + ".log";
+			opts.in_situ_measurements = "<P1|c|P2>,<P2.last|P2>";
+			DmrgRunnerType runner(app_,
+			                      buildStepInput(uFinal,
+			                                     hoppings,
+			                                     potTdmrg,
+			                                     nup_,
+			                                     ndown_,
+			                                     nsites,
+			                                     col.holeRoot,
+			                                     col.holeMapTv,
+			                                     col.holeSrcTv,
+			                                     outRoot),
+			                      opts);
+			runner.doOneRun();
+
+			ComplexType glt(0), gauge(0);
+			parseSingleMeasurement(opts.logfile, "<P1|c|P2>", glt, takeLast);
+			if (parseSingleMeasurement(opts.logfile, "<P2.last|P2>", gauge, takeLast))
+				col.gaugeHRaw[n] = gauge;
+			col.gltRaw[n] = glt;
+
+			col.holeRoot  = outRoot;
+			col.holeMapTv = 1;
+			col.holeSrcTv = 2;
+		}
+	}
 
 	// ---- Input construction ------------------------------------------------
 
@@ -579,6 +907,20 @@ private:
 	}
 
 	// opChar: "'" for the particle branch (c'[0]), "" for the hole branch (c[0]).
+	// sourceTv: RestartSourceTvForPsi to select which TV in restartRoot's
+	//   checkpoint becomes this run's |gs> reference; -1 (default, omit the
+	//   key) is correct when restartRoot has a single natural state to
+	//   restore (the plain GS run, or any *_init checkpoint). Non-negative
+	//   is needed when birthing a NEW column from an ALREADY-ADVANCED
+	//   column's multi-TV checkpoint (see birthColumn/computeFullGrid).
+	// complexSource: must match whether restartRoot's own checkpoint was
+	//   written with "usecomplex" (buildStepInput always sets it) or not
+	//   (the plain GS run / this function's own output never does) --
+	//   Checkpoint validation rejects a complex/real mismatch ("Previous
+	//   run was complex and this one is not"). false (default) is correct
+	//   for column 0's original birth from the plain GS run; true is
+	//   needed when birthing a later column from an already-advanced
+	//   (hence complex) column's checkpoint.
 	std::string buildInitInputAt(const std::string&    outRoot,
 	                             const std::string&    restartRoot,
 	                             RealType              U_f,
@@ -587,11 +929,14 @@ private:
 	                             SizeType              nup,
 	                             SizeType              ndown,
 	                             SizeType              nsites,
-	                             const std::string&    opChar) const
+	                             const std::string&    opChar,
+	                             int                   sourceTv      = -1,
+	                             bool                  complexSource = false) const
 	{
 		std::string s = "##Ainur1.0\n\n";
 		s += geomHeader(nsites, U_f);
-		s += "SolverOptions=twositedmrg,geometryallinsystem,TargetingExpression,restart;\n";
+		s += "SolverOptions=twositedmrg,geometryallinsystem,TargetingExpression,restart";
+		s += complexSource ? ",usecomplex;\n" : ";\n";
 		s += "Version=neqTdmrg;\n";
 		s += "OutputFile=" + outRoot + ";\n";
 		s += "InfiniteLoopKeptStates=" + ttos(infiniteLoops_) + ";\n";
@@ -601,6 +946,8 @@ private:
 		s += "dir0:Connectors=" + buildConnectorsStr(hoppings) + ";\n";
 		s += "potentialV=" + buildPotentialVStr(potV) + ";\n";
 		s += "RestartFilename=" + restartRoot + ";\n";
+		if (sourceTv >= 0)
+			s += "RestartSourceTvForPsi=" + ttos(sourceTv) + ";\n";
 		s += "GsWeight=0.1;\n";
 		s += "string P0=\"c" + opChar + "[0]*|gs>\";\n";
 		return s;

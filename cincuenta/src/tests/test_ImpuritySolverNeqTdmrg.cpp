@@ -1,4 +1,5 @@
 #include "CincuentaInputCheck.h"
+#include "ImpuritySolverNeqExactDiag.h"
 #include "ImpuritySolverNeqTdmrg.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -156,4 +157,94 @@ TEST_CASE("ImpuritySolverNeqTdmrg chained column-0 matches monolithic solve() (U
           "[ImpuritySolverNeqTdmrg][Phase1]")
 {
 	runChainedVsMonolithicComparison("0.5");
+}
+
+// Phase 1 full-grid gate: computeFullGrid() must reproduce a genuine
+// two-time G(t_n,t_j) grid, not just column 0. Compared against
+// ImpuritySolverNeqExactDiag's own full-grid computeGimp (self-contained,
+// no NeqDmftSolver driving needed -- see plan file) for all (n,j), j<n.
+//
+// The atomic-limit closed form (nBath=0) is NOT used here as the
+// reference, unlike the plan's general suggestion: tDMRG's star geometry
+// needs at least one real bath site (TSPAdvanceEach=nsites-2 is degenerate
+// at nsites=1), so nBath=0 isn't a configuration tDMRG can actually run.
+// ImpuritySolverNeqExactDiag's general (nonzero-bath) full grid is the
+// right reference for this solver.
+//
+// Diagonal (n==n) is EXCLUDED: computeFullGrid does not fill it yet (see
+// its doc comment -- a known, explicitly flagged gap, not a silent one).
+static void runFullGridVsExactDiagComparison(const std::string& uValue)
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU(uValue));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             tdmrg(params, app, io);
+
+	using ExactDiagType = Dmft::ImpuritySolverNeqExactDiag<ComplexType>;
+	using EdKBType      = typename ExactDiagType::KBType;
+	InputNgType::Writeable ioW2(Dmft::CincuentaInputCheck {}, configWithU(uValue));
+	InputNgType::Readable  io2(ioW2);
+	ParamsType             paramsEd(io2);
+	ExactDiagType          exactDiag(paramsEd, io2);
+
+	// Symmetric 5-site bath, arbitrary non-degenerate values (same as the
+	// column-0-only test above).
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+
+	exactDiag.solve(bathParams);
+
+	// computeGimp fills a CALLER-owned grid (see NeqDmftSolver's own usage
+	// pattern) -- it does not populate the solver's internal gimp_ (that's
+	// a separate accessor, used only for Matsubara/left-mixing components
+	// elsewhere). Build our own reference grid, same idiom as
+	// test_ImpuritySolverNeqExactDiag.cpp's makeSlice.
+	EdKBType reference(paramsEd.nT,
+	                   paramsEd.eqParams.nMatsubaras,
+	                   paramsEd.dt,
+	                   paramsEd.eqParams.ficticiousBeta
+	                       / static_cast<RealType>(paramsEd.eqParams.nMatsubaras));
+	for (int n = 0; n <= static_cast<int>(paramsEd.nT); ++n)
+		exactDiag.computeGimp(reference, n);
+
+	const auto grid = tdmrg.computeFullGrid(bathParams);
+
+	std::cout << "=== Phase 1 full-grid vs ExactDiag comparison (U=" << uValue << ") ===\n";
+	const int      nT  = static_cast<int>(params.nT);
+	const RealType tol = 1e-6;
+	for (int n = 1; n <= nT; ++n) {
+		for (int j = 0; j < n; ++j) {
+			const ComplexType refRet  = reference.retarded(n, j);
+			const ComplexType refLes  = reference.lesser(n, j);
+			const ComplexType gridRet = grid.retarded(n, j);
+			const ComplexType gridLes = grid.lesser(n, j);
+
+			std::cout << "n=" << n << " j=" << j << " ExactDiag G^R=" << refRet
+			          << " G^<=" << refLes << " tDMRG G^R=" << gridRet
+			          << " G^<=" << gridLes << "\n";
+
+			CHECK(gridRet.real() == Catch::Approx(refRet.real()).margin(tol));
+			CHECK(gridRet.imag() == Catch::Approx(refRet.imag()).margin(tol));
+			CHECK(gridLes.real() == Catch::Approx(refLes.real()).margin(tol));
+			CHECK(gridLes.imag() == Catch::Approx(refLes.imag()).margin(tol));
+		}
+	}
+}
+
+TEST_CASE("ImpuritySolverNeqTdmrg full grid matches ExactDiag full grid (U=0)",
+          "[ImpuritySolverNeqTdmrg][Phase1][FullGrid]")
+{
+	runFullGridVsExactDiagComparison("0.");
+}
+
+TEST_CASE("ImpuritySolverNeqTdmrg full grid matches ExactDiag full grid (U=0.5)",
+          "[ImpuritySolverNeqTdmrg][Phase1][FullGrid]")
+{
+	runFullGridVsExactDiagComparison("0.5");
 }
