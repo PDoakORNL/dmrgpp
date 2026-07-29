@@ -673,11 +673,26 @@ public:
 	// where the diagonal for row n must be available before Vplus(n+1) is
 	// known. See fancy-painting-moon.md, Phase 2, "diagonal Connectors-
 	// independence check".
+	// rootSuffix (default "gridbath_"): distinguishes the output/checkpoint
+	// file prefix across multiple calls made from the SAME test process
+	// (e.g. two calls with different fixedConnectors back-to-back) --
+	// callers making more than one call against the same root_ MUST pass
+	// distinct suffixes, or the second call's DmrgRunner-written checkpoint
+	// files collide with the first's (observed as a real, reproducible
+	// cross-call contamination: a "column diagonal is independent of
+	// Connectors" test calling this twice with the default suffix saw its
+	// second run's off-diagonal spuriously equal the first's, only when
+	// run as part of the full suite where a THIRD call -- from a different
+	// TEST_CASE sharing the same default root_ -- had already written to
+	// the same files earlier in the same process; passing a distinct
+	// suffix per call eliminates this at the source rather than chasing
+	// the exact HDF5/checkpoint reuse mechanism).
 	KBType computeFullGridWithInertSecondBath(const VectorRealType&    bathParams,
 	                                          SizeType                 L,
 	                                          RealType                 eps,
 	                                          const VectorComplexType& fixedConnectors
-	                                          = VectorComplexType()) const
+	                                          = VectorComplexType(),
+	                                          const std::string& rootSuffix = "gridbath_") const
 	{
 		const SizeType nBath     = bathParams.size() / 2;
 		const SizeType nsites    = nBath + 1;
@@ -714,7 +729,7 @@ public:
 		     : fixedConnectors;
 		secondBath.advanceEach = nsitesExt - 2;
 
-		const std::string chainRoot = root_ + "gridbath_";
+		const std::string chainRoot = root_ + rootSuffix;
 		const int         nT        = static_cast<int>(params_.nT);
 
 		{

@@ -40,10 +40,35 @@ public:
 	using InputNgType       = PsimagLite::InputNg<CincuentaInputCheck>;
 	using ImpSolverType     = ImpSolverTemplate<ComplexOrRealType>;
 	using LatticeGfType     = NeqLatticeGf<ComplexOrRealType>;
+	using ApplicationType   = PsimagLite::PsiApp;
 
 	NeqDmftSolver(const ParamsNeqType& params, typename InputNgType::Readable& io)
 	    : params_(params)
 	    , impSolver_(params, io)
+	    , latticeGf_(params)
+	    , gimp_(params.nT,
+	            params.eqParams.nMatsubaras,
+	            params.dt,
+	            params.eqParams.ficticiousBeta
+	                / static_cast<RealType>(params.eqParams.nMatsubaras))
+	{ }
+
+	// Overload for impurity solvers whose constructor needs an extra
+	// ApplicationType& (currently only ImpuritySolverNeqTdmrg, which drives
+	// DmrgRunner subprocesses and so needs the PsiApp). Only instantiated
+	// (and so only needs to compile) when ImpSolverType actually has a
+	// matching 3-arg constructor -- member functions of a class template
+	// are instantiated lazily on use, so this does not affect
+	// ImpuritySolverNeqGBEK/ExactDiag/Lanczos, none of which have one.
+	// Added to let ImpuritySolverNeqTdmrg be driven through NeqDmftSolver
+	// like every other impurity solver (see fancy-painting-moon.md, Phase
+	// 2 gate task) -- previously it could only be constructed directly,
+	// bypassing NeqDmftSolver's self-consistency loop entirely.
+	NeqDmftSolver(const ParamsNeqType&            params,
+	              const ApplicationType&          app,
+	              typename InputNgType::Readable& io)
+	    : params_(params)
+	    , impSolver_(params, app, io)
 	    , latticeGf_(params)
 	    , gimp_(params.nT,
 	            params.eqParams.nMatsubaras,

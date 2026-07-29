@@ -1,6 +1,7 @@
 #include "CincuentaInputCheck.h"
 #include "ImpuritySolverNeqExactDiag.h"
 #include "ImpuritySolverNeqTdmrg.h"
+#include "NeqDmftSolver.h"
 #include "NeqLatticeGf.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -41,7 +42,16 @@ using ApplicationType   = PsimagLite::PsiApp;
 // benchmark. %U% is substituted with the desired HubbardU/HubbardUFinal
 // value (no quench in U either variant -- only U itself is varied between
 // the two test cases, everything else identical).
-static std::string configWithU(const std::string& uValue)
+// rootName (default "testTdmrgChain", matching every existing call site):
+// pass a distinct bare-alphanumeric identifier for a TEST_CASE that would
+// otherwise collide with another sharing the same RootOutputname-derived
+// checkpoint file prefix -- confirmed as a REAL, reproducible cross-
+// TEST_CASE contamination mechanism (not hypothetical). Must be bare
+// alphanumeric: a period in the root name (e.g. embedding a raw "uValue"
+// like "0.5") breaks log/checkpoint filename parsing outright (confirmed
+// empirically -- do not parameterize this by uValue).
+static std::string configWithU(const std::string& uValue,
+                               const std::string& rootName = "testTdmrgChain")
 {
 	return "##Ainur1.0\n\n"
 	       "FicticiousBeta=20;\n"
@@ -65,7 +75,9 @@ static std::string configWithU(const std::string& uValue)
 	    + ";\n"
 	      "TargetElectronsUp=3;\n"
 	      "TargetElectronsDown=3;\n"
-	      "RootOutputname=\"testTdmrgChain\";\n"
+	      "RootOutputname=\""
+	    + rootName
+	    + "\";\n"
 	      "InfiniteLoopKeptStates=100;\n"
 	      "matrix FiniteLoopsGs=[[@auto, 100, 0],[@auto, 100, 0]];\n"
 	      "real OmegaBegin=-6.;\n"
@@ -447,10 +459,15 @@ TEST_CASE("ImpuritySolverNeqTdmrg column diagonal is independent of the "
 	const VectorComplexType connectorsA = { ComplexType(0.3, 0.0), ComplexType(0.3, 0.0) };
 	const VectorComplexType connectorsB = { ComplexType(0.7, 0.2), ComplexType(0.7, 0.2) };
 
-	const auto gridA
-	    = solver.computeFullGridWithInertSecondBath(bathParams, L, eps, connectorsA);
-	const auto gridB
-	    = solver.computeFullGridWithInertSecondBath(bathParams, L, eps, connectorsB);
+	// Distinct rootSuffix per call: this test makes two back-to-back calls
+	// against the same solver/root_, which otherwise write/read the same
+	// checkpoint files -- observed to cause real cross-call contamination
+	// when run as part of the full suite (see computeFullGridWithInertSecondBath's
+	// doc comment).
+	const auto gridA = solver.computeFullGridWithInertSecondBath(
+	    bathParams, L, eps, connectorsA, "gridbathA_");
+	const auto gridB = solver.computeFullGridWithInertSecondBath(
+	    bathParams, L, eps, connectorsB, "gridbathB_");
 
 	const RealType tol = 1e-6;
 
@@ -507,7 +524,7 @@ TEST_CASE("ImpuritySolverNeqTdmrg NeqBathRank=1 self-consistent wiring runs "
 	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
 
 	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
-	                           configWithU("0.5") + "NeqBathRank=1;\n");
+	                           configWithU("0.5", "testTdmrgChainSCW") + "NeqBathRank=1;\n");
 	InputNgType::Readable  io(ioW);
 	ParamsType             params(io);
 	SolverType             solver(params, app, io);
@@ -540,6 +557,51 @@ TEST_CASE("ImpuritySolverNeqTdmrg NeqBathRank=1 self-consistent wiring runs "
 		}
 		latticeGf.advance(n);
 
+		for (int j = 0; j <= n; ++j) {
+			CHECK(std::isfinite(gimp.retarded(n, j).real()));
+			CHECK(std::isfinite(gimp.retarded(n, j).imag()));
+			CHECK(std::isfinite(gimp.lesser(n, j).real()));
+			CHECK(std::isfinite(gimp.lesser(n, j).imag()));
+		}
+	}
+}
+
+// ---- Task 16: NeqDmftSolver<..., ImpuritySolverNeqTdmrg> constructibility --
+//
+// Confirms the new 3-arg NeqDmftSolver constructor overload (NeqDmftSolver.h)
+// actually lets ImpuritySolverNeqTdmrg be driven through NeqDmftSolver's OWN
+// solve()/timeStep() loop, exactly like ImpuritySolverNeqGBEK/ExactDiag/
+// Lanczos already are -- superseding the manual replication in the
+// "SelfConsistentWiring" test above (kept as-is; it still documents/
+// exercises the underlying computeGimp/prepareTimeStep contract directly).
+// This is what Task 15's full gate needs: both tDMRG and GBEK driven
+// identically through NeqDmftSolver, not via two different hand-rolled
+// harnesses.
+TEST_CASE("ImpuritySolverNeqTdmrg can be driven through NeqDmftSolver's own "
+          "solve()",
+          "[ImpuritySolverNeqTdmrg][Phase2][NeqDmftSolverWiring]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+	                           configWithU("0.5", "testTdmrgChainNDS") + "NeqBathRank=1;\n");
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+
+	using TdmrgNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
+	TdmrgNeqSolverType neqSolver(params, app, io);
+
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	neqSolver.solve(bathParams);
+
+	const auto& gimp = neqSolver.gimp();
+	const int   nT   = static_cast<int>(params.nT);
+	for (int n = 0; n <= nT; ++n) {
 		for (int j = 0; j <= n; ++j) {
 			CHECK(std::isfinite(gimp.retarded(n, j).real()));
 			CHECK(std::isfinite(gimp.retarded(n, j).imag()));
