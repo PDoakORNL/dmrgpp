@@ -348,3 +348,58 @@ TEST_CASE("ImpuritySolverNeqTdmrg second-bath eps-split seeding requires eps "
 		CHECK_FALSE(seededCorrectly);
 	}
 }
+
+// Phase 2 fan-out gate (advisor-recommended first check, per
+// fancy-painting-moon.md): extend the geometry with 2L second-bath sites
+// via computeFullGridWithInertSecondBath, holding Vplus=0 for EVERY step
+// (not just n=0) -- an "inert spectator" test of the larger lattice, the
+// +L electron counts, the eps-split GS, and the recalibrated
+// TSPAdvanceEach, all exercised together, BEFORE any real second-bath
+// physics or self-consistency is added. With Vplus=0 throughout, the 2L
+// sites never couple to anything, so every (n,j) must still match today's
+// UNEXTENDED computeFullGrid to the same 1e-6 tolerance as the Phase 1
+// gate above -- any mismatch here means the fan-out mechanics broke on
+// the larger geometry, not a physics difference.
+TEST_CASE("ImpuritySolverNeqTdmrg extended-geometry (inert L=1 second bath) "
+          "matches unextended full grid",
+          "[ImpuritySolverNeqTdmrg][Phase2][FanOut]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	// Same symmetric 5-site bath used by the Phase 1 full-grid gate.
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType       L          = 1;
+	// eps well above the largest coupling actually present (max|hopping|,
+	// max|bathEps| here are 0.3 and 0.6) -- per the blocker-B calibration
+	// rule, not a fixed small constant.
+	const RealType eps = 3.0;
+
+	const auto reference = solver.computeFullGrid(bathParams);
+	const auto extended  = solver.computeFullGridWithInertSecondBath(bathParams, L, eps);
+
+	const int      nT  = static_cast<int>(params.nT);
+	const RealType tol = 1e-6;
+	for (int n = 0; n <= nT; ++n) {
+		for (int j = 0; j <= n; ++j) {
+			const ComplexType refRet = reference.retarded(n, j);
+			const ComplexType refLes = reference.lesser(n, j);
+			const ComplexType extRet = extended.retarded(n, j);
+			const ComplexType extLes = extended.lesser(n, j);
+
+			CHECK(extRet.real() == Catch::Approx(refRet.real()).margin(tol));
+			CHECK(extRet.imag() == Catch::Approx(refRet.imag()).margin(tol));
+			CHECK(extLes.real() == Catch::Approx(refLes.real()).margin(tol));
+			CHECK(extLes.imag() == Catch::Approx(refLes.imag()).margin(tol));
+		}
+	}
+}

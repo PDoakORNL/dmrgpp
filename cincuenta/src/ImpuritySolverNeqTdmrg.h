@@ -567,19 +567,7 @@ public:
 
 		for (auto& col : columns) {
 			applySignFlip(col.ggtRaw);
-			for (auto& kv : col.ggtRaw) {
-				auto it = col.gaugePRaw.find(kv.first);
-				if (it != col.gaugePRaw.end()
-				    && std::abs(it->second) > RealType(1e-10))
-					kv.second /= it->second;
-			}
 			applySignFlip(col.gltRaw);
-			for (auto& kv : col.gltRaw) {
-				auto it = col.gaugeHRaw.find(kv.first);
-				if (it != col.gaugeHRaw.end()
-				    && std::abs(it->second) > RealType(1e-10))
-					kv.second *= it->second;
-			}
 
 			const int j = col.born;
 
@@ -587,6 +575,200 @@ public:
 			// construction (see Column::ggtDiag/gltDiag doc comment) --
 			// no sign-flip/phase correction needed, unlike the
 			// off-diagonal history below.
+			{
+				const ComplexType ggt   = ComplexType(0, -1) * col.ggtDiag;
+				const ComplexType glt   = ComplexType(0, 1) * col.gltDiag;
+				fullGimp.lesser(j, j)   = glt;
+				fullGimp.retarded(j, j) = ggt - glt;
+			}
+
+			for (int n = j + 1; n <= nT; ++n) {
+				auto itG = col.ggtRaw.find(n);
+				auto itL = col.gltRaw.find(n);
+				if (itG == col.ggtRaw.end() || itL == col.gltRaw.end())
+					continue;
+				const ComplexType ggt   = ComplexType(0, -1) * itG->second;
+				const ComplexType glt   = ComplexType(0, 1) * itL->second;
+				fullGimp.lesser(n, j)   = glt;
+				fullGimp.retarded(n, j) = ggt - glt;
+				if (j < n)
+					fullGimp.lesser(j, n) = -std::conj(glt);
+			}
+		}
+
+		return fullGimp;
+	}
+
+	// ---- Phase 2 (evolving-bath project): extended-geometry fan-out check --
+	//
+	// Same architecture as computeFullGrid above, but the star geometry is
+	// extended with 2L second-bath sites (L "occupied", L "empty"), seeded
+	// via the eps-split GS potential validated by
+	// measureSecondBathOccupations. Vplus is fixed at 0 for EVERY step here
+	// (not just n=0) -- an "inert spectator" test of the larger lattice,
+	// the +L electron counts, the eps-split GS, and the recalibrated
+	// TSPAdvanceEach in isolation, BEFORE any bath self-consistency (still
+	// to come) is added. With Vplus=0 throughout, the 2L sites never
+	// couple to anything and every (n,j) must match computeFullGrid's own
+	// (unextended) output to the same tolerance -- this is the real test
+	// that the fan-out mechanics survive the larger geometry, per the
+	// advisor consult recorded in fancy-painting-moon.md (the TSPAdvanceEach
+	// and diagonal-occurrence-count risks that motivated this specific
+	// check were verified empirically in build/tmp/advanceeach_check/
+	// before this method was written).
+	KBType computeFullGridWithInertSecondBath(const VectorRealType& bathParams,
+	                                          SizeType              L,
+	                                          RealType              eps) const
+	{
+		const SizeType nBath     = bathParams.size() / 2;
+		const SizeType nsites    = nBath + 1;
+		const SizeType nsitesExt = nsites + 2 * L;
+
+		VectorRealType hoppings(nBath), bathEps(nBath);
+		for (SizeType i = 0; i < nBath; ++i) {
+			hoppings[i] = bathParams[i];
+			bathEps[i]  = bathParams[nBath + i];
+		}
+
+		VectorRealType potGS(nsitesExt, RealType(0)), potTdmrg(nsitesExt, RealType(0));
+		potGS[0]    = -RealType(0.5) * params_.uInitial;
+		potTdmrg[0] = -RealType(0.5) * params_.uFinal;
+		for (SizeType i = 0; i < nBath; ++i) {
+			potGS[i + 1]    = bathEps[i];
+			potTdmrg[i + 1] = bathEps[i];
+		}
+		// eps-split GS-only seeding (occupied sites first, empty sites
+		// second, matching NeqBathDecomposition's/eqHybDecomp's own
+		// convention); potTdmrg's second-bath entries stay 0 (the true,
+		// always-eps=0 evolving-bath potential).
+		for (SizeType p = 0; p < L; ++p)
+			potGS[nsites + p] = -eps;
+		for (SizeType p = 0; p < L; ++p)
+			potGS[nsites + L + p] = eps;
+
+		SecondBathExt secondBath;
+		secondBath.active      = true;
+		secondBath.nup         = nup_ + L;
+		secondBath.ndown       = ndown_ + L;
+		secondBath.connectors  = VectorComplexType(2 * L, ComplexType(0));
+		secondBath.advanceEach = nsitesExt - 2;
+
+		const std::string chainRoot = root_ + "gridbath_";
+		const int         nT        = static_cast<int>(params_.nT);
+
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = chainRoot + "gs.log";
+			DmrgRunnerType runner(app_,
+			                      buildGsInputAt(chainRoot + "gs",
+			                                     params_.uInitial,
+			                                     hoppings,
+			                                     potGS,
+			                                     secondBath.nup,
+			                                     secondBath.ndown,
+			                                     nsitesExt,
+			                                     secondBath.connectors),
+			                      opts);
+			runner.doOneRun();
+		}
+
+		std::vector<Column> columns;
+		columns.reserve(static_cast<SizeType>(nT));
+		columns.emplace_back();
+		columns[0].born = 0;
+		birthColumn(columns[0],
+		            chainRoot + "gs",
+		            -1,
+		            chainRoot + "gs",
+		            -1,
+		            chainRoot,
+		            "column0",
+		            params_.uFinal,
+		            hoppings,
+		            potTdmrg,
+		            nsitesExt,
+		            secondBath);
+
+		for (int n = 1; n <= nT; ++n) {
+			advanceColumn(columns[0],
+			              n,
+			              chainRoot,
+			              params_.uFinal,
+			              hoppings,
+			              potTdmrg,
+			              nsitesExt,
+			              secondBath);
+
+			SizeType justBornIdx = columns.size();
+			if (n < nT) {
+				columns.emplace_back();
+				columns.back().born = n;
+				birthColumn(columns.back(),
+				            columns[0].particleRoot,
+				            columns[0].particleSrcTv,
+				            columns[0].holeRoot,
+				            columns[0].holeSrcTv,
+				            chainRoot,
+				            "column" + ttos(n),
+				            params_.uFinal,
+				            hoppings,
+				            potTdmrg,
+				            nsitesExt,
+				            secondBath);
+				justBornIdx = columns.size() - 1;
+			}
+
+			for (SizeType idx = 1; idx < columns.size(); ++idx) {
+				if (idx == justBornIdx)
+					continue;
+				advanceColumn(columns[idx],
+				              n,
+				              chainRoot,
+				              params_.uFinal,
+				              hoppings,
+				              potTdmrg,
+				              nsitesExt,
+				              secondBath);
+			}
+		}
+
+		if (nT > 0) {
+			columns.emplace_back();
+			columns.back().born = nT;
+			birthColumn(columns.back(),
+			            columns[0].particleRoot,
+			            columns[0].particleSrcTv,
+			            columns[0].holeRoot,
+			            columns[0].holeSrcTv,
+			            chainRoot,
+			            "column" + ttos(nT),
+			            params_.uFinal,
+			            hoppings,
+			            potTdmrg,
+			            nsitesExt,
+			            secondBath);
+			advanceColumn(columns.back(),
+			              nT + 1,
+			              chainRoot,
+			              params_.uFinal,
+			              hoppings,
+			              potTdmrg,
+			              nsitesExt,
+			              secondBath);
+		}
+
+		KBType fullGimp(params_.nT,
+		                params_.eqParams.nMatsubaras,
+		                params_.dt,
+		                params_.eqParams.ficticiousBeta
+		                    / static_cast<RealType>(params_.eqParams.nMatsubaras));
+
+		for (auto& col : columns) {
+			applySignFlip(col.ggtRaw);
+			applySignFlip(col.gltRaw);
+
+			const int j = col.born;
+
 			{
 				const ComplexType ggt   = ComplexType(0, -1) * col.ggtDiag;
 				const ComplexType glt   = ComplexType(0, 1) * col.gltDiag;
@@ -721,17 +903,23 @@ private:
 	// restart-map for the NEXT segment's P0 (mappedTv) and which TV index to
 	// use as RestartSourceTvForPsi for the NEXT segment's |gs> seed (srcTv;
 	// -1 means "use restartRoot's own natural single state", true right
-	// after birth), and the raw (pre-gauge-correction) measurement history
-	// keyed by outer step n. See computeFullGrid's final pass for why
-	// gauge correction is deferred to the end (applySignFlip needs a
-	// column's own full, chronologically-ordered history).
+	// after birth), and the raw measurement history keyed by outer step n.
+	// applySignFlip (a discrete, magnitude-based heuristic, unrelated to the
+	// phase-division gauge correction removed below) still needs a column's
+	// own full, chronologically-ordered history, hence deferred to
+	// computeFullGrid's final pass rather than applied per-step.
+	//
+	// No <P2.last|P2>-based phase-gauge correction is stored here (removed
+	// -- see advanceColumn's comment for the empirical finding: it was a
+	// no-op in every Phase 1 test and actively wrong once tested against an
+	// eps-split extended geometry).
 	struct Column {
 		int                        born = 0;
 		std::string                particleRoot, holeRoot;
 		int                        particleMapTv = 0, particleSrcTv = -1;
 		int                        holeMapTv = 0, holeSrcTv = -1;
-		std::map<int, ComplexType> ggtRaw, gaugePRaw; // keyed by n, n > born
-		std::map<int, ComplexType> gltRaw, gaugeHRaw;
+		std::map<int, ComplexType> ggtRaw; // keyed by n, n > born
+		std::map<int, ComplexType> gltRaw;
 		// Equal-time diagonal G(born,born), captured once at birth (see
 		// birthColumn) -- gauge-invariant by construction, no sign-flip/
 		// phase correction needed (unlike ggtRaw/gltRaw above).
@@ -752,6 +940,22 @@ private:
 	// identical to column 0's very first step (mapTv=0, srcTv=-1) --
 	// exactly the case solveChainedColumn0 already validated needs
 	// takeLast=true.
+	// Bundles the per-call second-bath (evolving-bath) extension for
+	// birthColumn/advanceColumn, used only when neqBathRank_ > 0.
+	// Default-constructed (active==false) reproduces today's behavior
+	// exactly: nup_/ndown_ members and tspAdvanceEach_ as read from the
+	// input file, no second-bath Connectors appended. A dedicated struct
+	// (rather than more trailing optional parameters) avoids sentinel-value
+	// ambiguity for nup/ndown/advanceEach, none of which have a safe
+	// "unused" value of their own.
+	struct SecondBathExt {
+		bool              active = false;
+		SizeType          nup    = 0;
+		SizeType          ndown  = 0;
+		VectorComplexType connectors; // size 2L, duplicated occ/empty per p
+		SizeType          advanceEach = 0; // nsitesExt - 2, recalibrated
+	};
+
 	void birthColumn(Column&               col,
 	                 const std::string&    particleSourceRoot,
 	                 int                   particleSourceTv,
@@ -762,8 +966,12 @@ private:
 	                 RealType              uFinal,
 	                 const VectorRealType& hoppings,
 	                 const VectorRealType& potTdmrg,
-	                 SizeType              nsites) const
+	                 SizeType              nsites,
+	                 const SecondBathExt&  secondBath = SecondBathExt()) const
 	{
+		const SizeType nup   = secondBath.active ? secondBath.nup : nup_;
+		const SizeType ndown = secondBath.active ? secondBath.ndown : ndown_;
+
 		col.particleRoot = chainRoot + tag + "_particle_birth";
 		{
 			Dmrg::CmdLineOptions opts;
@@ -774,12 +982,13 @@ private:
 			                                       uFinal,
 			                                       hoppings,
 			                                       potTdmrg,
-			                                       nup_,
-			                                       ndown_,
+			                                       nup,
+			                                       ndown,
 			                                       nsites,
 			                                       "'",
 			                                       particleSourceTv,
-			                                       particleSourceTv >= 0),
+			                                       particleSourceTv >= 0,
+			                                       secondBath.connectors),
 			                      opts);
 			runner.doOneRun();
 		}
@@ -796,12 +1005,13 @@ private:
 			                                       uFinal,
 			                                       hoppings,
 			                                       potTdmrg,
-			                                       nup_,
-			                                       ndown_,
+			                                       nup,
+			                                       ndown,
 			                                       nsites,
 			                                       "",
 			                                       holeSourceTv,
-			                                       holeSourceTv >= 0),
+			                                       holeSourceTv >= 0,
+			                                       secondBath.connectors),
 			                      opts);
 			runner.doOneRun();
 		}
@@ -821,33 +1031,56 @@ private:
 	                   RealType              uFinal,
 	                   const VectorRealType& hoppings,
 	                   const VectorRealType& potTdmrg,
-	                   SizeType              nsites) const
+	                   SizeType              nsites,
+	                   const SecondBathExt&  secondBath = SecondBathExt()) const
 	{
+		const SizeType nup   = secondBath.active ? secondBath.nup : nup_;
+		const SizeType ndown = secondBath.active ? secondBath.ndown : ndown_;
+
 		const std::string tag = "j" + ttos(col.born) + "_n" + ttos(n);
 		{
 			const bool           takeLast = (col.particleSrcTv < 0);
 			const std::string    outRoot  = chainRoot + tag + "_particle";
 			Dmrg::CmdLineOptions opts;
 			opts.logfile              = outRoot + ".log";
-			opts.in_situ_measurements = "<P2|c|P1>,<P2.last|P2>";
+			opts.in_situ_measurements = "<P2|c|P1>";
 			DmrgRunnerType runner(app_,
 			                      buildStepInput(uFinal,
 			                                     hoppings,
 			                                     potTdmrg,
-			                                     nup_,
-			                                     ndown_,
+			                                     nup,
+			                                     ndown,
 			                                     nsites,
 			                                     col.particleRoot,
 			                                     col.particleMapTv,
 			                                     col.particleSrcTv,
-			                                     outRoot),
+			                                     outRoot,
+			                                     secondBath.connectors,
+			                                     secondBath.advanceEach),
 			                      opts);
 			runner.doOneRun();
 
-			ComplexType ggt(0), gauge(0);
+			ComplexType ggt(0);
 			parseSingleMeasurement(opts.logfile, "<P2|c|P1>", ggt, takeLast);
-			if (parseSingleMeasurement(opts.logfile, "<P2.last|P2>", gauge, takeLast))
-				col.gaugePRaw[n] = gauge;
+			// No <P2.last|P2>-based gauge correction (removed -- see
+			// fancy-painting-moon.md, "gauge-correction finding"): <P2|c|P1>'s
+			// bra and ket both descend from the SAME loaded |gs> reference in
+			// every segment (whether this is a column's first advance since
+			// birth or a later one restarted via RestartSourceTvForPsi from
+			// its own prior segment), so any arbitrary phase that reference
+			// carries cancels in the bra-ket already. Dividing by
+			// <P2.last|P2> anyway was a no-op in every Phase 1 test (it
+			// measured exactly 1 there) but actively wrong once tested
+			// against an eps-split extended geometry (Phase 2): confirmed
+			// empirically that <P2.last|P2> is then a large,
+			// sweep-position-independent and step-independent phase (DMRG's
+			// own arbitrary basis choice for a now more-degenerate reduced
+			// density matrix, not a physical dynamical phase), and dividing
+			// by it introduced a spurious rotation into an otherwise-correct
+			// raw measurement. Both extended-GS and unextended-GS sector
+			// energies were checked to decompose cleanly (differ by exactly
+			// -2*eps*L), confirming the impurity block itself is undisturbed
+			// and the phase is pure basis-choice arbitrariness, not physics.
 			col.ggtRaw[n] = ggt;
 
 			// A column's own FIRST advance since birth (takeLast==true) is
@@ -872,25 +1105,27 @@ private:
 			const std::string    outRoot  = chainRoot + tag + "_hole";
 			Dmrg::CmdLineOptions opts;
 			opts.logfile              = outRoot + ".log";
-			opts.in_situ_measurements = "<P1|c|P2>,<P2.last|P2>";
+			opts.in_situ_measurements = "<P1|c|P2>";
 			DmrgRunnerType runner(app_,
 			                      buildStepInput(uFinal,
 			                                     hoppings,
 			                                     potTdmrg,
-			                                     nup_,
-			                                     ndown_,
+			                                     nup,
+			                                     ndown,
 			                                     nsites,
 			                                     col.holeRoot,
 			                                     col.holeMapTv,
 			                                     col.holeSrcTv,
-			                                     outRoot),
+			                                     outRoot,
+			                                     secondBath.connectors,
+			                                     secondBath.advanceEach),
 			                      opts);
 			runner.doOneRun();
 
-			ComplexType glt(0), gauge(0);
+			ComplexType glt(0);
 			parseSingleMeasurement(opts.logfile, "<P1|c|P2>", glt, takeLast);
-			if (parseSingleMeasurement(opts.logfile, "<P2.last|P2>", gauge, takeLast))
-				col.gaugeHRaw[n] = gauge;
+			// No gauge correction -- see the matching comment in the
+			// particle branch above.
 			col.gltRaw[n] = glt;
 
 			if (takeLast)
@@ -1150,6 +1385,16 @@ private:
 	//   (RestartSourceTvForPsi); -1 (omit the key) means "use whatever |gs>
 	//   already is in restartRoot" -- correct only for the very first segment
 	//   (n=1), which restarts from the *_init checkpoint's untouched |gs>.
+	// advanceEachOverride: 0 (default) means "use tspAdvanceEach_ as read
+	// from the input file", correct for the NeqBathRank=0 geometry it was
+	// calibrated against. A nonzero value is required once the geometry is
+	// extended with 2L second-bath sites (nsitesExt = nsites+2L) -- the
+	// N-2 convention must be recomputed from nsitesExt, NOT left at the
+	// original (smaller-lattice) value. Confirmed empirically
+	// (build/tmp/advanceeach_check/, L=1): the stale value still gave
+	// exactly one time-advance per segment for L=1 by coincidence/slack,
+	// but this is not guaranteed for larger L -- always pass the
+	// recalibrated nsitesExt-2 explicitly when a second bath is present.
 	std::string buildStepInput(RealType                 U_f,
 	                           const VectorRealType&    hoppings,
 	                           const VectorRealType&    potV,
@@ -1161,8 +1406,12 @@ private:
 	                           int                      sourceTvForPsi,
 	                           const std::string&       outRoot,
 	                           const VectorComplexType& secondBathConnectors
-	                           = VectorComplexType()) const
+	                           = VectorComplexType(),
+	                           SizeType advanceEachOverride = 0) const
 	{
+		const SizeType advanceEach
+		    = (advanceEachOverride == 0) ? tspAdvanceEach_ : advanceEachOverride;
+
 		std::string s = "##Ainur1.0\n\n";
 		s += geomHeader(nsites, U_f);
 		s += "SolverOptions=twositedmrg,geometryallinsystem,TargetingExpression,restart,"
@@ -1190,9 +1439,9 @@ private:
 		s += "GsWeight=0.1;\n";
 		s += "string P0=|P0>;\n";
 		s += "string P1=\"TimeEvolve{tau=" + ttos(params_.dt) + ",steps="
-		    + ttos(tspTimeSteps_) + ",advanceEach=" + ttos(tspAdvanceEach_) + "}*|P0>\";\n";
+		    + ttos(tspTimeSteps_) + ",advanceEach=" + ttos(advanceEach) + "}*|P0>\";\n";
 		s += "string P2=\"TimeEvolve{tau=" + ttos(params_.dt) + ",steps="
-		    + ttos(tspTimeSteps_) + ",advanceEach=" + ttos(tspAdvanceEach_) + "}*|gs>\";\n";
+		    + ttos(tspTimeSteps_) + ",advanceEach=" + ttos(advanceEach) + "}*|gs>\";\n";
 		return s;
 	}
 
