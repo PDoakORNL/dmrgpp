@@ -15,6 +15,7 @@
 #include <cmath>
 #include <complex>
 #include <fstream>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -687,6 +688,213 @@ public:
 	// the same files earlier in the same process; passing a distinct
 	// suffix per call eliminates this at the source rather than chasing
 	// the exact HDF5/checkpoint reuse mechanism).
+	// TEMPORARY DIAGNOSTIC: birth column 0, advance it to step 1 with
+	// connectorsStep1, then advance it AGAIN to step 2 with connectorsStep2
+	// (a DIFFERENT value) -- isolates whether a column's SECOND advance
+	// (takeLast=false, restarting via RestartSourceTvForPsi) actually
+	// respects a newly-declared Connectors value, or silently reuses
+	// whatever the first advance used. Returns the raw (pre-sign-flip)
+	// ggtRaw[2] measurement. Not a permanent API -- delete once understood.
+	ComplexType diagnosticSecondAdvanceConnectors(const VectorRealType&    bathParams,
+	                                              SizeType                 L,
+	                                              RealType                 eps,
+	                                              const VectorComplexType& connectorsStep1,
+	                                              const VectorComplexType& connectorsStep2,
+	                                              const std::string&       rootSuffix
+	                                              = "diag2step_") const
+	{
+		const SizeType nBath     = bathParams.size() / 2;
+		const SizeType nsites    = nBath + 1;
+		const SizeType nsitesExt = nsites + 2 * L;
+
+		VectorRealType hoppings(nBath), bathEps(nBath);
+		for (SizeType i = 0; i < nBath; ++i) {
+			hoppings[i] = bathParams[i];
+			bathEps[i]  = bathParams[nBath + i];
+		}
+
+		VectorRealType potGS(nsitesExt, RealType(0)), potTdmrg(nsitesExt, RealType(0));
+		potGS[0]    = -RealType(0.5) * params_.uInitial;
+		potTdmrg[0] = -RealType(0.5) * params_.uFinal;
+		for (SizeType i = 0; i < nBath; ++i) {
+			potGS[i + 1]    = bathEps[i];
+			potTdmrg[i + 1] = bathEps[i];
+		}
+		for (SizeType p = 0; p < L; ++p)
+			potGS[nsites + p] = -eps;
+		for (SizeType p = 0; p < L; ++p)
+			potGS[nsites + L + p] = eps;
+
+		const SizeType    nupExt    = nup_ + L;
+		const SizeType    ndownExt  = ndown_ + L;
+		const std::string chainRoot = root_ + rootSuffix;
+
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = chainRoot + "gs.log";
+			DmrgRunnerType runner(
+			    app_,
+			    buildGsInputAt(chainRoot + "gs",
+			                   params_.uInitial,
+			                   hoppings,
+			                   potGS,
+			                   nupExt,
+			                   ndownExt,
+			                   nsitesExt,
+			                   VectorComplexType(2 * L, ComplexType(0))),
+			    opts);
+			runner.doOneRun();
+		}
+
+		Column col;
+		col.born = 0;
+		birthColumn(
+		    col,
+		    chainRoot + "gs",
+		    -1,
+		    chainRoot + "gs",
+		    -1,
+		    chainRoot,
+		    "column0",
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt { true, nupExt, ndownExt, connectorsStep1, nsitesExt - 2 });
+
+		advanceColumn(
+		    col,
+		    1,
+		    chainRoot,
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt { true, nupExt, ndownExt, connectorsStep1, nsitesExt - 2 });
+
+		advanceColumn(
+		    col,
+		    2,
+		    chainRoot,
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt { true, nupExt, ndownExt, connectorsStep2, nsitesExt - 2 });
+
+		return col.ggtRaw[2];
+	}
+
+	// TEMPORARY DIAGNOSTIC: three chained advances with Connectors C1,C2,C3.
+	// Harvests ggtRaw[3] (a continuation segment, takeLast=false -- occurrence
+	// #1) while varying ONLY C2 (C1 and C3 held fixed). If the harvested
+	// value moves with C2, that confirms C2 reaches the *next* segment's
+	// harvested value (an off-by-one in which step's Connectors a
+	// continuation segment's occurrence #1 reflects), not an engine freeze.
+	// See advisor consult, TDMRG_EVOLVING_BATH.md Link 9 rewrite. Not a
+	// permanent API -- delete once the off-by-one is confirmed/fixed.
+	ComplexType diagnosticThirdAdvanceConnectors(const VectorRealType&    bathParams,
+	                                             SizeType                 L,
+	                                             RealType                 eps,
+	                                             const VectorComplexType& connectorsStep1,
+	                                             const VectorComplexType& connectorsStep2,
+	                                             const VectorComplexType& connectorsStep3,
+	                                             const std::string& rootSuffix = "diag3step_",
+	                                             SizeType advanceEachOverride  = 0) const
+	{
+		const SizeType nBath     = bathParams.size() / 2;
+		const SizeType nsites    = nBath + 1;
+		const SizeType nsitesExt = nsites + 2 * L;
+
+		VectorRealType hoppings(nBath), bathEps(nBath);
+		for (SizeType i = 0; i < nBath; ++i) {
+			hoppings[i] = bathParams[i];
+			bathEps[i]  = bathParams[nBath + i];
+		}
+
+		VectorRealType potGS(nsitesExt, RealType(0)), potTdmrg(nsitesExt, RealType(0));
+		potGS[0]    = -RealType(0.5) * params_.uInitial;
+		potTdmrg[0] = -RealType(0.5) * params_.uFinal;
+		for (SizeType i = 0; i < nBath; ++i) {
+			potGS[i + 1]    = bathEps[i];
+			potTdmrg[i + 1] = bathEps[i];
+		}
+		for (SizeType p = 0; p < L; ++p)
+			potGS[nsites + p] = -eps;
+		for (SizeType p = 0; p < L; ++p)
+			potGS[nsites + L + p] = eps;
+
+		const SizeType    nupExt    = nup_ + L;
+		const SizeType    ndownExt  = ndown_ + L;
+		const std::string chainRoot = root_ + rootSuffix;
+		const SizeType    advanceEach
+		    = (advanceEachOverride == 0) ? (nsitesExt - 2) : advanceEachOverride;
+
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = chainRoot + "gs.log";
+			DmrgRunnerType runner(
+			    app_,
+			    buildGsInputAt(chainRoot + "gs",
+			                   params_.uInitial,
+			                   hoppings,
+			                   potGS,
+			                   nupExt,
+			                   ndownExt,
+			                   nsitesExt,
+			                   VectorComplexType(2 * L, ComplexType(0))),
+			    opts);
+			runner.doOneRun();
+		}
+
+		Column col;
+		col.born = 0;
+		birthColumn(col,
+		            chainRoot + "gs",
+		            -1,
+		            chainRoot + "gs",
+		            -1,
+		            chainRoot,
+		            "column0",
+		            params_.uFinal,
+		            hoppings,
+		            potTdmrg,
+		            nsitesExt,
+		            SecondBathExt { true, nupExt, ndownExt, connectorsStep1, advanceEach });
+
+		advanceColumn(
+		    col,
+		    1,
+		    chainRoot,
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt { true, nupExt, ndownExt, connectorsStep1, advanceEach });
+
+		advanceColumn(
+		    col,
+		    2,
+		    chainRoot,
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt { true, nupExt, ndownExt, connectorsStep2, advanceEach });
+
+		advanceColumn(
+		    col,
+		    3,
+		    chainRoot,
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt { true, nupExt, ndownExt, connectorsStep3, advanceEach });
+
+		return col.ggtRaw[3];
+	}
+
 	KBType computeFullGridWithInertSecondBath(const VectorRealType&    bathParams,
 	                                          SizeType                 L,
 	                                          RealType                 eps,
@@ -1314,6 +1522,10 @@ private:
 	// point (prepareTimeStep(n+1,...) has not run).
 	void fillSelfConsistentRow(KBType& gimp, int n) const
 	{
+		// Per-call file prefix -- see scCallCounter_'s doc comment.
+		const std::string chainRoot = scChainRoot_ + ttos(scCallCounter_) + "_";
+		++scCallCounter_;
+
 		const SizeType nBath  = scHoppings_.size();
 		const SizeType nsites = nBath + 1;
 
@@ -1336,16 +1548,19 @@ private:
 				const ComplexType vMid  = RealType(0.5) * (vPrev + vCurr);
 				c[p]                    = vMid;
 				c[scL_ + p]             = vMid;
+				std::cerr << "  DEBUG vMidConnectors k=" << k << " p=" << p
+				          << " Vplus(k-1)=" << vPrev << " Vplus(k)=" << vCurr
+				          << " vMid=" << vMid << "\n";
 			}
 			return c;
 		};
 
 		{
 			Dmrg::CmdLineOptions opts;
-			opts.logfile = scChainRoot_ + "gs.log";
+			opts.logfile = chainRoot + "gs.log";
 			DmrgRunnerType runner(
 			    app_,
-			    buildGsInputAt(scChainRoot_ + "gs",
+			    buildGsInputAt(chainRoot + "gs",
 			                   params_.uInitial,
 			                   scHoppings_,
 			                   potGS,
@@ -1362,11 +1577,11 @@ private:
 		columns.emplace_back();
 		columns[0].born = 0;
 		birthColumn(columns[0],
-		            scChainRoot_ + "gs",
+		            chainRoot + "gs",
 		            -1,
-		            scChainRoot_ + "gs",
+		            chainRoot + "gs",
 		            -1,
-		            scChainRoot_,
+		            chainRoot,
 		            "column0",
 		            params_.uFinal,
 		            scHoppings_,
@@ -1378,6 +1593,33 @@ private:
 		                            VectorComplexType(2 * scL_, ComplexType(0)),
 		                            scNsitesExt_ - 2 });
 
+		// n==0: no natural advance happens for row 0 (the k=1..n loop below
+		// is empty), so column 0's diagonal -- normally captured as a
+		// byproduct of a column's FIRST advanceColumn call -- would never
+		// be captured at all. NeqDmftSolver::solve() calls
+		// computeGimp(gimp_,0) BEFORE its n=1..nT loop (to populate the t=0
+		// boundary condition), so this case genuinely occurs, not just in
+		// principle. Fix: give column 0 the same one-off throwaway advance
+		// (discarding the resulting off-diagonal) the newest column gets
+		// below for n>0. The connectors value used here provably doesn't
+		// matter (see the "column diagonal is independent of Connectors"
+		// test) -- Vplus(1,*) isn't determined yet at this point regardless
+		// (prepareTimeStep(1,...) hasn't run), so vMidConnectors(1) here is
+		// whatever decomp_'s default (all-zero) V_ gives, which is fine.
+		if (n == 0) {
+			SecondBathExt secondBath {
+				true, scNup_, scNdown_, vMidConnectors(1), scNsitesExt_ - 2
+			};
+			advanceColumn(columns[0],
+			              1,
+			              chainRoot,
+			              params_.uFinal,
+			              scHoppings_,
+			              scPotTdmrg_,
+			              scNsitesExt_,
+			              secondBath);
+		}
+
 		VectorComplexType lastConnectors(2 * scL_, ComplexType(0));
 		for (int k = 1; k <= n; ++k) {
 			lastConnectors = vMidConnectors(k);
@@ -1387,7 +1629,7 @@ private:
 
 			advanceColumn(columns[0],
 			              k,
-			              scChainRoot_,
+			              chainRoot,
 			              params_.uFinal,
 			              scHoppings_,
 			              scPotTdmrg_,
@@ -1403,7 +1645,7 @@ private:
 				            columns[0].particleSrcTv,
 				            columns[0].holeRoot,
 				            columns[0].holeSrcTv,
-				            scChainRoot_,
+				            chainRoot,
 				            "column" + ttos(k),
 				            params_.uFinal,
 				            scHoppings_,
@@ -1418,7 +1660,7 @@ private:
 					continue;
 				advanceColumn(columns[idx],
 				              k,
-				              scChainRoot_,
+				              chainRoot,
 				              params_.uFinal,
 				              scHoppings_,
 				              scPotTdmrg_,
@@ -1438,7 +1680,7 @@ private:
 			            columns[0].particleSrcTv,
 			            columns[0].holeRoot,
 			            columns[0].holeSrcTv,
-			            scChainRoot_,
+			            chainRoot,
 			            "column" + ttos(n),
 			            params_.uFinal,
 			            scHoppings_,
@@ -1447,7 +1689,7 @@ private:
 			            secondBath);
 			advanceColumn(columns.back(),
 			              n + 1,
-			              scChainRoot_,
+			              chainRoot,
 			              params_.uFinal,
 			              scHoppings_,
 			              scPotTdmrg_,
@@ -1468,6 +1710,27 @@ private:
 			gimp.lesser(j, j)      = gltD;
 			gimp.retarded(j, j)    = ggtD - gltD;
 		}
+
+		std::cerr << "DEBUG fillSelfConsistentRow n=" << n
+		          << " callCounter=" << (scCallCounter_ - 1)
+		          << " nColumns=" << columns.size() << "\n";
+		for (auto& col : columns) {
+			auto itGdbg = col.ggtRaw.find(n);
+			auto itLdbg = col.gltRaw.find(n);
+			std::cerr << "  DEBUG column born=" << col.born
+			          << " ggtRaw.size=" << col.ggtRaw.size()
+			          << " has(n)=" << (itGdbg != col.ggtRaw.end()) << " ggtRaw[n]="
+			          << (itGdbg != col.ggtRaw.end() ? itGdbg->second
+			                                         : ComplexType(999))
+			          << " gltRaw[n]="
+			          << (itLdbg != col.gltRaw.end() ? itLdbg->second
+			                                         : ComplexType(999))
+			          << " ggtDiag=" << col.ggtDiag << " gltDiag=" << col.gltDiag
+			          << "\n";
+		}
+		for (SizeType p = 0; p < scL_; ++p)
+			std::cerr << "  DEBUG Vplus(" << n << "," << p
+			          << ")=" << decomp_->Vplus(n, static_cast<int>(p)) << "\n";
 
 		for (auto& col : columns) {
 			const int j = col.born;
@@ -2205,6 +2468,21 @@ private:
 	SizeType                    scNup_ = 0, scNdown_ = 0;
 	RealType                    scEps_ = 0;
 	std::string                 scChainRoot_;
+	// Bumped at the start of every fillSelfConsistentRow call (see that
+	// method's doc comment) so each call gets its OWN file prefix --
+	// NeqDmftSolver's predictor/corrector loop calls computeGimp/
+	// fillSelfConsistentRow several times per run (5 times for a tiny
+	// NtNeq=2,NeqDmftIter=1 config), and reusing the SAME checkpoint/log
+	// filenames across repeated DmrgRunner calls in one process was found,
+	// empirically, to silently corrupt later calls' results (row n=2 came
+	// back frozen at trivial/diagonal-like values once it was the 4th/5th
+	// call reusing the same names, while an otherwise-identical STANDALONE
+	// call to fillSelfConsistentRow(gimp,2) -- first call, fresh names --
+	// gave the correct answer). Root cause not chased further than "don't
+	// reuse filenames across repeated in-process DmrgRunner calls", which
+	// is exactly the same lesson the Task 16 cross-TEST_CASE file-collision
+	// bugs already taught (see project_tdmrg_evolving_bath memory).
+	mutable SizeType scCallCounter_ = 0;
 };
 
 } // namespace Dmft

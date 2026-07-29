@@ -1,5 +1,6 @@
 #include "CincuentaInputCheck.h"
 #include "ImpuritySolverNeqExactDiag.h"
+#include "ImpuritySolverNeqGBEK.h"
 #include "ImpuritySolverNeqTdmrg.h"
 #include "NeqDmftSolver.h"
 #include "NeqLatticeGf.h"
@@ -608,5 +609,280 @@ TEST_CASE("ImpuritySolverNeqTdmrg can be driven through NeqDmftSolver's own "
 			CHECK(std::isfinite(gimp.lesser(n, j).real()));
 			CHECK(std::isfinite(gimp.lesser(n, j).imag()));
 		}
+	}
+}
+
+// ---- Task 15: Phase 2 full gate --------------------------------------------
+//
+// tDMRG and GBEK must agree on the self-consistent, evolving-bath G_imp when
+// driven identically through NeqDmftSolver with the SAME bathParams,
+// NeqBathRank, and NeqDmftIter -- the same cross-check philosophy already
+// used for the NeqBathRank=0 case (see this file's own class doc comment,
+// "must agree with the ED solver to truncation error"), extended from the
+// static-bath case to the evolving-bath one. Both solvers now go through
+// NeqDmftSolver's own solve()/timeStep() (Task 16), so this is a genuine
+// apples-to-apples comparison, not two different hand-rolled drives.
+//
+// GBEK's own computeGimp is essentially exact (full extended-Fock-space ED,
+// Krylov-propagated) -- the only approximation on that side is Krylov/dt
+// truncation, negligible at this scale. tDMRG's approximation is DMRG bond-
+// truncation (m=100, the same value the Phase 1 FullGrid gate above already
+// validated to 1e-6 agreement in the static-bath case). A residual
+// discrepancy here, if any, is either genuine truncation error (expected to
+// be small, matching Phase 1's precedent) or a real integration bug in the
+// self-consistent wiring -- NOT something to paper over with a loose
+// tolerance without understanding which.
+TEST_CASE("ImpuritySolverNeqTdmrg vs ImpuritySolverNeqGBEK: NeqBathRank=1 "
+          "self-consistent bath evolution agree",
+          "[ImpuritySolverNeqTdmrg][Phase2][FullGate]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	// Same symmetric 5-site bath used throughout this file's Phase 1/2 gates.
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+
+	InputNgType::Writeable ioWT(Dmft::CincuentaInputCheck {},
+	                            configWithU("0.5", "testTdmrgChainGate") + "NeqBathRank=1;\n");
+	InputNgType::Readable  io_t(ioWT);
+	ParamsType             paramsT(io_t);
+	using TdmrgNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
+	TdmrgNeqSolverType tdmrgSolver(paramsT, app, io_t);
+	tdmrgSolver.solve(bathParams);
+
+	InputNgType::Writeable ioWG(Dmft::CincuentaInputCheck {},
+	                            configWithU("0.5", "testTdmrgChainGateGBEK")
+	                                + "NeqBathRank=1;\n");
+	InputNgType::Readable  io_g(ioWG);
+	ParamsType             paramsG(io_g);
+	using GbekNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqGBEK>;
+	GbekNeqSolverType gbekSolver(paramsG, io_g);
+	gbekSolver.solve(bathParams);
+
+	const auto& gimpT = tdmrgSolver.gimp();
+	const auto& gimpG = gbekSolver.gimp();
+
+	const int      nT2 = static_cast<int>(paramsT.nT);
+	const RealType tol = 1e-4;
+	for (int n = 0; n <= nT2; ++n) {
+		for (int j = 0; j <= n; ++j) {
+			const ComplexType retT = gimpT.retarded(n, j);
+			const ComplexType lesT = gimpT.lesser(n, j);
+			const ComplexType retG = gimpG.retarded(n, j);
+			const ComplexType lesG = gimpG.lesser(n, j);
+
+			std::cout << "n=" << n << " j=" << j << " tDMRG G^R=" << retT
+			          << " G^<=" << lesT << " GBEK G^R=" << retG << " G^<=" << lesG
+			          << "\n";
+
+			CHECK(retT.real() == Catch::Approx(retG.real()).margin(tol));
+			CHECK(retT.imag() == Catch::Approx(retG.imag()).margin(tol));
+			CHECK(lesT.real() == Catch::Approx(lesG.real()).margin(tol));
+			CHECK(lesT.imag() == Catch::Approx(lesG.imag()).margin(tol));
+		}
+	}
+}
+
+// ---- DIAGNOSTIC (temporary): isolate whether fillSelfConsistentRow(gimp,2)
+// is wrong standalone, or only when preceded by calls for n=0,1 within the
+// same solver's lifetime (same reused chainRoot files). Not a permanent
+// gate -- delete once the root cause is understood.
+TEST_CASE("DIAGNOSTIC: computeGimp(gimp,2) called directly, skipping n=0,1",
+          "[ImpuritySolverNeqTdmrg][Diagnostic]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+	                           configWithU("0.5", "testTdmrgChainDiag") + "NeqBathRank=1;\n");
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+	solver.solve(bathParams);
+
+	Dmft::KadanoffBaym<ComplexType> gimp(
+	    params.nT,
+	    params.eqParams.nMatsubaras,
+	    params.dt,
+	    params.eqParams.ficticiousBeta / static_cast<RealType>(params.eqParams.nMatsubaras));
+
+	solver.computeGimp(gimp, 2);
+
+	std::cout << "DIAGNOSTIC standalone computeGimp(gimp,2): retarded(2,0)="
+	          << gimp.retarded(2, 0) << " lesser(2,0)=" << gimp.lesser(2, 0)
+	          << " retarded(2,1)=" << gimp.retarded(2, 1)
+	          << " lesser(2,1)=" << gimp.lesser(2, 1) << "\n";
+}
+
+// ---- DIAGNOSTIC (temporary): does a column's SECOND advance actually
+// respect a NEW Connectors value, or does it silently reuse the first
+// advance's? Not a permanent gate -- delete once understood.
+TEST_CASE("DIAGNOSTIC second advance connectors sensitivity",
+          "[ImpuritySolverNeqTdmrg][Diagnostic]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType       L          = 1;
+	const RealType       eps        = 3.0;
+
+	const VectorComplexType connectorsStep1
+	    = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType connectorsStep2A
+	    = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType connectorsStep2B
+	    = { ComplexType(0.52, -0.008), ComplexType(0.52, -0.008) };
+
+	const auto resultA = solver.diagnosticSecondAdvanceConnectors(
+	    bathParams, L, eps, connectorsStep1, connectorsStep2A, "diag2stepA_");
+	const auto resultB = solver.diagnosticSecondAdvanceConnectors(
+	    bathParams, L, eps, connectorsStep1, connectorsStep2B, "diag2stepB_");
+
+	std::cout << "DIAGNOSTIC second-advance sensitivity: resultA=" << resultA
+	          << " resultB=" << resultB << "\n";
+}
+
+// Positive control for the above: hold connectorsStep2 FIXED and instead vary
+// connectorsStep1 (the first advance's Connectors). If the step-2 measurement
+// tracks connectorsStep1 instead, that positively confirms "frozen at the
+// FIRST advance's Hamiltonian" (not "frozen at zero" or "measurement is
+// junk/independent of everything"). See advisor consult, 2026-07-29.
+TEST_CASE("DIAGNOSTIC second advance connectors sensitivity -- positive control",
+          "[ImpuritySolverNeqTdmrg][Diagnostic]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType       L          = 1;
+	const RealType       eps        = 3.0;
+
+	const VectorComplexType connectorsStep2Fixed
+	    = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType connectorsStep1A
+	    = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType connectorsStep1B
+	    = { ComplexType(0.52, -0.008), ComplexType(0.52, -0.008) };
+
+	const auto resultA = solver.diagnosticSecondAdvanceConnectors(
+	    bathParams, L, eps, connectorsStep1A, connectorsStep2Fixed, "diag2stepC_");
+	const auto resultB = solver.diagnosticSecondAdvanceConnectors(
+	    bathParams, L, eps, connectorsStep1B, connectorsStep2Fixed, "diag2stepD_");
+
+	std::cout << "DIAGNOSTIC positive control: resultA=" << resultA << " resultB=" << resultB
+	          << "\n";
+}
+
+// Discriminating check (advisor consult, 2026-07-29): three chained advances
+// with Connectors C1,C2,C3; harvest ggtRaw[3] (occurrence #1, a continuation
+// segment) while varying ONLY C2. If the harvested value moves with C2, that
+// confirms C2 reaches the harvest one step LATER (an off-by-one in which
+// step's Connectors a continuation segment's occurrence #1 reflects, since
+// occurrence #1 is a readout of the state the PREVIOUS segment produced) --
+// not an engine freeze. See TDMRG_EVOLVING_BATH.md Link 9.
+TEST_CASE("DIAGNOSTIC third advance -- does step-3 harvest track C2 (off-by-one check)",
+          "[ImpuritySolverNeqTdmrg][Diagnostic]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType       L          = 1;
+	const RealType       eps        = 3.0;
+
+	const VectorComplexType c1  = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType c2A = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType c2B = { ComplexType(0.52, -0.008), ComplexType(0.52, -0.008) };
+	const VectorComplexType c3  = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+
+	const auto resultA = solver.diagnosticThirdAdvanceConnectors(
+	    bathParams, L, eps, c1, c2A, c3, "diag3stepA_");
+	const auto resultB = solver.diagnosticThirdAdvanceConnectors(
+	    bathParams, L, eps, c1, c2B, c3, "diag3stepB_");
+
+	std::cout << "DIAGNOSTIC third-advance off-by-one check: resultA=" << resultA
+	          << " resultB=" << resultB << "\n";
+}
+
+// Advisor consult: each segment's TWO FiniteLoops rows fire TWO time
+// advances under the segment's own single Connectors value (not one), so a
+// 3-call chain lands on t=4dt when labeled step 3. Test whether roughly
+// DOUBLING advanceEach yields exactly one advance per segment: with a
+// static (repeated) Connectors value across all 3 calls, harvest ggtRaw[1],
+// ggtRaw[2], ggtRaw[3] and check the imaginary part grows linearly by step
+// count (1x, 2x, 3x a per-step reference), not 2x per call.
+TEST_CASE("DIAGNOSTIC advanceEach calibration -- step count vs printed time",
+          "[ImpuritySolverNeqTdmrg][Diagnostic]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType    bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType          L          = 1;
+	const RealType          eps        = 3.0;
+	const VectorComplexType c          = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+
+	// nsitesExt = nBath+1+2L = 5+1+2 = 8, so default advanceEach = 6 (2
+	// advances/segment, confirmed). Scan candidates between 6 and 12 for
+	// the one giving exactly 1 advance/segment (imaginary part growing
+	// linearly by call count, ~1x per call instead of ~2x).
+	for (SizeType trial : { SizeType(6),
+	                        SizeType(7),
+	                        SizeType(8),
+	                        SizeType(9),
+	                        SizeType(10),
+	                        SizeType(11),
+	                        SizeType(12) }) {
+		const auto result = solver.diagnosticThirdAdvanceConnectors(
+		    bathParams, L, eps, c, c, c, "diagcalib" + std::to_string(trial) + "_", trial);
+		std::cout << "DIAGNOSTIC advanceEach=" << trial
+		          << " static-C step-3 harvest=" << result << "\n";
 	}
 }
