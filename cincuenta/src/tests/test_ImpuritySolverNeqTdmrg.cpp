@@ -1,6 +1,7 @@
 #include "CincuentaInputCheck.h"
 #include "ImpuritySolverNeqExactDiag.h"
 #include "ImpuritySolverNeqTdmrg.h"
+#include "NeqLatticeGf.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <complex>
@@ -476,5 +477,74 @@ TEST_CASE("ImpuritySolverNeqTdmrg column diagonal is independent of the "
 		const ComplexType offB = gridB.retarded(1, 0);
 		const RealType    diff = std::abs(offA - offB);
 		CHECK(diff > tol);
+	}
+}
+
+// ---- Phase 2: NeqBathRank>0 wiring runs end-to-end -------------------------
+//
+// ImpuritySolverNeqTdmrg's constructor takes an extra ApplicationType&
+// argument that NeqDmftSolver's generic impSolver_(params, io) construction
+// call cannot supply -- confirmed this is exactly why cincuenta.cpp's own
+// "tdmrg" branch never wraps ImpuritySolverNeqTdmrg in NeqDmftSolver at all
+// (it drives ImpuritySolverNeqTdmrg directly). So this test cannot use
+// NeqDmftSolver itself; it manually replicates NeqDmftSolver::solve()/
+// timeStep()'s exact sequence (see NeqDmftSolver.h) using NeqLatticeGf
+// directly, which needs no such extra argument. This is the correctness
+// gate for Task 14 (solve()/computeGimp()/prepareTimeStep() dispatch for
+// neqBathRank_>0) -- NOT the Phase 2 "full gate" against
+// ImpuritySolverNeqGBEK (Task 15), which additionally requires resolving
+// this constructor-signature mismatch (or writing an equally manual drive
+// for GBEK too) and is deliberately left for that separate, later task.
+TEST_CASE("ImpuritySolverNeqTdmrg NeqBathRank=1 self-consistent wiring runs "
+          "end-to-end without crashing",
+          "[ImpuritySolverNeqTdmrg][Phase2][SelfConsistentWiring]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+	                           configWithU("0.5") + "NeqBathRank=1;\n");
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+
+	Dmft::NeqLatticeGf<ComplexType> latticeGf(params);
+	Dmft::KadanoffBaym<ComplexType> gimp(
+	    params.nT,
+	    params.eqParams.nMatsubaras,
+	    params.dt,
+	    params.eqParams.ficticiousBeta / static_cast<RealType>(params.eqParams.nMatsubaras));
+
+	solver.solve(bathParams);
+	gimp.matsubara_t = solver.gimp().matsubara_t;
+	gimp.matsubara_w = solver.gimp().matsubara_w;
+
+	solver.computeGimp(gimp, 0);
+	latticeGf.initialize(gimp);
+	latticeGf.updateDelta(0, gimp);
+	solver.prepareTimeStep(0, latticeGf.delta());
+
+	const int nT = static_cast<int>(params.nT);
+	for (int n = 1; n <= nT; ++n) {
+		solver.computeGimp(gimp, n); // predictor
+		for (SizeType iter = 0; iter < params.neqDmftIter; ++iter) {
+			latticeGf.updateDelta(n, gimp);
+			solver.prepareTimeStep(n, latticeGf.delta());
+			solver.computeGimp(gimp, n); // corrector
+		}
+		latticeGf.advance(n);
+
+		for (int j = 0; j <= n; ++j) {
+			CHECK(std::isfinite(gimp.retarded(n, j).real()));
+			CHECK(std::isfinite(gimp.retarded(n, j).imag()));
+			CHECK(std::isfinite(gimp.lesser(n, j).real()));
+			CHECK(std::isfinite(gimp.lesser(n, j).imag()));
+		}
 	}
 }

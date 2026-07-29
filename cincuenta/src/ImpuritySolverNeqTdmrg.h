@@ -4,15 +4,19 @@
 #include "CmdLineOptions.hh"
 #include "DmrgRunner.h"
 #include "ImpuritySolverNeqBase.h"
+#include "ImpuritySolverNeqExactDiag.h"
 #include "KadanoffBaym.h"
+#include "NeqBathDecomposition.h"
 #include "ParamsNeqDmftSolver.h"
 #include "PsimagLite.h"
 #include "Vector.h"
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <complex>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -67,6 +71,8 @@ public:
 	using ParamsNeqType     = ParamsNeqDmftSolver<ComplexOrRealType>;
 	using DmrgRunnerType    = Dmrg::DmrgRunner<RealType>;
 	using ApplicationType   = PsimagLite::PsiApp;
+	using ExactDiagType     = ImpuritySolverNeqExactDiag<ComplexOrRealType>;
+	using DecompType        = NeqBathDecomposition<ComplexOrRealType>;
 
 	ImpuritySolverNeqTdmrg(const ParamsNeqType&            params,
 	                       const ApplicationType&          app,
@@ -74,6 +80,8 @@ public:
 	    : params_(params)
 	    , app_(app)
 	    , io_(io)
+	    , neqBathRank_(params.neqBathRank)
+	    , exactDiag_(params, io)
 	    , gimp_(params.nT,
 	            params.eqParams.nMatsubaras,
 	            params.dt,
@@ -105,9 +113,17 @@ public:
 		}
 	}
 
-	// Runs all five DMRG passes and fills the KB grid.
+	// Runs all five DMRG passes and fills the KB grid. NeqBathRank=0 only --
+	// see solveSelfConsistent for the NeqBathRank>0 (evolving-bath) path,
+	// which this dispatches to unchanged and untouched otherwise (byte-for-
+	// byte the same code as before Phase 2).
 	void solve(const VectorRealType& bathParams) override
 	{
+		if (neqBathRank_ > 0) {
+			solveSelfConsistent(bathParams);
+			return;
+		}
+
 		const SizeType nBath  = bathParams.size() / 2;
 		const SizeType nsites = nBath + 1;
 
@@ -205,12 +221,44 @@ public:
 
 	void computeGimp(KBType& gimp, int n) const override
 	{
-		gimp.retarded(n, 0) = gimp_.retarded(n, 0);
-		gimp.lesser(n, n)   = gimp_.lesser(n, n);
-		gimp.lesser(n, 0)   = gimp_.lesser(n, 0);
+		if (neqBathRank_ == 0) {
+			gimp.retarded(n, 0) = gimp_.retarded(n, 0);
+			gimp.lesser(n, n)   = gimp_.lesser(n, n);
+			gimp.lesser(n, 0)   = gimp_.lesser(n, 0);
+			return;
+		}
+
+		// Matsubara/left-mixing (equilibrium) components: delegated to
+		// ExactDiag, exactly as ImpuritySolverNeqGBEK::computeGimp does --
+		// tDMRG has no equilibrium solver of its own, and ExactDiag's
+		// Lehmann-representation result is already what GBEK itself trusts
+		// for this piece.
+		exactDiag_.computeGimp(gimp, n);
+
+		// Retarded/lesser (n,j), j=0..n: truncated-batch recompute -- rebuild
+		// the fan-out from t=0 up through step n fresh, reading Vplus(k,p)
+		// from decomp_'s CURRENT state. Correct and simple (no propagated-
+		// through/rewind bookkeeping needed: a corrector's prepareTimeStep
+		// call just refines decomp_ before the next computeGimp call, and
+		// this recompute always uses whatever is current); cost is O(n^2)
+		// per call, O(nT^3) total, acceptable at the tiny NtNeq (2-4) this
+		// project's compute-discipline convention already mandates for
+		// gate-style tests. See fancy-painting-moon.md, Phase 2, "truncated
+		// batch recompute" (advisor consult).
+		fillSelfConsistentRow(gimp, n);
 	}
 
-	const KBType& gimp() const override { return gimp_; }
+	const KBType& gimp() const override { return neqBathRank_ > 0 ? exactDiag_.gimp() : gimp_; }
+
+	// Advance the Cholesky bath decomposition to step n. No propagated-
+	// through invalidation needed (unlike GBEK): computeGimp's truncated-
+	// batch recompute always rebuilds from scratch using decomp_'s current
+	// state, so there is nothing to invalidate.
+	void prepareTimeStep(int n, const KBType& delta) override
+	{
+		if (decomp_)
+			decomp_->update(n, delta);
+	}
 
 	// ---- Phase 1 (evolving-bath project) diagnostic: chained column 0 -----
 	//
@@ -1151,6 +1199,277 @@ private:
 		}
 	}
 
+	// ---- Phase 2 (evolving-bath project): self-consistent solve() setup ---
+	//
+	// One-time (per solve() call) setup only: delegates the equilibrium/
+	// Matsubara solve to ExactDiag (mirroring ImpuritySolverNeqGBEK::solve,
+	// which does the same for the same reason -- tDMRG has no equilibrium
+	// solver of its own), constructs decomp_, and stores the extended-
+	// geometry parameters fillSelfConsistentRow needs. Deliberately does NOT
+	// run any DMRG passes itself -- fillSelfConsistentRow rebuilds the GS
+	// run and the whole column fan-out from scratch on every computeGimp
+	// call (see that method's doc comment for why this is correct, not just
+	// simple).
+	void solveSelfConsistent(const VectorRealType& bathParams)
+	{
+		exactDiag_.solve(bathParams);
+
+		const RealType beta = params_.eqParams.ficticiousBeta;
+		const RealType mu   = 0;
+		decomp_             = std::make_unique<DecompType>(
+                    neqBathRank_,
+                    beta,
+                    mu,
+                    bathParams,
+                    params_.nT,
+                    params_.eqParams.nMatsubaras,
+                    params_.dt,
+                    params_.eqParams.ficticiousBeta
+                        / static_cast<RealType>(params_.eqParams.nMatsubaras));
+
+		const SizeType nBath  = bathParams.size() / 2;
+		const SizeType nsites = nBath + 1;
+		scL_                  = neqBathRank_;
+		scNsitesExt_          = nsites + 2 * scL_;
+		scNup_                = nup_ + scL_;
+		scNdown_              = ndown_ + scL_;
+
+		scHoppings_.resize(nBath);
+		scBathEps_.resize(nBath);
+		for (SizeType i = 0; i < nBath; ++i) {
+			scHoppings_[i] = bathParams[i];
+			scBathEps_[i]  = bathParams[nBath + i];
+		}
+
+		scPotTdmrg_.assign(scNsitesExt_, RealType(0));
+		scPotTdmrg_[0] = -RealType(0.5) * params_.uFinal;
+		for (SizeType i = 0; i < nBath; ++i)
+			scPotTdmrg_[i + 1] = scBathEps_[i];
+		// Second-bath entries of scPotTdmrg_ stay 0: the true evolving-bath
+		// potential is eps=0 for every time-evolution segment (see
+		// measureSecondBathOccupations' doc comment) -- eps only applies to
+		// the one-off GS seeding run rebuilt fresh in fillSelfConsistentRow.
+
+		// eps calibration rule confirmed empirically (blocker B, see
+		// fancy-painting-moon.md): must scale to the largest OTHER coupling
+		// present, not a fixed small constant.
+		RealType maxCoupling = std::max(params_.uInitial, params_.uFinal);
+		for (SizeType i = 0; i < nBath; ++i) {
+			maxCoupling = std::max(maxCoupling, std::abs(scHoppings_[i]));
+			maxCoupling = std::max(maxCoupling, std::abs(scBathEps_[i]));
+		}
+		if (maxCoupling == RealType(0))
+			maxCoupling = RealType(1);
+		scEps_ = RealType(5) * maxCoupling;
+
+		scChainRoot_ = root_ + "sc_";
+	}
+
+	// ---- Phase 2 (evolving-bath project): self-consistent row fill --------
+	//
+	// Fills gimp's retarded/lesser (n,j) for j=0..n (and the anti-Hermitian
+	// transpose lesser(j,n) for j<n) by rebuilding the FULL fan-out from
+	// t=0 through step n fresh -- same Column/birthColumn/advanceColumn
+	// mechanics as computeFullGridWithInertSecondBath, but bounded by n
+	// (not params_.nT) and reading the second-bath Connectors at each outer
+	// step k from decomp_->Vplus(k-1,p)/Vplus(k,p) (midpoint-averaged,
+	// mirroring ImpuritySolverNeqGBEK::computeVMid) instead of a fixed 0.
+	//
+	// Deliberately does NOT persist columns_ or any progress marker across
+	// calls: NeqDmftSolver's corrector loop (see NeqDmftSolver::timeStep)
+	// calls prepareTimeStep(n,...)/computeGimp(gimp,n) repeatedly for the
+	// SAME n as decomp_ is refined, and a full recompute from decomp_'s
+	// CURRENT state is trivially correct for that without any propagated-
+	// through/rewind bookkeeping. Cost is O(n^2) segments per call, O(nT^3)
+	// total over a run -- accepted for now (see the advisor consult
+	// recorded in fancy-painting-moon.md): incremental/persistent-state
+	// optimization is deferred, to be built later against this method's own
+	// passing gate as its regression net, not attempted alongside it.
+	//
+	// The newest column (born at step n, never naturally advanced within
+	// this bounded recompute since there is no step n+1 here) still needs
+	// its diagonal G(n,n): mirrors computeFullGrid's original handling of
+	// column nT exactly -- birth it, then one extra "throwaway" advance
+	// purely to trigger the diagonal-capture byproduct (see advanceColumn),
+	// discarding the resulting off-diagonal value. This throwaway advance's
+	// own Connectors value provably does not matter (confirmed empirically:
+	// see the "column diagonal is independent of the second-bath Connectors
+	// value" test) -- it reuses whatever this step's own vMid already is,
+	// rather than needing Vplus(n+1,*), which is not yet determined at this
+	// point (prepareTimeStep(n+1,...) has not run).
+	void fillSelfConsistentRow(KBType& gimp, int n) const
+	{
+		const SizeType nBath  = scHoppings_.size();
+		const SizeType nsites = nBath + 1;
+
+		VectorRealType potGS(scNsitesExt_, RealType(0));
+		potGS[0] = -RealType(0.5) * params_.uInitial;
+		for (SizeType i = 0; i < nBath; ++i)
+			potGS[i + 1] = scBathEps_[i];
+		for (SizeType p = 0; p < scL_; ++p)
+			potGS[nsites + p] = -scEps_;
+		for (SizeType p = 0; p < scL_; ++p)
+			potGS[nsites + scL_ + p] = scEps_;
+
+		auto vMidConnectors = [this](int k)
+		{
+			VectorComplexType c(2 * scL_);
+			for (SizeType p = 0; p < scL_; ++p) {
+				const ComplexType vPrev
+				    = decomp_->Vplus(k - 1, static_cast<int>(p));
+				const ComplexType vCurr = decomp_->Vplus(k, static_cast<int>(p));
+				const ComplexType vMid  = RealType(0.5) * (vPrev + vCurr);
+				c[p]                    = vMid;
+				c[scL_ + p]             = vMid;
+			}
+			return c;
+		};
+
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = scChainRoot_ + "gs.log";
+			DmrgRunnerType runner(
+			    app_,
+			    buildGsInputAt(scChainRoot_ + "gs",
+			                   params_.uInitial,
+			                   scHoppings_,
+			                   potGS,
+			                   scNup_,
+			                   scNdown_,
+			                   scNsitesExt_,
+			                   VectorComplexType(2 * scL_, ComplexType(0))),
+			    opts);
+			runner.doOneRun();
+		}
+
+		std::vector<Column> columns;
+		columns.reserve(static_cast<SizeType>(n) + 1);
+		columns.emplace_back();
+		columns[0].born = 0;
+		birthColumn(columns[0],
+		            scChainRoot_ + "gs",
+		            -1,
+		            scChainRoot_ + "gs",
+		            -1,
+		            scChainRoot_,
+		            "column0",
+		            params_.uFinal,
+		            scHoppings_,
+		            scPotTdmrg_,
+		            scNsitesExt_,
+		            SecondBathExt { true,
+		                            scNup_,
+		                            scNdown_,
+		                            VectorComplexType(2 * scL_, ComplexType(0)),
+		                            scNsitesExt_ - 2 });
+
+		VectorComplexType lastConnectors(2 * scL_, ComplexType(0));
+		for (int k = 1; k <= n; ++k) {
+			lastConnectors = vMidConnectors(k);
+			SecondBathExt secondBath {
+				true, scNup_, scNdown_, lastConnectors, scNsitesExt_ - 2
+			};
+
+			advanceColumn(columns[0],
+			              k,
+			              scChainRoot_,
+			              params_.uFinal,
+			              scHoppings_,
+			              scPotTdmrg_,
+			              scNsitesExt_,
+			              secondBath);
+
+			SizeType justBornIdx = columns.size();
+			if (k < n) {
+				columns.emplace_back();
+				columns.back().born = k;
+				birthColumn(columns.back(),
+				            columns[0].particleRoot,
+				            columns[0].particleSrcTv,
+				            columns[0].holeRoot,
+				            columns[0].holeSrcTv,
+				            scChainRoot_,
+				            "column" + ttos(k),
+				            params_.uFinal,
+				            scHoppings_,
+				            scPotTdmrg_,
+				            scNsitesExt_,
+				            secondBath);
+				justBornIdx = columns.size() - 1;
+			}
+
+			for (SizeType idx = 1; idx < columns.size(); ++idx) {
+				if (idx == justBornIdx)
+					continue;
+				advanceColumn(columns[idx],
+				              k,
+				              scChainRoot_,
+				              params_.uFinal,
+				              scHoppings_,
+				              scPotTdmrg_,
+				              scNsitesExt_,
+				              secondBath);
+			}
+		}
+
+		if (n > 0) {
+			SecondBathExt secondBath {
+				true, scNup_, scNdown_, lastConnectors, scNsitesExt_ - 2
+			};
+			columns.emplace_back();
+			columns.back().born = n;
+			birthColumn(columns.back(),
+			            columns[0].particleRoot,
+			            columns[0].particleSrcTv,
+			            columns[0].holeRoot,
+			            columns[0].holeSrcTv,
+			            scChainRoot_,
+			            "column" + ttos(n),
+			            params_.uFinal,
+			            scHoppings_,
+			            scPotTdmrg_,
+			            scNsitesExt_,
+			            secondBath);
+			advanceColumn(columns.back(),
+			              n + 1,
+			              scChainRoot_,
+			              params_.uFinal,
+			              scHoppings_,
+			              scPotTdmrg_,
+			              scNsitesExt_,
+			              secondBath);
+		}
+
+		for (auto& col : columns) {
+			applySignFlip(col.ggtRaw);
+			applySignFlip(col.gltRaw);
+
+			const int j = col.born;
+			if (j != n)
+				continue; // only need row n's own diagonal from this column
+
+			const ComplexType ggtD = ComplexType(0, -1) * col.ggtDiag;
+			const ComplexType gltD = ComplexType(0, 1) * col.gltDiag;
+			gimp.lesser(j, j)      = gltD;
+			gimp.retarded(j, j)    = ggtD - gltD;
+		}
+
+		for (auto& col : columns) {
+			const int j = col.born;
+			if (j == n)
+				continue;
+			auto itG = col.ggtRaw.find(n);
+			auto itL = col.gltRaw.find(n);
+			if (itG == col.ggtRaw.end() || itL == col.gltRaw.end())
+				continue;
+			const ComplexType ggt = ComplexType(0, -1) * itG->second;
+			const ComplexType glt = ComplexType(0, 1) * itL->second;
+			gimp.lesser(n, j)     = glt;
+			gimp.retarded(n, j)   = ggt - glt;
+			gimp.lesser(j, n)     = -std::conj(glt);
+		}
+	}
+
 	// ---- Input construction ------------------------------------------------
 
 	std::string buildGsInput(RealType              U,
@@ -1848,6 +2167,8 @@ private:
 	const ParamsNeqType&            params_;
 	const ApplicationType&          app_;
 	typename InputNgType::Readable& io_;
+	const SizeType                  neqBathRank_;
+	ExactDiagType                   exactDiag_;
 	KBType                          gimp_;
 	SizeType                        nup_   = 0;
 	SizeType                        ndown_ = 0;
@@ -1857,6 +2178,18 @@ private:
 	std::string                     finiteLoopsTdmrg_;
 	SizeType                        tspTimeSteps_   = 5;
 	SizeType                        tspAdvanceEach_ = 1;
+
+	// ---- Phase 2 (evolving-bath project): self-consistency state ----------
+	// Populated by solve() only when neqBathRank_ > 0; unused (default-
+	// constructed/empty) on the NeqBathRank=0 path, which stays on the
+	// original code above unchanged.
+	std::unique_ptr<DecompType> decomp_;
+	VectorRealType              scHoppings_, scBathEps_, scPotTdmrg_;
+	SizeType                    scNsitesExt_ = 0;
+	SizeType                    scL_         = 0;
+	SizeType                    scNup_ = 0, scNdown_ = 0;
+	RealType                    scEps_ = 0;
+	std::string                 scChainRoot_;
 };
 
 } // namespace Dmft
