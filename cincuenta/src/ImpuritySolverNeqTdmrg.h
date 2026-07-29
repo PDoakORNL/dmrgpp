@@ -616,9 +616,20 @@ public:
 	// and diagonal-occurrence-count risks that motivated this specific
 	// check were verified empirically in build/tmp/advanceeach_check/
 	// before this method was written).
-	KBType computeFullGridWithInertSecondBath(const VectorRealType& bathParams,
-	                                          SizeType              L,
-	                                          RealType              eps) const
+	// fixedConnectors (default empty): when non-empty (size 2L), used as the
+	// second-bath Connectors for EVERY step instead of the all-zero inert
+	// default -- added to empirically test whether Column::ggtDiag/gltDiag
+	// (captured from a column's first advanceColumn call, see that method's
+	// doc comment) actually depends on the segment's own declared Connectors
+	// value, which matters for the self-consistent (evolving Vplus) case
+	// where the diagonal for row n must be available before Vplus(n+1) is
+	// known. See fancy-painting-moon.md, Phase 2, "diagonal Connectors-
+	// independence check".
+	KBType computeFullGridWithInertSecondBath(const VectorRealType&    bathParams,
+	                                          SizeType                 L,
+	                                          RealType                 eps,
+	                                          const VectorComplexType& fixedConnectors
+	                                          = VectorComplexType()) const
 	{
 		const SizeType nBath     = bathParams.size() / 2;
 		const SizeType nsites    = nBath + 1;
@@ -650,7 +661,9 @@ public:
 		secondBath.active      = true;
 		secondBath.nup         = nup_ + L;
 		secondBath.ndown       = ndown_ + L;
-		secondBath.connectors  = VectorComplexType(2 * L, ComplexType(0));
+		secondBath.connectors  = fixedConnectors.empty()
+		     ? VectorComplexType(2 * L, ComplexType(0))
+		     : fixedConnectors;
 		secondBath.advanceEach = nsitesExt - 2;
 
 		const std::string chainRoot = root_ + "gridbath_";
@@ -1306,7 +1319,8 @@ private:
 	{
 		std::string s = "##Ainur1.0\n\n";
 		s += geomHeader(nsites, U);
-		s += "SolverOptions=twositedmrg,geometryallinsystem;\n";
+		s += "SolverOptions=twositedmrg,geometryallinsystem";
+		s += hasNonzeroImag(secondBathConnectors) ? ",usecomplex;\n" : ";\n";
 		s += "Version=neqTdmrg;\n";
 		s += "OutputFile=" + outRoot + ";\n";
 		s += "InfiniteLoopKeptStates=" + ttos(infiniteLoops_) + ";\n";
@@ -1354,9 +1368,7 @@ private:
 		// invoked (Vplus(0,p)=0 is real, and by the time Vplus is complex
 		// the birth source is already an advanced, complex column), but
 		// checking directly rather than relying on that coincidence.
-		bool hasComplexSecondBath = false;
-		for (SizeType p = 0; p < secondBathConnectors.size() && !hasComplexSecondBath; ++p)
-			hasComplexSecondBath = (std::imag(secondBathConnectors[p]) != RealType(0));
+		const bool hasComplexSecondBath = hasNonzeroImag(secondBathConnectors);
 
 		std::string s = "##Ainur1.0\n\n";
 		s += geomHeader(nsites, U_f);
@@ -1770,6 +1782,21 @@ private:
 	// blocker-A). A zero imaginary part is written as a plain real literal
 	// (no "i" token at all), matching what buildConnectorsStr already emits
 	// for the (always-real) first bath.
+	// True if any entry has nonzero imaginary part -- used to decide whether
+	// a run's SolverOptions needs "usecomplex". Shared by buildGsInputAt and
+	// buildInitInputAt; buildGsInputAt originally omitted this check
+	// entirely (a real bug: it fed a complex-literal-bearing Connectors
+	// string to a non-"usecomplex" run, which fails Ainur parsing with
+	// e.g. "atof received a non-digit 0.7i0.2" -- found via the diagonal
+	// Connectors-independence test, fancy-painting-moon.md Phase 2).
+	static bool hasNonzeroImag(const VectorComplexType& v)
+	{
+		for (SizeType p = 0; p < v.size(); ++p)
+			if (std::imag(v[p]) != RealType(0))
+				return true;
+		return false;
+	}
+
 	static std::string formatComplexLiteral(ComplexType v)
 	{
 		const RealType re = std::real(v);

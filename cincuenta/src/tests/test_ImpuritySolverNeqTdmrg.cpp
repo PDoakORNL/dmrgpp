@@ -25,13 +25,14 @@
 //   U=0.5  -- small nonzero U lifts that degeneracy while keeping
 //             truncation error small, disambiguating the two explanations.
 
-using RealType        = double;
-using ComplexType     = std::complex<RealType>;
-using SolverType      = Dmft::ImpuritySolverNeqTdmrg<ComplexType>;
-using ParamsType      = Dmft::ParamsNeqDmftSolver<ComplexType>;
-using InputNgType     = PsimagLite::InputNg<Dmft::CincuentaInputCheck>;
-using VectorRealType  = typename SolverType::VectorRealType;
-using ApplicationType = PsimagLite::PsiApp;
+using RealType          = double;
+using ComplexType       = std::complex<RealType>;
+using SolverType        = Dmft::ImpuritySolverNeqTdmrg<ComplexType>;
+using ParamsType        = Dmft::ParamsNeqDmftSolver<ComplexType>;
+using InputNgType       = PsimagLite::InputNg<Dmft::CincuentaInputCheck>;
+using VectorRealType    = typename SolverType::VectorRealType;
+using VectorComplexType = typename SolverType::VectorComplexType;
+using ApplicationType   = PsimagLite::PsiApp;
 
 // N=6 sites (5 bath + 1 impurity): TSPAdvanceEach=N-2=4, matching the
 // convention already established in inputU0NeqTdmrg.ain. NtNeq kept tiny
@@ -401,5 +402,79 @@ TEST_CASE("ImpuritySolverNeqTdmrg extended-geometry (inert L=1 second bath) "
 			CHECK(extLes.real() == Catch::Approx(refLes.real()).margin(tol));
 			CHECK(extLes.imag() == Catch::Approx(refLes.imag()).margin(tol));
 		}
+	}
+}
+
+// ---- Phase 2: diagonal Connectors-independence check -----------------------
+//
+// Load-bearing claim for the self-consistent (evolving-Vplus) design: a
+// column's equal-time diagonal G(born,born) is captured from the FIRST
+// measurement occurrence in its first advanceColumn segment, which (per the
+// advisor consult recorded in fancy-painting-moon.md) should be taken BEFORE
+// that segment's own TimeEvolve acts -- i.e. before the segment's declared
+// second-bath Connectors value has any chance to matter. This was previously
+// confirmed only at Connectors=0 (computeFullGridWithInertSecondBath); this
+// test exercises it with two DIFFERENT nonzero Connectors values and checks
+// the diagonal is identical while the (necessarily Connectors-dependent)
+// off-diagonal entry differs. If this fails, the byproduct-diagonal-capture
+// design is unsafe for genuinely evolving Vplus and the fallback (measuring
+// <n_imp> directly, per measureSecondBathOccupations) must be used instead.
+TEST_CASE("ImpuritySolverNeqTdmrg column diagonal is independent of the "
+          "second-bath Connectors value used for its first advance",
+          "[ImpuritySolverNeqTdmrg][Phase2][ConnectorsIndependence]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType       L          = 1;
+	const RealType       eps        = 3.0;
+
+	// Two distinct nonzero Connectors profiles for the 2L=2 second-bath
+	// entries (occupied-site coupling, empty-site coupling), one real, one
+	// complex -- deliberately different from each other and from the inert
+	// (0) case already covered above.
+	const VectorComplexType connectorsA = { ComplexType(0.3, 0.0), ComplexType(0.3, 0.0) };
+	const VectorComplexType connectorsB = { ComplexType(0.7, 0.2), ComplexType(0.7, 0.2) };
+
+	const auto gridA
+	    = solver.computeFullGridWithInertSecondBath(bathParams, L, eps, connectorsA);
+	const auto gridB
+	    = solver.computeFullGridWithInertSecondBath(bathParams, L, eps, connectorsB);
+
+	const RealType tol = 1e-6;
+
+	// Diagonal entries: must match between the two runs (Connectors-
+	// independent, per the hypothesis under test).
+	const int nT = static_cast<int>(params.nT);
+	for (int n = 0; n <= nT; ++n) {
+		const ComplexType retA = gridA.retarded(n, n);
+		const ComplexType retB = gridB.retarded(n, n);
+		const ComplexType lesA = gridA.lesser(n, n);
+		const ComplexType lesB = gridB.lesser(n, n);
+		CHECK(retA.real() == Catch::Approx(retB.real()).margin(tol));
+		CHECK(retA.imag() == Catch::Approx(retB.imag()).margin(tol));
+		CHECK(lesA.real() == Catch::Approx(lesB.real()).margin(tol));
+		CHECK(lesA.imag() == Catch::Approx(lesB.imag()).margin(tol));
+	}
+
+	// Off-diagonal (1,0): genuinely evolved under the segment's own
+	// Connectors, so should DIFFER between the two profiles -- a sanity
+	// check that this test isn't vacuously passing because everything is
+	// insensitive to Connectors.
+	if (nT >= 1) {
+		const ComplexType offA = gridA.retarded(1, 0);
+		const ComplexType offB = gridB.retarded(1, 0);
+		const RealType    diff = std::abs(offA - offB);
+		CHECK(diff > tol);
 	}
 }
