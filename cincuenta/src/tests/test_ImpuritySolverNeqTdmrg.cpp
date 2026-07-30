@@ -855,3 +855,75 @@ TEST_CASE("DIAGNOSTIC third advance -- does step-3 harvest track C2 (off-by-one 
 // mode with this engine. A real fix needs either dmrg/Engine/ instrumentation
 // or an outer-loop redesign around the 2-dt-per-segment time quantum --
 // both are scope decisions, not something to keep scanning for here.
+
+// Engine fix (option 1, user-approved 2026-07-29): dmrg/Engine's
+// NonLocalForTargetingExpression::advanceInTimeOrNot hardcodes
+// advanceOnlyAtBorder=true with no existing opt-out -- a genuinely
+// different code path from ApplyOperatorExpression.h's border gate (the
+// advanceUnrestricted flag above targeted the WRONG mechanism entirely,
+// which is why it never converged). Added an opt-in maxAdvances cap
+// (0=unlimited, the default -- every existing caller unaffected) on
+// GroupOfOneTimeEvolutions::OneTimeEvolution, threaded through
+// buildStepInput's TimeEvolve{...} string. This test verifies maxAdvances=1
+// makes each segment fire exactly once: harvest imaginary parts across a
+// 3-call static-Connectors chain should land at 1x, 2x, 3x a single
+// dt-advance (not 2x, 4x, 6x as confirmed without the cap).
+TEST_CASE("DIAGNOSTIC maxAdvances=1 gives exactly one advance per segment",
+          "[ImpuritySolverNeqTdmrg][Diagnostic]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType    bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType          L          = 1;
+	const RealType          eps        = 3.0;
+	const VectorComplexType c          = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+
+	const auto result = solver.diagnosticThirdAdvanceConnectors(
+	    bathParams, L, eps, c, c, c, "diagmaxadv_", 0, 1);
+
+	std::cout << "DIAGNOSTIC maxAdvances=1 static-C step-3 harvest=" << result << "\n";
+}
+
+// With maxAdvances=1, harvest(3) should now depend on C3 (this call's OWN
+// Connectors) -- the opposite of the pre-fix lag, where only C2 mattered.
+TEST_CASE("DIAGNOSTIC maxAdvances=1 -- step-3 harvest now tracks its OWN Connectors (C3)",
+          "[ImpuritySolverNeqTdmrg][Diagnostic]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType    bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType          L          = 1;
+	const RealType          eps        = 3.0;
+	const VectorComplexType c1         = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType c2         = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType c3A        = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType c3B = { ComplexType(0.52, -0.008), ComplexType(0.52, -0.008) };
+
+	const auto resultA = solver.diagnosticThirdAdvanceConnectors(
+	    bathParams, L, eps, c1, c2, c3A, "diagmaxadvA_", 0, 1);
+	const auto resultB = solver.diagnosticThirdAdvanceConnectors(
+	    bathParams, L, eps, c1, c2, c3B, "diagmaxadvB_", 0, 1);
+
+	std::cout << "DIAGNOSTIC maxAdvances=1 C3 sensitivity: resultA=" << resultA
+	          << " resultB=" << resultB << "\n";
+}

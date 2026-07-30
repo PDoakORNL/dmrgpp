@@ -800,7 +800,8 @@ public:
 	                                             const VectorComplexType& connectorsStep2,
 	                                             const VectorComplexType& connectorsStep3,
 	                                             const std::string& rootSuffix = "diag3step_",
-	                                             SizeType advanceEachOverride  = 0) const
+	                                             SizeType           advanceEachOverride = 0,
+	                                             SizeType           maxAdvances = 0) const
 	{
 		const SizeType nBath     = bathParams.size() / 2;
 		const SizeType nsites    = nBath + 1;
@@ -849,18 +850,20 @@ public:
 
 		Column col;
 		col.born = 0;
-		birthColumn(col,
-		            chainRoot + "gs",
-		            -1,
-		            chainRoot + "gs",
-		            -1,
-		            chainRoot,
-		            "column0",
-		            params_.uFinal,
-		            hoppings,
-		            potTdmrg,
-		            nsitesExt,
-		            SecondBathExt { true, nupExt, ndownExt, connectorsStep1, advanceEach });
+		birthColumn(
+		    col,
+		    chainRoot + "gs",
+		    -1,
+		    chainRoot + "gs",
+		    -1,
+		    chainRoot,
+		    "column0",
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt {
+		        true, nupExt, ndownExt, connectorsStep1, advanceEach, maxAdvances });
 
 		advanceColumn(
 		    col,
@@ -870,7 +873,8 @@ public:
 		    hoppings,
 		    potTdmrg,
 		    nsitesExt,
-		    SecondBathExt { true, nupExt, ndownExt, connectorsStep1, advanceEach });
+		    SecondBathExt {
+		        true, nupExt, ndownExt, connectorsStep1, advanceEach, maxAdvances });
 
 		advanceColumn(
 		    col,
@@ -880,7 +884,8 @@ public:
 		    hoppings,
 		    potTdmrg,
 		    nsitesExt,
-		    SecondBathExt { true, nupExt, ndownExt, connectorsStep2, advanceEach });
+		    SecondBathExt {
+		        true, nupExt, ndownExt, connectorsStep2, advanceEach, maxAdvances });
 
 		advanceColumn(
 		    col,
@@ -890,7 +895,8 @@ public:
 		    hoppings,
 		    potTdmrg,
 		    nsitesExt,
-		    SecondBathExt { true, nupExt, ndownExt, connectorsStep3, advanceEach });
+		    SecondBathExt {
+		        true, nupExt, ndownExt, connectorsStep3, advanceEach, maxAdvances });
 
 		return col.ggtRaw[3];
 	}
@@ -1238,6 +1244,10 @@ private:
 		SizeType          ndown  = 0;
 		VectorComplexType connectors; // size 2L, duplicated occ/empty per p
 		SizeType          advanceEach = 0; // nsitesExt - 2, recalibrated
+		// See buildStepInput's maxAdvances doc comment / TDMRG_EVOLVING_BATH.md
+		// Link 9. 0 (default) = unlimited, matching all pre-fix behavior.
+		// Set to 1 by the self-consistent (fillSelfConsistentRow) path.
+		SizeType maxAdvances = 0;
 	};
 
 	void birthColumn(Column&               col,
@@ -1323,25 +1333,38 @@ private:
 
 		const std::string tag = "j" + ttos(col.born) + "_n" + ttos(n);
 		{
-			const bool           takeLast = (col.particleSrcTv < 0);
-			const std::string    outRoot  = chainRoot + tag + "_particle";
+			const bool isFirstAdvance = (col.particleSrcTv < 0);
+			// With secondBath.maxAdvances==1 (self-consistent path only --
+			// see TDMRG_EVOLVING_BATH.md Link 9), every segment fires
+			// exactly one dt-advance, first-advance or continuation alike.
+			// A continuation segment's occurrence #1 is then the PREVIOUS
+			// segment's own already-finished state (this segment hasn't
+			// fired yet at that point in its sweep); occurrence #2 is the
+			// state after THIS segment's one fire, which is the value this
+			// row wants. So under the cap, always take the LAST occurrence,
+			// uniformly -- no more first-advance/continuation distinction.
+			// Without the cap (maxAdvances==0, Phase 1's already-validated
+			// path), the old distinction (first-advance -> last occurrence,
+			// continuation -> first occurrence) is unchanged.
+			const bool        takeLast = isFirstAdvance || (secondBath.maxAdvances > 0);
+			const std::string outRoot  = chainRoot + tag + "_particle";
 			Dmrg::CmdLineOptions opts;
-			opts.logfile              = outRoot + ".log";
-			opts.in_situ_measurements = "<P2|c|P1>";
-			DmrgRunnerType runner(app_,
-			                      buildStepInput(uFinal,
-			                                     hoppings,
-			                                     potTdmrg,
-			                                     nup,
-			                                     ndown,
-			                                     nsites,
-			                                     col.particleRoot,
-			                                     col.particleMapTv,
-			                                     col.particleSrcTv,
-			                                     outRoot,
-			                                     secondBath.connectors,
-			                                     secondBath.advanceEach),
-			                      opts);
+			opts.logfile                = outRoot + ".log";
+			opts.in_situ_measurements   = "<P2|c|P1>";
+			const std::string stepInput = buildStepInput(uFinal,
+			                                             hoppings,
+			                                             potTdmrg,
+			                                             nup,
+			                                             ndown,
+			                                             nsites,
+			                                             col.particleRoot,
+			                                             col.particleMapTv,
+			                                             col.particleSrcTv,
+			                                             outRoot,
+			                                             secondBath.connectors,
+			                                             secondBath.advanceEach,
+			                                             secondBath.maxAdvances);
+			DmrgRunnerType    runner(app_, stepInput, opts);
 			runner.doOneRun();
 
 			ComplexType ggt(0);
@@ -1375,8 +1398,11 @@ private:
 			// (confirmed empirically: matches ImpuritySolverNeqExactDiag's
 			// G(0,0) exactly for column 0 -- see project_tdmrg_evolving_bath
 			// memory). Capture it here instead of via a separate, fragile
-			// birth-time measurement.
-			if (takeLast)
+			// birth-time measurement. Gated on isFirstAdvance specifically
+			// (not takeLast, which above is widened by the maxAdvances
+			// cap) -- the diagonal only exists on a column's actual first
+			// advance since birth.
+			if (isFirstAdvance)
 				parseSingleMeasurement(
 				    opts.logfile, "<P2|c|P1>", col.ggtDiag, false);
 
@@ -1385,8 +1411,9 @@ private:
 			col.particleSrcTv = 2;
 		}
 		{
-			const bool           takeLast = (col.holeSrcTv < 0);
-			const std::string    outRoot  = chainRoot + tag + "_hole";
+			const bool        isFirstAdvance = (col.holeSrcTv < 0);
+			const bool        takeLast = isFirstAdvance || (secondBath.maxAdvances > 0);
+			const std::string outRoot  = chainRoot + tag + "_hole";
 			Dmrg::CmdLineOptions opts;
 			opts.logfile              = outRoot + ".log";
 			opts.in_situ_measurements = "<P1|c|P2>";
@@ -1402,7 +1429,8 @@ private:
 			                                     col.holeSrcTv,
 			                                     outRoot,
 			                                     secondBath.connectors,
-			                                     secondBath.advanceEach),
+			                                     secondBath.advanceEach,
+			                                     secondBath.maxAdvances),
 			                      opts);
 			runner.doOneRun();
 
@@ -1412,7 +1440,7 @@ private:
 			// particle branch above.
 			col.gltRaw[n] = glt;
 
-			if (takeLast)
+			if (isFirstAdvance)
 				parseSingleMeasurement(
 				    opts.logfile, "<P1|c|P2>", col.gltDiag, false);
 
@@ -1548,9 +1576,6 @@ private:
 				const ComplexType vMid  = RealType(0.5) * (vPrev + vCurr);
 				c[p]                    = vMid;
 				c[scL_ + p]             = vMid;
-				std::cerr << "  DEBUG vMidConnectors k=" << k << " p=" << p
-				          << " Vplus(k-1)=" << vPrev << " Vplus(k)=" << vCurr
-				          << " vMid=" << vMid << "\n";
 			}
 			return c;
 		};
@@ -1591,7 +1616,8 @@ private:
 		                            scNup_,
 		                            scNdown_,
 		                            VectorComplexType(2 * scL_, ComplexType(0)),
-		                            scNsitesExt_ - 2 });
+		                            scNsitesExt_ - 2,
+		                            1 });
 
 		// n==0: no natural advance happens for row 0 (the k=1..n loop below
 		// is empty), so column 0's diagonal -- normally captured as a
@@ -1608,7 +1634,7 @@ private:
 		// whatever decomp_'s default (all-zero) V_ gives, which is fine.
 		if (n == 0) {
 			SecondBathExt secondBath {
-				true, scNup_, scNdown_, vMidConnectors(1), scNsitesExt_ - 2
+				true, scNup_, scNdown_, vMidConnectors(1), scNsitesExt_ - 2, 1
 			};
 			advanceColumn(columns[0],
 			              1,
@@ -1623,9 +1649,8 @@ private:
 		VectorComplexType lastConnectors(2 * scL_, ComplexType(0));
 		for (int k = 1; k <= n; ++k) {
 			lastConnectors = vMidConnectors(k);
-			SecondBathExt secondBath {
-				true, scNup_, scNdown_, lastConnectors, scNsitesExt_ - 2
-			};
+			SecondBathExt secondBath { true,           scNup_,           scNdown_,
+				                   lastConnectors, scNsitesExt_ - 2, 1 };
 
 			advanceColumn(columns[0],
 			              k,
@@ -1670,9 +1695,8 @@ private:
 		}
 
 		if (n > 0) {
-			SecondBathExt secondBath {
-				true, scNup_, scNdown_, lastConnectors, scNsitesExt_ - 2
-			};
+			SecondBathExt secondBath { true,           scNup_,           scNdown_,
+				                   lastConnectors, scNsitesExt_ - 2, 1 };
 			columns.emplace_back();
 			columns.back().born = n;
 			birthColumn(columns.back(),
@@ -1710,27 +1734,6 @@ private:
 			gimp.lesser(j, j)      = gltD;
 			gimp.retarded(j, j)    = ggtD - gltD;
 		}
-
-		std::cerr << "DEBUG fillSelfConsistentRow n=" << n
-		          << " callCounter=" << (scCallCounter_ - 1)
-		          << " nColumns=" << columns.size() << "\n";
-		for (auto& col : columns) {
-			auto itGdbg = col.ggtRaw.find(n);
-			auto itLdbg = col.gltRaw.find(n);
-			std::cerr << "  DEBUG column born=" << col.born
-			          << " ggtRaw.size=" << col.ggtRaw.size()
-			          << " has(n)=" << (itGdbg != col.ggtRaw.end()) << " ggtRaw[n]="
-			          << (itGdbg != col.ggtRaw.end() ? itGdbg->second
-			                                         : ComplexType(999))
-			          << " gltRaw[n]="
-			          << (itLdbg != col.gltRaw.end() ? itLdbg->second
-			                                         : ComplexType(999))
-			          << " ggtDiag=" << col.ggtDiag << " gltDiag=" << col.gltDiag
-			          << "\n";
-		}
-		for (SizeType p = 0; p < scL_; ++p)
-			std::cerr << "  DEBUG Vplus(" << n << "," << p
-			          << ")=" << decomp_->Vplus(n, static_cast<int>(p)) << "\n";
 
 		for (auto& col : columns) {
 			const int j = col.born;
@@ -2016,10 +2019,22 @@ private:
 	                           const std::string&       outRoot,
 	                           const VectorComplexType& secondBathConnectors
 	                           = VectorComplexType(),
-	                           SizeType advanceEachOverride = 0) const
+	                           SizeType advanceEachOverride = 0,
+	                           SizeType maxAdvances         = 0) const
 	{
 		const SizeType advanceEach
 		    = (advanceEachOverride == 0) ? tspAdvanceEach_ : advanceEachOverride;
+		// maxAdvances (opt-in, 0=unlimited -- every existing caller
+		// unaffected): caps how many times a single TimeEvolve{...}
+		// segment may advance, regardless of how many sweep borders it
+		// crosses. Needed because dmrg/Engine/NonLocalForTargetingExpression.h
+		// hardcodes advanceOnlyAtBorder=true: this project's two-row
+		// FiniteLoops segments cross a border once per row, firing TWICE
+		// under one Connectors declaration when only one advance is
+		// physically intended (see TDMRG_EVOLVING_BATH.md Link 9). Set to
+		// 1 by the self-consistent (fillSelfConsistentRow) path only.
+		const std::string maxAdvancesStr
+		    = (maxAdvances == 0) ? "" : (",maxAdvances=" + ttos(maxAdvances));
 
 		std::string s = "##Ainur1.0\n\n";
 		s += geomHeader(nsites, U_f);
@@ -2047,10 +2062,12 @@ private:
 			s += "RestartSourceTvForPsi=" + ttos(sourceTvForPsi) + ";\n";
 		s += "GsWeight=0.1;\n";
 		s += "string P0=|P0>;\n";
-		s += "string P1=\"TimeEvolve{tau=" + ttos(params_.dt) + ",steps="
-		    + ttos(tspTimeSteps_) + ",advanceEach=" + ttos(advanceEach) + "}*|P0>\";\n";
-		s += "string P2=\"TimeEvolve{tau=" + ttos(params_.dt) + ",steps="
-		    + ttos(tspTimeSteps_) + ",advanceEach=" + ttos(advanceEach) + "}*|gs>\";\n";
+		s += "string P1=\"TimeEvolve{tau=" + ttos(params_.dt)
+		    + ",steps=" + ttos(tspTimeSteps_) + ",advanceEach=" + ttos(advanceEach)
+		    + maxAdvancesStr + "}*|P0>\";\n";
+		s += "string P2=\"TimeEvolve{tau=" + ttos(params_.dt)
+		    + ",steps=" + ttos(tspTimeSteps_) + ",advanceEach=" + ttos(advanceEach)
+		    + maxAdvancesStr + "}*|gs>\";\n";
 		return s;
 	}
 
