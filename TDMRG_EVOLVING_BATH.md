@@ -205,7 +205,7 @@ documented-failure case through the real C++ code path.
 
 ---
 
-### Link 9 — Each segment applies exactly one dt-advance under its own `Connectors=` value — **BROKEN, confirmed 2026-07-29, root-caused at the engine level**
+### Link 9 — Each segment applies exactly one dt-advance under its own `Connectors=` value — **FIXED, 2026-07-29/30, engine-level `maxAdvances` cap**
 
 **Assumption (as originally held, WRONG):** a segment restarting via
 `RestartSourceTvForPsi` from a prior chained segment (`takeLast=false`)
@@ -297,28 +297,60 @@ calibration (not inspection):**
   confirms the ORIGINAL reason two rows exist (a single row's sweep isn't
   guaranteed to reach the measurement site), so this is dead, not viable.
 
-**Protected by:** `diagnosticSecondAdvanceConnectors`,
-`"...positive control"`, and `"...off-by-one check"` tests, tag
-`[Diagnostic]` — TEMPORARY, investigation-only (not regression coverage).
-The two calibration scans that came up empty were removed from the test
-file (their negative result is recorded here in prose instead).
+**Fix chosen and implemented: Option 1 (engine instrumentation), per explicit
+user direction ("let's go with scope choice 1").** Added an opt-in
+`maxAdvances` cap, fully backward compatible (0 = unlimited, the default,
+preserving every existing behavior byte-for-byte):
+- `GroupOfOneTimeEvolutions.h`'s `OneTimeEvolution` gained an
+  `advancesSoFar_` counter (lifetime of the `OneTimeEvolution`, i.e. spans
+  every `FiniteLoops` row of the segment that owns it — not reset per row),
+  incremented each time `advanceTime` actually fires.
+- `NonLocalForTargetingExpression.h`'s `TimeParams` gained a `maxAdvances`
+  field (parsed from `TimeEvolve{...,maxAdvances=N}`); `advanceInTimeOrNot`
+  ANDs `!advanceCapped` (`advancesSoFar() >= maxAdvances`) into its firing
+  condition, on top of the existing `advanceOnlyAtBorder` gate — so a
+  segment can still only fire AT a border (unchanged), but is refused a
+  SECOND fire once it's used its quota, regardless of how many more borders
+  the segment's two `FiniteLoops` rows cross.
+- `cincuenta/src/ImpuritySolverNeqTdmrg.h`'s `SecondBathExt`/`buildStepInput`
+  thread `maxAdvances=1` through every self-consistent-path segment (the
+  static/Phase-1-only path is unaffected, `maxAdvances` defaults to 0 there).
+  `advanceColumn`'s `takeLast` logic was widened: under the cap, a
+  continuation segment now ALSO takes the last occurrence (there is only
+  ever one real advance now, so the old "continuation ⇒ first occurrence"
+  rule — which existed specifically to skip the second, over-advanced
+  occurrence — no longer applies).
 
-**Status:** BROKEN, root-caused, NOT fixed. This blocks Task 15's full gate
-(`NeqBathRank=1` tDMRG vs GBEK) at `n=2` and means **no `NeqBathRank>0`
-tDMRG result for `nT≥2` should be trusted**. A real fix requires one of two
-scope decisions, not further calibration:
-1. Instrument `dmrg/Engine/` itself for a genuine one-advance-per-segment
-   mechanism (touches the shared engine, wider blast radius than
-   `cincuenta/`).
-2. Accept two-advances-per-segment as this architecture's time quantum and
-   rework the outer self-consistency loop's indexing around it (changes
-   `dt`'s relationship to `decomp_`'s grid and to GBEK's own per-step
-   granularity — risks invalidating the very comparison Task 15 uses as
-   its gate, so this needs to be a deliberate choice, not a quick patch).
+**Verified directly against the engine, not just by re-running the gate:**
+- Engine trace (`NonLocalForTargetingExpression`'s own `"Steps without
+  advance"` print) for a `maxAdvances=1` segment shows the counter reach a
+  border, fire once (elapsed time jumps `0.0→0.1`), and then continue
+  incrementing all the way to the segment's second border WITHOUT a second
+  jump — the cap visibly holds.
+- `diagnosticThirdAdvanceConnectors` re-run with `maxAdvances=1`: step-3
+  harvest now differs when C3 (the segment's OWN Connectors) differs, with
+  C1/C2 held fixed (`resultA=(0.485552,-0.093923)` vs
+  `resultB=(0.483213,-0.093723)`) — confirms the one-segment lag described
+  above is gone; a segment's harvest now tracks its own Connectors, not the
+  previous segment's.
+- `vMidConnectors(k)` (the midpoint-averaging of `Vplus(k-1,·)` and
+  `Vplus(k,·)` for the segment covering `[t_{k-1},t_k]`) was independently
+  re-derived from raw debug traces during this verification and confirmed
+  arithmetically correct — this rules out midpoint-averaging as a
+  contributor to any remaining discrepancy (see Link 12).
 
-Everything downstream of this link (Link 10) is built on infrastructure
-that is real and correctly wired, but not physically correct for more than
-one time step.
+**Protected by:** `"...maxAdvances=1 gives exactly one advance per segment"`
+and `"...maxAdvances=1 -- step-3 harvest now tracks its OWN Connectors
+(C3)"` tests, tag `[Diagnostic]` — investigation-only, not yet promoted to
+permanent regression coverage. `diagnosticSecondAdvanceConnectors` and
+`"...positive control"` remain from the root-causing phase, now stale
+(they document the OLD 2-advances-per-segment behavior) — candidates for
+removal or repurposing once Link 12 resolves and Task 15 passes.
+
+**Status:** FIXED and verified in isolation. This closes the root cause
+Link 9 originally identified. Task 15's gate, however, still does not pass
+— see Link 12, a narrower, still-open discrepancy uncovered only after this
+fix removed the coarser 2-advances-per-segment error.
 
 ---
 
@@ -346,9 +378,71 @@ only check `isfinite`, not correctness. **The actual correctness claim (does
 still-failing full gate is meant to protect, and it currently does not
 pass.**
 
-**Status:** wiring GOOD (crashes nothing), correctness BROKEN pending
-Link 9's fix. Do not trust `NeqBathRank>0` tDMRG results for `nT≥2` until
-Link 9 is resolved and Task 15 passes.
+**Status:** wiring GOOD (crashes nothing). Link 9's fix removes the coarse
+2-advances-per-segment error this link inherited, but correctness is STILL
+BROKEN pending Link 12. Do not trust `NeqBathRank>0` tDMRG results for
+`nT≥2` until Link 12 is resolved and Task 15 passes.
+
+---
+
+### Link 12 — Task 15 gate still fails at `(n=2,j=1)` after Link 9's fix: cause OPEN, narrower than before
+
+**Observation:** with `maxAdvances=1` correctly wired (Link 9 fixed and
+independently verified), Task 15's gate improved — `(n=2,j=0)` now passes —
+but `(n=2,j=1)` still fails: `retarded.imag` expected `-0.98364`, got `-1.0`;
+`lesser.real` expected `-0.063`, got `-0.1`; `lesser.imag` expected `0.4918`,
+got `0.5`. The errors are small (a few percent), not the order-of-magnitude
+symptom Link 9 produced — this is a materially different, narrower bug.
+
+**Ruled out, with direct evidence, before writing this up as "open" rather
+than continuing to guess:**
+- **Not a stale/truncated log artifact.** The suspect log
+  (`..._j1_n2_particle.log`, column 1's own first advance since birth,
+  raced to double-check it wasn't a leftover from an earlier run) has a
+  fresh mtime matching the run and contains exactly one occurrence-pair
+  (confirming it was freshly truncated and rewritten by this call, not
+  stale) — `(0.5,0.0)` at `t=0`, `(0.5,-0.0)` at `t=0.1`.
+- **Not a missing bath update.** The segment's own generated Ainur input
+  (`dir0:Connectors=[...,0.524393i-0.0077,...]`) contains the CURRENT,
+  corrector-updated midpoint value, not a stale one.
+- **Not a midpoint-averaging bug.** Reconstructed `vMidConnectors(2)` by
+  hand from the logged `Vplus(1,0)` and `Vplus(2,0)` values
+  (`0.5*(0.524404+0.524382, 0+(-0.0154016)) = (0.524393,-0.0077008)`) and
+  it matches the logged Connectors value exactly.
+- **Not a missing/extra advance.** The engine's own `"Steps without
+  advance"` trace for this exact segment shows the elapsed-time counter
+  jump `0.0→0.1` exactly once (at the first border crossed) and then hold
+  at `0.1` for the rest of the segment's sweep, all the way past the second
+  border — the `maxAdvances=1` cap is firing correctly here too.
+
+**Not yet resolved:** with the Connectors input, advance count, and
+midpoint-averaging all independently confirmed correct for this exact
+segment, the measured `<P2|c|P1>` value at `t=0.1` is nonetheless
+`(0.5,-0.0)` — a nearly-trivial value — rather than something reflecting a
+real `|V|≈0.52` coupling over `dt=0.1`. Whether this is (a) a genuine
+further bug in the tDMRG measurement/assembly path specific to a column's
+FIRST off-diagonal advance, (b) a real physical value that happens to be
+close to trivial for this particular parameter point and the GBEK
+reference is the one with a subtler issue, or (c) something about which
+`gimp` entry this measurement is actually supposed to fill, has NOT been
+determined. Stopped here (rather than continuing to add hypotheses) on
+explicit advisor guidance: three refuted hypotheses deep already this
+session (see Link 9's history), diminishing returns without a fresh,
+better-targeted diagnostic (e.g. a raw hand-built `.ain` reproducing just
+this one two-time-point coupled-dimer segment, checked against an
+independent closed-form or ED reference, the way Link 8's eps-split
+checks were done — not another instrumented run of the real self-consistent
+path).
+
+**Protected by:** nothing yet — this is an open gap, not a covered case.
+Task 15's own gate test is the only thing currently exercising it, and it
+correctly fails.
+
+**Status:** OPEN. Next session should start here with a fresh, narrowly-
+scoped reproduction (isolate the single `[t1,t2]` segment with its exact
+Connectors/potentialV/geometry, compare the `<P2|c|P1>` result against an
+independent 2-site or small-cluster ED calculation) rather than continuing
+to instrument `fillSelfConsistentRow`/`advanceColumn` further.
 
 ---
 
@@ -391,22 +485,24 @@ as ground truth for this file.
 | 6 | `<P2.last\|P2>` gauge correction removed | GOOD (siblings UNTESTED) |
 | 7 | Complex `Connectors=` parsed/conjugated correctly | GOOD, UNPROTECTED |
 | 8 | eps-split seeding, scaled to largest coupling | GOOD |
-| 9 | Each segment applies exactly one dt-advance under its own Connectors | **BROKEN** (root-caused: 2 advances/segment, border-gated `advanceEach` firing) |
-| 10 | Truncated-batch recompute + `decomp_` wiring | wiring GOOD, correctness **BROKEN** (depends on #9) |
+| 9 | Each segment applies exactly one dt-advance under its own Connectors | **FIXED** (engine-level `maxAdvances` cap, verified in isolation) |
+| 10 | Truncated-batch recompute + `decomp_` wiring | wiring GOOD, correctness still **BROKEN** (depends on #12 now, not #9) |
 | 11 | Per-call file-root isolation | GOOD |
+| 12 | Task 15 gate at `(n=2,j=1)` after Link 9's fix | **OPEN** — narrower discrepancy, cause not yet found |
 
-**Bottom line:** everything through Link 8 is solid and tested. Link 9 is a
-confirmed, root-caused bug: `dmrg/Engine/ApplyOperatorExpression.h`'s
-border-gated advance firing means each two-row `FiniteLoops` segment applies
-TWO real dt-advances under its single Connectors value, not one. This
-causes a one-segment bath lag (the direct cause of Task 15's `n=2` failure)
-and, for `nT≥3`, genuine time-index drift on top of it. Two calibration
-fixes (`advanceEach` scaling, `advanceUnrestricted` + count scaling) were
-tried and empirically refuted — neither can express "one advance per
-two-row segment" with this engine. A real fix needs either `dmrg/Engine/`
-instrumentation or an outer-loop redesign around the 2-dt-per-segment time
-quantum; both are scope decisions for the user, not further calibration.
-**No `NeqBathRank>0` tDMRG result for `nT≥2` should be trusted** until one
-of those is done. Link 10 is built correctly on top of a foundation that
-isn't correct yet; it will not need rework once Link 9 is fixed, just
+**Bottom line:** everything through Link 8 is solid and tested. Link 9's
+originally-root-caused bug (border-gated advance firing causing TWO real
+dt-advances per two-row segment) is now FIXED via an opt-in engine-level
+`maxAdvances` cap (`GroupOfOneTimeEvolutions.h`/
+`NonLocalForTargetingExpression.h`), verified directly against the engine's
+own trace and via `diagnosticThirdAdvanceConnectors`'s restored
+C3-sensitivity. Wiring this into `fillSelfConsistentRow` improved Task 15's
+gate (`(n=2,j=0)` now passes) but did not fully resolve it: `(n=2,j=1)`
+still fails, with the Connectors input, advance count, and midpoint-
+averaging all independently re-confirmed correct for that exact segment —
+see Link 12 for the full account of what was ruled out. **No
+`NeqBathRank>0` tDMRG result for `nT≥2` should be trusted** until Link 12 is
+resolved and Task 15 passes. Link 10 is built correctly on top of a
+foundation that no longer has Link 9's coarse error, but still isn't fully
+correct; it will not need rework once Link 12 is fixed, just
 re-verification.
