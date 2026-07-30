@@ -354,37 +354,55 @@ fix removed the coarser 2-advances-per-segment error.
 
 ---
 
-### Link 10 — `decomp_`/`prepareTimeStep` wiring and the "truncated batch recompute" design
+### Link 10 — `decomp_`/`prepareTimeStep` wiring — originally a "truncated batch recompute", **replaced 2026-07-30 by an incremental design (Task 17)**
 
-**Assumption:** fully rebuilding the column fan-out from t=0 on every
-`computeGimp(gimp,n)` call, reading `Vplus(k,p)` at its current state, is a
-correct (if expensive) way to keep a corrector loop simple — no
-propagated-through/rewind bookkeeping needed, since nothing is cached across
-calls.
+**Original assumption (superseded, kept for record):** fully rebuilding the
+column fan-out from t=0 on every `computeGimp(gimp,n)` call, reading
+`Vplus(k,p)` at its current state, was a correct (if expensive,
+`O(nT^3*neqDmftIter)`) way to keep a corrector loop simple — no
+propagated-through/rewind bookkeeping needed, since nothing was cached
+across calls. This part of the design was *logically* sound independent of
+Link 9 (the recompute-from-scratch strategy was not itself wrong), but it
+inherited Link 9's bug while that was still open.
 
-**Why we believe it:** this part of the design is *logically* sound
-independent of Link 9 — the recompute-from-scratch strategy is not itself
-wrong. But it inherits Link 9's bug: since the recompute chains segments the
-same way Phase 1 does, each segment applies two real dt-advances under one
-Connectors value, giving `n≥2` rows the wrong bath (Link 9's "off-by-one"
-bath error) and, for `n≥3`, the wrong accumulated time too.
+**Replaced by an incremental design (Task 17, `fillSelfConsistentRow`):**
+`scColumns_` now persists across calls for the life of a solve.
+Correctness rests on the same fact Link 12's investigation established
+directly against source: `NeqBathDecomposition::update(n,.)` only ever
+mutates row `n` of its `V_` — rows `<n` are frozen forever once step `n`'s
+own corrector loop finishes. So a column already advanced through step `k`
+never needs redoing for a later `n>k`; `prepareTimeStep`'s new rollback
+(a one-level cursor-field snapshot/restore per column, NOT a bare
+watermark decrement — `advanceColumn` destructively overwrites a column's
+on-disk cursor, so simply relabeling an integer the way GBEK's own
+`propagatedThrough` does would leave the cursor pointing at the wrong
+checkpoint) undoes exactly the current row's own last advance whenever a
+corrector refines `Vplus(n,.)`. New complexity:
+`O(nT^2*(1+neqDmftIter))` — a full factor of `nT` better. See
+`fancy-painting-moon.md`'s "Task #17 scope" section for the full design
+derivation, and `project_tdmrg_evolving_bath` memory for the implementation
+account (one real bug found and fixed along the way: a dangling reference
+to `scColumns_[0]` held across an `emplace_back` call that could reallocate
+the vector).
 
 **Protected by:** the wiring/dispatch itself (`solve()`/`computeGimp()`/
-`gimp()` routing on `neqBathRank_`) is protected by the
-`"...NeqBathRank=1 self-consistent wiring runs end-to-end without crashing"`
-and `"...can be driven through NeqDmftSolver's own solve()"` tests — both
-only check `isfinite`, not correctness. **The actual correctness claim (does
-`Vplus` reaching the engine change the physical answer) is what Task 15's
-still-failing full gate is meant to protect, and it currently does not
-pass.**
+`gimp()` routing on `neqBathRank_`) by the `"...NeqBathRank=1
+self-consistent wiring runs end-to-end without crashing"` and `"...can be
+driven through NeqDmftSolver's own solve()"` tests (both exercise the real
+corrector loop, not just `isfinite` — they are what caught the dangling-
+reference bug during implementation). The actual correctness claim (does
+`Vplus` reaching the engine change the physical answer, and does the
+incremental rewrite reproduce the original batch recompute bit-for-bit) is
+Task 15's full gate, re-verified bit-identical after every one of Task 17's
+five implementation steps.
 
-**Status:** wiring GOOD (crashes nothing). Link 9's fix removes the coarse
-2-advances-per-segment error this link inherited; Link 12's fix (the
-`NeqDmftSolver.h` iostream leak) resolves the correctness gap that
-remained. Task 15's gate now passes 23/24 assertions, with one small
-characterized residual left (see Link 12) — not believed to implicate this
-link. `NeqBathRank>0` tDMRG results for `nT≥2` are trustworthy to
-approximately the `1e-4` level demonstrated by Task 15's gate.
+**Status:** wiring GOOD, incremental design GOOD (bit-identical to the
+prior batch recompute, confirmed after each implementation step). Task 15's
+gate still passes 23/24 assertions, with the same one small characterized
+residual as before this refactor (see Link 12) — unaffected by it, as
+expected for a pure performance change. `NeqBathRank>0` tDMRG results for
+`nT≥2` remain trustworthy to approximately the `1e-4` level demonstrated by
+Task 15's gate, now at a fraction of the previous computational cost.
 
 ---
 
@@ -564,7 +582,7 @@ as ground truth for this file.
 | 7 | Complex `Connectors=` parsed/conjugated correctly | GOOD, UNPROTECTED |
 | 8 | eps-split seeding, scaled to largest coupling | GOOD |
 | 9 | Each segment applies exactly one dt-advance under its own Connectors | **FIXED** (engine-level `maxAdvances` cap, verified in isolation) |
-| 10 | Truncated-batch recompute + `decomp_` wiring | wiring GOOD, correctness GOOD (one small characterized residual, see #12) |
+| 10 | `decomp_` wiring, now an INCREMENTAL design (Task 17) | wiring GOOD, correctness GOOD, bit-identical to prior batch recompute (one small characterized residual, see #12) |
 | 11 | Per-call file-root isolation | GOOD |
 | 12 | Task 15 gate at `(n=2,j=1)` after Link 9's fix | **RESOLVED** — sticky `std::cout` precision leak in `NeqDmftSolver.h`, fixed |
 | 13 | Sticky iostream format state hazard (standing, not a chain link) | Documented — check first when log values look implausibly round |
@@ -587,3 +605,19 @@ One small, characterized, deliberately-unresolved residual remains at
 margin) — see Link 12 for what was ruled out. **`NeqBathRank>0` tDMRG
 results for `nT≥2` are now trustworthy to approximately the `1e-4` level
 demonstrated by Task 15's gate.**
+
+**Task 17 (same day, following session): `fillSelfConsistentRow`'s
+"truncated batch recompute" (Link 10) replaced with an incremental
+design**, cutting the self-consistent path's cost from
+`O(nT^3*neqDmftIter)` to `O(nT^2*(1+neqDmftIter))`. Verified bit-identical
+to the prior batch recompute after each of 5 implementation steps
+(determinism check, hoist, promote-to-member, wire rollback, real
+algorithm, cleanup); Task 15's gate gives the exact same 23/24 assertions
+and the exact same `(n=2,j=0)` residual throughout. One real bug found and
+fixed during implementation: a `const Column&` reference to
+`scColumns_[0]` held across a `scColumns_.emplace_back()` call, which can
+reallocate the vector's backing storage and dangle the reference —
+manifested as an empty `RestartFilename=` Ainur parse error, caught by the
+two tests that drive `fillSelfConsistentRow` through `NeqDmftSolver`'s real
+corrector loop. Full design derivation in `fancy-painting-moon.md`'s
+"Task #17 scope" section.
