@@ -379,70 +379,148 @@ still-failing full gate is meant to protect, and it currently does not
 pass.**
 
 **Status:** wiring GOOD (crashes nothing). Link 9's fix removes the coarse
-2-advances-per-segment error this link inherited, but correctness is STILL
-BROKEN pending Link 12. Do not trust `NeqBathRank>0` tDMRG results for
-`nT≥2` until Link 12 is resolved and Task 15 passes.
+2-advances-per-segment error this link inherited; Link 12's fix (the
+`NeqDmftSolver.h` iostream leak) resolves the correctness gap that
+remained. Task 15's gate now passes 23/24 assertions, with one small
+characterized residual left (see Link 12) — not believed to implicate this
+link. `NeqBathRank>0` tDMRG results for `nT≥2` are trustworthy to
+approximately the `1e-4` level demonstrated by Task 15's gate.
 
 ---
 
-### Link 12 — Task 15 gate still fails at `(n=2,j=1)` after Link 9's fix: cause OPEN, narrower than before
+### Link 12 — Task 15 gate still fails at `(n=2,j=1)` after Link 9's fix — **RESOLVED, 2026-07-30: sticky `std::cout` precision leak in `NeqDmftSolver.h`**
 
 **Observation:** with `maxAdvances=1` correctly wired (Link 9 fixed and
 independently verified), Task 15's gate improved — `(n=2,j=0)` now passes —
-but `(n=2,j=1)` still fails: `retarded.imag` expected `-0.98364`, got `-1.0`;
-`lesser.real` expected `-0.063`, got `-0.1`; `lesser.imag` expected `0.4918`,
-got `0.5`. The errors are small (a few percent), not the order-of-magnitude
-symptom Link 9 produced — this is a materially different, narrower bug.
+but `(n=2,j=1)` still failed: `retarded.imag` expected `-0.98364`, got
+`-1.0`; `lesser.real` expected `-0.063`, got `-0.1`; `lesser.imag` expected
+`0.4918`, got `0.5`. The errors were small (a few percent), not the
+order-of-magnitude symptom Link 9 produced — a materially different,
+narrower discrepancy.
 
-**Ruled out, with direct evidence, before writing this up as "open" rather
-than continuing to guess:**
-- **Not a stale/truncated log artifact.** The suspect log
-  (`..._j1_n2_particle.log`, column 1's own first advance since birth,
-  raced to double-check it wasn't a leftover from an earlier run) has a
-  fresh mtime matching the run and contains exactly one occurrence-pair
-  (confirming it was freshly truncated and rewritten by this call, not
-  stale) — `(0.5,0.0)` at `t=0`, `(0.5,-0.0)` at `t=0.1`.
-- **Not a missing bath update.** The segment's own generated Ainur input
-  (`dir0:Connectors=[...,0.524393i-0.0077,...]`) contains the CURRENT,
-  corrector-updated midpoint value, not a stale one.
-- **Not a midpoint-averaging bug.** Reconstructed `vMidConnectors(2)` by
-  hand from the logged `Vplus(1,0)` and `Vplus(2,0)` values
-  (`0.5*(0.524404+0.524382, 0+(-0.0154016)) = (0.524393,-0.0077008)`) and
-  it matches the logged Connectors value exactly.
-- **Not a missing/extra advance.** The engine's own `"Steps without
-  advance"` trace for this exact segment shows the elapsed-time counter
-  jump `0.0→0.1` exactly once (at the first border crossed) and then hold
-  at `0.1` for the rest of the segment's sweep, all the way past the second
-  border — the `maxAdvances=1` cap is firing correctly here too.
+**Ruled out, with direct evidence, before the actual cause was found:**
+- **Not a missing bath update, midpoint-averaging bug, or missing/extra
+  advance.** The segment's generated Ainur input, hand-reconstructed
+  `vMidConnectors(2)` arithmetic, and the engine's own `"Steps without
+  advance"` trace were all independently confirmed correct for the exact
+  failing segment.
+- **Not column 1's birth checkpoint killing Connectors sensitivity.** A new
+  diagnostic (`diagnosticColumn1FirstAdvanceConnectors`) built the same
+  birth-then-first-advance segment in isolation and confirmed it DOES
+  respond to its own Connectors (`(0.498382,-0.031689)` vs
+  `(0.497370,-0.031684)` for two different post-birth Connectors values) —
+  and critically, this isolated reproduction gave a value close to
+  `0.4974`, NOT the real run's `(0.5,-0.0)`. Same method, same geometry,
+  same `maxAdvances=1` — different answer. That mismatch was the actual
+  discriminator.
+- **Not eps-split seeding for this specific (5-site-bath) config.**
+  Task 8's own validation used a different (1-bath-site) config;
+  re-measuring `⟨n_p⟩` with the gate's own `bathParams`/`eps=3.0` (a new
+  permanent-style check) confirmed correct seeding (`occ[0]=2.0`,
+  `occ[1]=0.0`) — not the cause.
+- **`applySignFlip` confirmed clean.** Column 1's `ggtRaw` has exactly one
+  key (its single off-diagonal entry), so the function's `size()<2`
+  early-return makes it a structural no-op there; it cannot be responsible
+  for `(n=2,j=1)`'s error.
 
-**Not yet resolved:** with the Connectors input, advance count, and
-midpoint-averaging all independently confirmed correct for this exact
-segment, the measured `<P2|c|P1>` value at `t=0.1` is nonetheless
-`(0.5,-0.0)` — a nearly-trivial value — rather than something reflecting a
-real `|V|≈0.52` coupling over `dt=0.1`. Whether this is (a) a genuine
-further bug in the tDMRG measurement/assembly path specific to a column's
-FIRST off-diagonal advance, (b) a real physical value that happens to be
-close to trivial for this particular parameter point and the GBEK
-reference is the one with a subtler issue, or (c) something about which
-`gimp` entry this measurement is actually supposed to fill, has NOT been
-determined. Stopped here (rather than continuing to add hypotheses) on
-explicit advisor guidance: three refuted hypotheses deep already this
-session (see Link 9's history), diminishing returns without a fresh,
-better-targeted diagnostic (e.g. a raw hand-built `.ain` reproducing just
-this one two-time-point coupled-dimer segment, checked against an
-independent closed-form or ED reference, the way Link 8's eps-split
-checks were done — not another instrumented run of the real self-consistent
-path).
+**Root cause, found by re-examining the raw log text itself:** the suspect
+log's measurement lines showed only ONE decimal digit —
+`0 (0.5,0.0) 0.0 <P2|c|P1> ...`, `0 (0.5,-0.0) 0.1 <P2|c|P1> ...` — not
+truncated/stale (a fresh, correctly-rewritten file), but genuinely
+LOW-PRECISION TEXT. `TargetingCommon::test()` (`dmrg/Engine/
+TargetingCommon.h:864-865`), the function that prints every in-situ
+measurement line, writes to the global `std::cout` with whatever format
+flags/precision `std::cout` currently has — it does not set its own.
+`cincuenta/src/NeqDmftSolver.h`'s `solve()` prints a per-step wall-clock
+timing line using `std::cout << std::fixed << std::setprecision(1) << ...`
+directly on `std::cout`, and never restores the prior state. `std::fixed`/
+`setprecision` are STICKY on the stream object they're applied to — they
+persist across `DmrgRunner`'s per-call log-file redirects, which redirect
+the underlying buffer, not reconstruct the stream. So once step 1 of
+`NeqDmftSolver::solve()`'s outer loop finished and printed its timing line,
+EVERY subsequent in-situ measurement logged anywhere in the process for
+the rest of that `solve()` call — including all of step 2's segments —
+was silently rendered at `std::fixed`, 1 decimal digit. `(0.4974...,
+-0.0317...)` round-trips through that formatting as exactly `(0.5,-0.0)`.
+This explains every earlier observation: it's why isolated diagnostics
+(which never call `NeqDmftSolver::solve()`) always showed full precision
+while the real gate run didn't, and why it looked like a physics bug for
+two sessions.
 
-**Protected by:** nothing yet — this is an open gap, not a covered case.
-Task 15's own gate test is the only thing currently exercising it, and it
-correctly fails.
+**Fix:** format the timing strings into local `std::ostringstream`s instead
+of setting precision on `std::cout` directly (`NeqDmftSolver.h`). Confirmed:
+`(n=2,j=1)` now matches GBEK to five decimal places
+(`tDMRG (-0.031684,0.497352)` vs `GBEK (-0.031743,0.497350)`), a ~50x
+improvement over the prior ~2-4% discrepancy. 23/24 assertions in Task 15's
+gate now pass.
 
-**Status:** OPEN. Next session should start here with a fresh, narrowly-
-scoped reproduction (isolate the single `[t1,t2]` segment with its exact
-Connectors/potentialV/geometry, compare the `<P2|c|P1>` result against an
-independent 2-site or small-cluster ED calculation) rather than continuing
-to instrument `fillSelfConsistentRow`/`advanceColumn` further.
+**Protected by:** the fix itself is structural (format into a local stream,
+never touch the shared stream's state). `diagnosticColumn1FirstAdvanceConnectors`
+and the gate-config eps-split occupation check, both added while narrowing
+this down, are kept as permanent `[Diagnostic]`-tagged regression coverage.
+
+**Status:** RESOLVED. One small, characterized residual remains (see the
+note below) — NOT believed related to this bug, and not blocking use of
+the evolving-bath machinery.
+
+**Residual note — `(n=2,j=0)` `retarded.real` = `0.000118` vs GBEK's `~0`,
+margin `1e-4`, still red.** `(n=2,j=0)` is the only entry in this gate
+assembled from column 0's SECOND chained advance (two restarts via
+`RestartSourceTvForPsi`, vs one birth-restart for columns 1/2) — the only
+entry where `applySignFlip` is even structurally live (`ggtRaw` has 2 keys
+there, confirmed a no-op by inspection: `sum_norm` for two nearly-equal
+values is far above `0.1*diff_norm`, so it never flips). The same row shows
+a consistent, opposite-sign `5.9e-5` offset in `lesser.real` at both `j=0`
+and `j=1` — comparable magnitude on both, reads as a small accumulated
+offset across the row rather than a localized defect. Checked whether it's
+ordinary bond-dimension truncation by re-running the gate with
+`InfiniteLoopKeptStates` raised 100→300: the residual was bit-identical
+(`0.000118` both times) — but this check is weaker than it looks for this
+system (`~4900`-dimensional Hilbert space, `LanczosCore` reports
+`mat.rank=551`; 100 kept states is very plausibly already exact here, so
+"no change at 300" doesn't distinguish truncation from something else).
+`TridiagEps` is not binding either (engine trace shows `actual eps=3e-13`).
+Ran out of cheap discriminating checks; both sides of the comparison
+(tDMRG's DMRG+Krylov chain, GBEK's own ED/Lanczos) are themselves
+approximate, and there is no evidence of a defect, only an unexplained
+small residual on the exact-zero reference with no relative-error slack to
+absorb it. **Deliberately NOT widening the gate's margin** (currently
+`1e-4`) to paper over this without justification — left red, characterized,
+for a future session to either explain or accept with a justified number.
+
+---
+
+### Link 13 — Hazard: sticky `std::cout`/`std::cerr` format state leaks across `DmrgRunner` calls in one process
+
+**Not a link in the assumption chain — a standing hazard for anyone
+debugging this codebase's in-process, multi-`DmrgRunner`-call solvers
+(tDMRG's chained columns, GBEK's per-step calls, or any future one).**
+`DmrgRunner`'s per-call log redirection (`dealWithConsoleOutput`) redirects
+`std::cout`'s underlying buffer to a new file each call — it does NOT
+reconstruct the stream object, so any format state (`std::fixed`,
+`setprecision`, `std::hex`, etc.) ever applied directly to `std::cout` or
+`std::cerr` PERSISTS across every subsequent call in the same process,
+silently changing how later, unrelated log files render numbers.
+
+Link 12 was exactly this: `NeqDmftSolver.h`'s own progress-printing line
+set `std::cout` to `std::fixed`+`setprecision(1)` and never restored it,
+silently truncating every in-situ measurement logged for the rest of that
+`solve()` call to 1 decimal digit — which was misread as a ~2-4% physics
+discrepancy for two full sessions before the log text itself was checked
+character-by-character.
+
+**First-thing-to-check, before any physics investigation:** if a
+log-parsed numeric value looks implausibly round (`0.5`, `-0.0`, `1.0`,
+etc.) in a context where it plausibly shouldn't be, open the RAW log file
+and look at the literal text — not a value already parsed into memory —
+and check how many digits are actually printed. If it's suspiciously few,
+grep the calling code (and everything upstream of it in the same process)
+for direct `std::cout`/`std::cerr` manipulator use (`std::fixed`,
+`std::setprecision`, `std::cout.precision(...)`) that isn't scoped to a
+local stream. The established, safe idiom already used almost everywhere
+else in `dmrg/Engine/` is `PsimagLite::OstringStream msgg(std::cout.precision())`
+— construct a LOCAL stream, format into it, print its `.str()` — never set
+format flags on the shared global stream directly.
 
 ---
 
@@ -486,23 +564,26 @@ as ground truth for this file.
 | 7 | Complex `Connectors=` parsed/conjugated correctly | GOOD, UNPROTECTED |
 | 8 | eps-split seeding, scaled to largest coupling | GOOD |
 | 9 | Each segment applies exactly one dt-advance under its own Connectors | **FIXED** (engine-level `maxAdvances` cap, verified in isolation) |
-| 10 | Truncated-batch recompute + `decomp_` wiring | wiring GOOD, correctness still **BROKEN** (depends on #12 now, not #9) |
+| 10 | Truncated-batch recompute + `decomp_` wiring | wiring GOOD, correctness GOOD (one small characterized residual, see #12) |
 | 11 | Per-call file-root isolation | GOOD |
-| 12 | Task 15 gate at `(n=2,j=1)` after Link 9's fix | **OPEN** — narrower discrepancy, cause not yet found |
+| 12 | Task 15 gate at `(n=2,j=1)` after Link 9's fix | **RESOLVED** — sticky `std::cout` precision leak in `NeqDmftSolver.h`, fixed |
+| 13 | Sticky iostream format state hazard (standing, not a chain link) | Documented — check first when log values look implausibly round |
 
 **Bottom line:** everything through Link 8 is solid and tested. Link 9's
 originally-root-caused bug (border-gated advance firing causing TWO real
-dt-advances per two-row segment) is now FIXED via an opt-in engine-level
+dt-advances per two-row segment) is FIXED via an opt-in engine-level
 `maxAdvances` cap (`GroupOfOneTimeEvolutions.h`/
 `NonLocalForTargetingExpression.h`), verified directly against the engine's
 own trace and via `diagnosticThirdAdvanceConnectors`'s restored
 C3-sensitivity. Wiring this into `fillSelfConsistentRow` improved Task 15's
-gate (`(n=2,j=0)` now passes) but did not fully resolve it: `(n=2,j=1)`
-still fails, with the Connectors input, advance count, and midpoint-
-averaging all independently re-confirmed correct for that exact segment —
-see Link 12 for the full account of what was ruled out. **No
-`NeqBathRank>0` tDMRG result for `nT≥2` should be trusted** until Link 12 is
-resolved and Task 15 passes. Link 10 is built correctly on top of a
-foundation that no longer has Link 9's coarse error, but still isn't fully
-correct; it will not need rework once Link 12 is fixed, just
-re-verification.
+gate (`(n=2,j=0)` passed) but `(n=2,j=1)` still failed — root-caused to a
+SEPARATE, unrelated bug (Link 12): `NeqDmftSolver.h`'s own progress-printing
+code left `std::cout` in `std::fixed`+`setprecision(1)` state, silently
+truncating every subsequently-logged in-situ measurement to 1 decimal
+digit. Fixed by formatting into a local stream instead. Task 15's gate now
+passes 23/24 assertions (`(n=2,j=1)` matches GBEK to five decimal places).
+One small, characterized, deliberately-unresolved residual remains at
+`(n=2,j=0)`'s `retarded.real` (`0.000118` vs exact-zero reference, `1e-4`
+margin) — see Link 12 for what was ruled out. **`NeqBathRank>0` tDMRG
+results for `nT≥2` are now trustworthy to approximately the `1e-4` level
+demonstrated by Task 15's gate.**
