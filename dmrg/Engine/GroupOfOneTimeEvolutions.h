@@ -27,6 +27,7 @@ template <typename PvectorsType> class GroupOfOneTimeEvolutions {
 		    , disposition_(disposition)
 		    , timesWithoutAdvancement_(0)
 		    , time_(0)
+		    , advancesSoFar_(0)
 		{
 			indices_[0] = firstIndex;
 			for (SizeType i = 1; i < timeSteps; ++i) {
@@ -48,7 +49,21 @@ template <typename PvectorsType> class GroupOfOneTimeEvolutions {
 
 		RealType time() const { return time_; }
 
-		void advanceTime(RealType tau) { time_ += tau; }
+		// Number of times advanceTime() has actually fired for this
+		// OneTimeEvolution's whole lifetime (spans every FiniteLoops row of
+		// the segment that owns it -- NOT reset per row). Used, opt-in, by
+		// NonLocalForTargetingExpression's maxAdvances cap: with
+		// advanceOnlyAtBorder hardcoded true there, a two-row segment can
+		// cross a border (and so fire) once per row, giving TWO advances
+		// under one Connectors declaration when only one was intended. See
+		// cincuenta's TDMRG_EVOLVING_BATH.md Link 9 for the motivating case.
+		SizeType advancesSoFar() const { return advancesSoFar_; }
+
+		void advanceTime(RealType tau)
+		{
+			time_ += tau;
+			++advancesSoFar_;
+		}
 
 		void resetTimesWithoutAdvancement() { timesWithoutAdvancement_ = 1; }
 
@@ -82,6 +97,7 @@ template <typename PvectorsType> class GroupOfOneTimeEvolutions {
 		SizeType           disposition_;
 		SizeType           timesWithoutAdvancement_;
 		RealType           time_;
+		SizeType           advancesSoFar_;
 	};
 
 public:

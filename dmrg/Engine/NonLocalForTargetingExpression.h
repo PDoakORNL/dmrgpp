@@ -40,6 +40,7 @@ public:
 		    , algo("Krylov")
 		    , disposition(0)
 		    , Eg(Eg1)
+		    , maxAdvances(0)
 		{ }
 
 		SizeType           timeSteps;
@@ -50,6 +51,14 @@ public:
 		SizeType           disposition;
 		VectorSizeType     depends;
 		RealType           Eg;
+		// Opt-in cap (0 = unlimited, the default -- every existing caller
+		// unaffected) on how many times THIS OneTimeEvolution may ever
+		// advance. Needed because advanceOnlyAtBorder below is hardcoded
+		// true: a multi-row FiniteLoops segment can cross a border once per
+		// row, firing more than once under a single Connectors declaration
+		// when only one advance was intended. See cincuenta's
+		// TDMRG_EVOLVING_BATH.md Link 9.
+		SizeType maxAdvances;
 	};
 
 	NonLocalForTargetingExpression(const AuxiliaryType& aux)
@@ -107,7 +116,8 @@ public:
 		                                          timeParams.advanceEach,
 		                                          timeParams.depends,
 		                                          site,
-		                                          timeParams.tau);
+		                                          timeParams.tau,
+		                                          timeParams.maxAdvances);
 
 		assert(oneTimeEvolution->indices().size() > 1);
 		const SizeType              last         = oneTimeEvolution->indices().size() - 1;
@@ -141,7 +151,8 @@ private:
 	                        SizeType              advanceEach,
 	                        const VectorSizeType& depends,
 	                        SizeType              site,
-	                        RealType              tau)
+	                        RealType              tau,
+	                        SizeType              maxAdvances = 0)
 	{
 		if (!passDepends(depends))
 			return false;
@@ -149,11 +160,18 @@ private:
 		static const bool advanceOnlyAtBorder = true;
 		const SizeType    sites
 		    = aux_.pVectors().aoe().model().superGeometry().numberOfSites();
-		const bool weAreAtBorder   = (site == 0 || site == sites - 1);
-		const bool dontAdvance     = (advanceOnlyAtBorder && !weAreAtBorder);
-		bool       timeHasAdvanced = false;
+		const bool weAreAtBorder = (site == 0 || site == sites - 1);
+		const bool dontAdvance   = (advanceOnlyAtBorder && !weAreAtBorder);
+		// Opt-in cap: once this OneTimeEvolution has advanced maxAdvances
+		// times (maxAdvances==0 means unlimited, preserving all existing
+		// behavior), refuse any further advance regardless of border
+		// geometry or advanceEach's count. See TimeParams::maxAdvances doc
+		// comment above.
+		const bool advanceCapped
+		    = (maxAdvances > 0 && oneTimeEvolution.advancesSoFar() >= maxAdvances);
+		bool timeHasAdvanced = false;
 		if (advanceEach > 0 && oneTimeEvolution.timesWithoutAdvancement() >= advanceEach
-		    && !dontAdvance) {
+		    && !dontAdvance && !advanceCapped) {
 			oneTimeEvolution.resetTimesWithoutAdvancement();
 			oneTimeEvolution.advanceTime(tau);
 			timeHasAdvanced           = true;
@@ -215,6 +233,9 @@ private:
 				continue;
 			if (key == "advanceEach" or key == "AdvanceEach" or key == "advanceeach") {
 				timeParams.advanceEach = PsimagLite::atoi(value);
+			} else if (key == "maxAdvances" or key == "MaxAdvances"
+			           or key == "maxadvances") {
+				timeParams.maxAdvances = PsimagLite::atoi(value);
 			} else if (key == "tau") {
 				timeParams.tau = PsimagLite::atof(value);
 			} else if (key == "disposition") {
