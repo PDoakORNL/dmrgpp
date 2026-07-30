@@ -1002,3 +1002,47 @@ TEST_CASE("DIAGNOSTIC Link 12: eps-split seeding check for the GATE's own "
 	          << " occ[0](intended-occupied)=" << occ[0] << " occ[1](intended-empty)=" << occ[1]
 	          << "\n";
 }
+
+// ---- TEMPORARY (Task 17 step 0, not a permanent gate): is DmrgRunner
+// bit-deterministic given an identical input file and on-disk restart
+// source? The whole incremental fillSelfConsistentRow redesign (persisting
+// Column state across calls instead of rebuilding from scratch) rests on
+// this assumption -- the current always-recompute design never needed it.
+// Runs the SAME 3-advance chain twice (identical bathParams/L/eps/
+// Connectors, only rootSuffix differs so the two runs don't collide on
+// filenames) and requires the two results be EXACTLY equal. Delete once
+// answered -- see fancy-painting-moon.md, Task #17 scope.
+TEST_CASE("DIAGNOSTIC Task 17 step 0: DmrgRunner is bit-deterministic given identical inputs",
+          "[ImpuritySolverNeqTdmrg][Diagnostic]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType    bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType          L          = 1;
+	const RealType          eps        = 3.0;
+	const VectorComplexType c1         = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType c2
+	    = { ComplexType(0.524393, -0.0077008), ComplexType(0.524393, -0.0077008) };
+	const VectorComplexType c3 = { ComplexType(0.4, 0.1), ComplexType(0.4, 0.1) };
+
+	const auto resultA = solver.diagnosticThirdAdvanceConnectors(
+	    bathParams, L, eps, c1, c2, c3, "diagdetA_", 0, 1);
+	const auto resultB = solver.diagnosticThirdAdvanceConnectors(
+	    bathParams, L, eps, c1, c2, c3, "diagdetB_", 0, 1);
+
+	std::cout << "DIAGNOSTIC Task17 determinism: resultA=" << resultA << " resultB=" << resultB
+	          << " diff=" << (resultA - resultB) << "\n";
+
+	CHECK(resultA.real() == resultB.real());
+	CHECK(resultA.imag() == resultB.imag());
+}
