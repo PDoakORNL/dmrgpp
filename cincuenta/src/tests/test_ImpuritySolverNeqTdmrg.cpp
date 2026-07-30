@@ -1003,16 +1003,18 @@ TEST_CASE("DIAGNOSTIC Link 12: eps-split seeding check for the GATE's own "
 	          << "\n";
 }
 
-// ---- TEMPORARY (Task 17 step 0, not a permanent gate): is DmrgRunner
-// bit-deterministic given an identical input file and on-disk restart
-// source? The whole incremental fillSelfConsistentRow redesign (persisting
-// Column state across calls instead of rebuilding from scratch) rests on
-// this assumption -- the current always-recompute design never needed it.
-// Runs the SAME 3-advance chain twice (identical bathParams/L/eps/
-// Connectors, only rootSuffix differs so the two runs don't collide on
-// filenames) and requires the two results be EXACTLY equal. Delete once
-// answered -- see fancy-painting-moon.md, Task #17 scope.
-TEST_CASE("DIAGNOSTIC Task 17 step 0: DmrgRunner is bit-deterministic given identical inputs",
+// ---- Task 17: fillSelfConsistentRow's incremental design (persisting
+// Column state across calls instead of rebuilding from scratch every
+// call) rests on DmrgRunner being bit-deterministic given an identical
+// input file and on-disk restart source -- the original always-recompute
+// design never needed this property. Confirmed once before implementing
+// (fancy-painting-moon.md, Task #17 scope), kept as permanent regression
+// coverage since the shipped design depends on it going forward, not just
+// at the point it was checked. Runs the SAME 3-advance chain twice
+// (identical bathParams/L/eps/Connectors, only rootSuffix differs so the
+// two runs don't collide on filenames) and requires the two results be
+// EXACTLY equal.
+TEST_CASE("DIAGNOSTIC Task 17: DmrgRunner is bit-deterministic given identical inputs",
           "[ImpuritySolverNeqTdmrg][Diagnostic]")
 {
 	int    argc    = 1;

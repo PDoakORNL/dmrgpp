@@ -2717,25 +2717,29 @@ private:
 	Column scColumn0_;
 	// Task 17 step 2: promoted from a local variable to member storage, in
 	// preparation for step 4's real persistence. At THIS step,
-	// fillSelfConsistentRow still clears and fully rebuilds this every
-	// call (behavior-equivalent to the local-vector version) -- isolates
-	// "does using member storage break anything" risk from the actual
-	// algorithmic change that comes later.
+	// Persists across every fillSelfConsistentRow call for the life of
+	// the solve (Task 17): columns born=0..nT-1, each advanced through
+	// exactly as many outer steps as have been processed so far. See
+	// fillSelfConsistentRow's own doc comment for the incremental design.
 	mutable std::vector<Column> scColumns_;
-	// Bumped at the start of every fillSelfConsistentRow call (see that
-	// method's doc comment) so each call gets its OWN file prefix --
-	// NeqDmftSolver's predictor/corrector loop calls computeGimp/
-	// fillSelfConsistentRow several times per run (5 times for a tiny
-	// NtNeq=2,NeqDmftIter=1 config), and reusing the SAME checkpoint/log
-	// filenames across repeated DmrgRunner calls in one process was found,
-	// empirically, to silently corrupt later calls' results (row n=2 came
-	// back frozen at trivial/diagonal-like values once it was the 4th/5th
-	// call reusing the same names, while an otherwise-identical STANDALONE
-	// call to fillSelfConsistentRow(gimp,2) -- first call, fresh names --
-	// gave the correct answer). Root cause not chased further than "don't
-	// reuse filenames across repeated in-process DmrgRunner calls", which
-	// is exactly the same lesson the Task 16 cross-TEST_CASE file-collision
-	// bugs already taught (see project_tdmrg_evolving_bath memory).
+	// Bumped at the start of every fillSelfConsistentRow call so each call
+	// gets its OWN file prefix. Still load-bearing under Task 17's
+	// persistence: a corrector re-visiting the same (column, step) pair
+	// after prepareTimeStep's rollback does so from a NEW call, hence a
+	// NEW chainRoot, so it never collides with the discarded pre-rollback
+	// attempt's files. NeqDmftSolver's predictor/corrector loop calls
+	// computeGimp/fillSelfConsistentRow several times per run (5 times for
+	// a tiny NtNeq=2,NeqDmftIter=1 config), and reusing the SAME
+	// checkpoint/log filenames across repeated DmrgRunner calls in one
+	// process was found, empirically, to silently corrupt later calls'
+	// results (row n=2 came back frozen at trivial/diagonal-like values
+	// once it was the 4th/5th call reusing the same names, while an
+	// otherwise-identical STANDALONE call to fillSelfConsistentRow(gimp,2)
+	// -- first call, fresh names -- gave the correct answer). Root cause
+	// not chased further than "don't reuse filenames across repeated
+	// in-process DmrgRunner calls", which is exactly the same lesson the
+	// Task 16 cross-TEST_CASE file-collision bugs already taught (see
+	// project_tdmrg_evolving_bath memory).
 	mutable SizeType scCallCounter_ = 0;
 };
 
