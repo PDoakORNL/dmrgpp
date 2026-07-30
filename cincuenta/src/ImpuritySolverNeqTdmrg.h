@@ -1640,6 +1640,60 @@ private:
 		scEps_ = RealType(5) * maxCoupling;
 
 		scChainRoot_ = root_ + "sc_";
+
+		// Task 17 (incremental fillSelfConsistentRow): the ground-state
+		// DMRG run and column-0's birth are 100% call-invariant (they
+		// depend only on scBathEps_/scHoppings_/scEps_/params_.uInitial,
+		// never on n or Vplus) -- hoisted here, run exactly ONCE per
+		// self-consistent solve, instead of being redone from scratch on
+		// every fillSelfConsistentRow call as before. fillSelfConsistentRow
+		// now copies scColumn0_ as its starting point rather than
+		// re-birthing it. See TDMRG_EVOLVING_BATH.md / fancy-painting-moon.md
+		// Task #17 for the full incremental design this is step 1 of.
+		VectorRealType potGS(scNsitesExt_, RealType(0));
+		potGS[0] = -RealType(0.5) * params_.uInitial;
+		for (SizeType i = 0; i < nBath; ++i)
+			potGS[i + 1] = scBathEps_[i];
+		for (SizeType p = 0; p < scL_; ++p)
+			potGS[nsites + p] = -scEps_;
+		for (SizeType p = 0; p < scL_; ++p)
+			potGS[nsites + scL_ + p] = scEps_;
+
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = scChainRoot_ + "gs.log";
+			DmrgRunnerType runner(
+			    app_,
+			    buildGsInputAt(scChainRoot_ + "gs",
+			                   params_.uInitial,
+			                   scHoppings_,
+			                   potGS,
+			                   scNup_,
+			                   scNdown_,
+			                   scNsitesExt_,
+			                   VectorComplexType(2 * scL_, ComplexType(0))),
+			    opts);
+			runner.doOneRun();
+		}
+
+		scColumn0_.born = 0;
+		birthColumn(scColumn0_,
+		            scChainRoot_ + "gs",
+		            -1,
+		            scChainRoot_ + "gs",
+		            -1,
+		            scChainRoot_,
+		            "column0",
+		            params_.uFinal,
+		            scHoppings_,
+		            scPotTdmrg_,
+		            scNsitesExt_,
+		            SecondBathExt { true,
+		                            scNup_,
+		                            scNdown_,
+		                            VectorComplexType(2 * scL_, ComplexType(0)),
+		                            scNsitesExt_ - 2,
+		                            1 });
 	}
 
 	// ---- Phase 2 (evolving-bath project): self-consistent row fill --------
@@ -1680,18 +1734,6 @@ private:
 		const std::string chainRoot = scChainRoot_ + ttos(scCallCounter_) + "_";
 		++scCallCounter_;
 
-		const SizeType nBath  = scHoppings_.size();
-		const SizeType nsites = nBath + 1;
-
-		VectorRealType potGS(scNsitesExt_, RealType(0));
-		potGS[0] = -RealType(0.5) * params_.uInitial;
-		for (SizeType i = 0; i < nBath; ++i)
-			potGS[i + 1] = scBathEps_[i];
-		for (SizeType p = 0; p < scL_; ++p)
-			potGS[nsites + p] = -scEps_;
-		for (SizeType p = 0; p < scL_; ++p)
-			potGS[nsites + scL_ + p] = scEps_;
-
 		auto vMidConnectors = [this](int k)
 		{
 			VectorComplexType c(2 * scL_);
@@ -1706,44 +1748,13 @@ private:
 			return c;
 		};
 
-		{
-			Dmrg::CmdLineOptions opts;
-			opts.logfile = chainRoot + "gs.log";
-			DmrgRunnerType runner(
-			    app_,
-			    buildGsInputAt(chainRoot + "gs",
-			                   params_.uInitial,
-			                   scHoppings_,
-			                   potGS,
-			                   scNup_,
-			                   scNdown_,
-			                   scNsitesExt_,
-			                   VectorComplexType(2 * scL_, ComplexType(0))),
-			    opts);
-			runner.doOneRun();
-		}
-
+		// Column 0's ground-state run and birth are hoisted into
+		// solveSelfConsistent (Task 17 step 1) -- copy the persisted
+		// result as this call's own starting point rather than rebuilding
+		// it from scratch every call.
 		std::vector<Column> columns;
 		columns.reserve(static_cast<SizeType>(n) + 1);
-		columns.emplace_back();
-		columns[0].born = 0;
-		birthColumn(columns[0],
-		            chainRoot + "gs",
-		            -1,
-		            chainRoot + "gs",
-		            -1,
-		            chainRoot,
-		            "column0",
-		            params_.uFinal,
-		            scHoppings_,
-		            scPotTdmrg_,
-		            scNsitesExt_,
-		            SecondBathExt { true,
-		                            scNup_,
-		                            scNdown_,
-		                            VectorComplexType(2 * scL_, ComplexType(0)),
-		                            scNsitesExt_ - 2,
-		                            1 });
+		columns.emplace_back(scColumn0_);
 
 		// n==0: no natural advance happens for row 0 (the k=1..n loop below
 		// is empty), so column 0's diagonal -- normally captured as a
@@ -2611,6 +2622,12 @@ private:
 	SizeType                    scNup_ = 0, scNdown_ = 0;
 	RealType                    scEps_ = 0;
 	std::string                 scChainRoot_;
+	// Task 17: column 0, born and birthed exactly ONCE in
+	// solveSelfConsistent (hoisted out of fillSelfConsistentRow, which used
+	// to re-birth it from scratch on every call). fillSelfConsistentRow
+	// copies this as its own starting point rather than mutating it
+	// in place -- see that method's own doc comment.
+	Column scColumn0_;
 	// Bumped at the start of every fillSelfConsistentRow call (see that
 	// method's doc comment) so each call gets its OWN file prefix --
 	// NeqDmftSolver's predictor/corrector loop calls computeGimp/
