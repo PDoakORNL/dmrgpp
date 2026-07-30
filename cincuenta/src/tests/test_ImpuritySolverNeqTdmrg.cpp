@@ -927,3 +927,78 @@ TEST_CASE("DIAGNOSTIC maxAdvances=1 -- step-3 harvest now tracks its OWN Connect
 	std::cout << "DIAGNOSTIC maxAdvances=1 C3 sensitivity: resultA=" << resultA
 	          << " resultB=" << resultB << "\n";
 }
+
+TEST_CASE("DIAGNOSTIC Link 12: does a born-mid-chain column's first advance "
+          "since birth respond to its OWN Connectors?",
+          "[ImpuritySolverNeqTdmrg][Diagnostic]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType       L          = 1;
+	const RealType       eps        = 3.0;
+	// Birth Connectors (used for column0's t0->t1 advance and column1's
+	// birth) held fixed; column1's own advance-to-2 Connectors (its FIRST
+	// advance since birth) differs between A and B. If column1's harvest
+	// doesn't change, the birth checkpoint is killing Connectors
+	// sensitivity on the very next segment -- a hard, narrow reproduction
+	// of Link 12. If it does change, the bug is elsewhere (comparison
+	// convention, applySignFlip, etc.), not this mechanism.
+	const VectorComplexType c1  = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType c2A = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
+	const VectorComplexType c2B = { ComplexType(0.52, -0.008), ComplexType(0.52, -0.008) };
+
+	const auto resultA = solver.diagnosticColumn1FirstAdvanceConnectors(
+	    bathParams, L, eps, c1, c2A, "diagcol1A_", 0, 1);
+	const auto resultB = solver.diagnosticColumn1FirstAdvanceConnectors(
+	    bathParams, L, eps, c1, c2B, "diagcol1B_", 0, 1);
+
+	std::cout << "DIAGNOSTIC Link12 column1-first-advance sensitivity: resultA=" << resultA
+	          << " resultB=" << resultB << "\n";
+}
+
+TEST_CASE("DIAGNOSTIC Link 12: eps-split seeding check for the GATE's own "
+          "bathParams/eps (5-site bath, not the 1-site config Task 8 validated)",
+          "[ImpuritySolverNeqTdmrg][Diagnostic]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	// Same bathParams as the FullGate test. maxCoupling = max(U=0.5,
+	// hoppings=0.3, bathEps up to 0.6) = 0.6, so scEps_ = 5*0.6 = 3.0 --
+	// reproduce that computation exactly rather than hardcoding 3.0, in
+	// case solveSelfConsistent's formula and this diverge.
+	const VectorRealType bathParams  = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	const SizeType       L           = 1;
+	RealType             maxCoupling = 0.5;
+	for (SizeType i = 0; i < 5; ++i) {
+		maxCoupling = std::max(maxCoupling, std::abs(bathParams[i]));
+		maxCoupling = std::max(maxCoupling, std::abs(bathParams[5 + i]));
+	}
+	const RealType eps = 5.0 * maxCoupling;
+
+	const auto occ = solver.measureSecondBathOccupations(bathParams, L, eps);
+	REQUIRE(occ.size() == 2 * L);
+	std::cout << "DIAGNOSTIC Link12 gate-config eps-split seeding: eps=" << eps
+	          << " occ[0](intended-occupied)=" << occ[0] << " occ[1](intended-empty)=" << occ[1]
+	          << "\n";
+}

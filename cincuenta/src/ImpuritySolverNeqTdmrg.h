@@ -901,6 +901,132 @@ public:
 		return col.ggtRaw[3];
 	}
 
+	// Diagnostic for Link 12 (TDMRG_EVOLVING_BATH.md): does a column born
+	// mid-chain respond to its OWN Connectors on its first advance since
+	// birth, the same way column 0's own continuation advances do (see
+	// diagnosticThirdAdvanceConnectors)? Column 0 is born at t=0, advanced
+	// to t=1 under connectorsStep1; column 1 is born from column 0's t=1
+	// checkpoint under that SAME connectorsStep1 (matching
+	// fillSelfConsistentRow's own birth-uses-this-k's-Connectors pattern);
+	// column 1 is then advanced to t=2 -- its first advance since birth --
+	// under connectorsStep2. Returns column 1's ggtRaw[2]. Calling this
+	// twice with different connectorsStep2 (connectorsStep1 held fixed)
+	// isolates whether a birth-then-first-advance segment is sensitive to
+	// its own Connectors, independent of everything upstream of the birth.
+	ComplexType
+	diagnosticColumn1FirstAdvanceConnectors(const VectorRealType&    bathParams,
+	                                        SizeType                 L,
+	                                        RealType                 eps,
+	                                        const VectorComplexType& connectorsStep1,
+	                                        const VectorComplexType& connectorsStep2,
+	                                        const std::string&       rootSuffix = "diagcol1_",
+	                                        SizeType                 advanceEachOverride = 0,
+	                                        SizeType                 maxAdvances = 0) const
+	{
+		const SizeType nBath     = bathParams.size() / 2;
+		const SizeType nsites    = nBath + 1;
+		const SizeType nsitesExt = nsites + 2 * L;
+
+		VectorRealType hoppings(nBath), bathEps(nBath);
+		for (SizeType i = 0; i < nBath; ++i) {
+			hoppings[i] = bathParams[i];
+			bathEps[i]  = bathParams[nBath + i];
+		}
+
+		VectorRealType potGS(nsitesExt, RealType(0)), potTdmrg(nsitesExt, RealType(0));
+		potGS[0]    = -RealType(0.5) * params_.uInitial;
+		potTdmrg[0] = -RealType(0.5) * params_.uFinal;
+		for (SizeType i = 0; i < nBath; ++i) {
+			potGS[i + 1]    = bathEps[i];
+			potTdmrg[i + 1] = bathEps[i];
+		}
+		for (SizeType p = 0; p < L; ++p)
+			potGS[nsites + p] = -eps;
+		for (SizeType p = 0; p < L; ++p)
+			potGS[nsites + L + p] = eps;
+
+		const SizeType    nupExt    = nup_ + L;
+		const SizeType    ndownExt  = ndown_ + L;
+		const std::string chainRoot = root_ + rootSuffix;
+		const SizeType    advanceEach
+		    = (advanceEachOverride == 0) ? (nsitesExt - 2) : advanceEachOverride;
+
+		{
+			Dmrg::CmdLineOptions opts;
+			opts.logfile = chainRoot + "gs.log";
+			DmrgRunnerType runner(
+			    app_,
+			    buildGsInputAt(chainRoot + "gs",
+			                   params_.uInitial,
+			                   hoppings,
+			                   potGS,
+			                   nupExt,
+			                   ndownExt,
+			                   nsitesExt,
+			                   VectorComplexType(2 * L, ComplexType(0))),
+			    opts);
+			runner.doOneRun();
+		}
+
+		Column col0;
+		col0.born = 0;
+		birthColumn(
+		    col0,
+		    chainRoot + "gs",
+		    -1,
+		    chainRoot + "gs",
+		    -1,
+		    chainRoot,
+		    "column0",
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt {
+		        true, nupExt, ndownExt, connectorsStep1, advanceEach, maxAdvances });
+
+		advanceColumn(
+		    col0,
+		    1,
+		    chainRoot,
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt {
+		        true, nupExt, ndownExt, connectorsStep1, advanceEach, maxAdvances });
+
+		Column col1;
+		col1.born = 1;
+		birthColumn(
+		    col1,
+		    col0.particleRoot,
+		    col0.particleSrcTv,
+		    col0.holeRoot,
+		    col0.holeSrcTv,
+		    chainRoot,
+		    "column1",
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt {
+		        true, nupExt, ndownExt, connectorsStep1, advanceEach, maxAdvances });
+
+		advanceColumn(
+		    col1,
+		    2,
+		    chainRoot,
+		    params_.uFinal,
+		    hoppings,
+		    potTdmrg,
+		    nsitesExt,
+		    SecondBathExt {
+		        true, nupExt, ndownExt, connectorsStep2, advanceEach, maxAdvances });
+
+		return col1.ggtRaw[2];
+	}
+
 	KBType computeFullGridWithInertSecondBath(const VectorRealType&    bathParams,
 	                                          SizeType                 L,
 	                                          RealType                 eps,
