@@ -259,6 +259,37 @@ public:
 	{
 		if (decomp_)
 			decomp_->update(n, delta);
+
+		// Task 17 (incremental fillSelfConsistentRow): decomp_->update(n,.)
+		// only ever mutates row n of its internal V_ (confirmed directly
+		// against NeqBathDecomposition::update) -- rows <n are frozen for
+		// good from this point on. So any persisted column already
+		// advanced through step n needs exactly its OWN last advance
+		// (n-1 -> n) undone and redone with the freshly-refined Vplus(n,.);
+		// nothing earlier needs touching. n==0 needs no rollback at all:
+		// update(0,.) is itself a no-op, and no column is ever advanced to
+		// step 0 in the first place (reachedStep starts at born, and
+		// column 0's born==0).
+		//
+		// As of this step, fillSelfConsistentRow still clears scColumns_
+		// at the start of every call, so this loop is observationally a
+		// no-op (nothing persists across calls yet to roll back) -- wired
+		// in isolation ahead of step 4 so any compile/logic error here
+		// surfaces on its own, not mixed in with the real persistence
+		// change.
+		if (n == 0)
+			return;
+		for (auto& col : scColumns_) {
+			if (col.reachedStep != n)
+				continue; // nothing to roll back for this column
+			col.reachedStep   = col.prevReachedStep;
+			col.particleRoot  = col.prevParticleRoot;
+			col.particleMapTv = col.prevParticleMapTv;
+			col.particleSrcTv = col.prevParticleSrcTv;
+			col.holeRoot      = col.prevHoleRoot;
+			col.holeMapTv     = col.prevHoleMapTv;
+			col.holeSrcTv     = col.prevHoleSrcTv;
+		}
 	}
 
 	// ---- Phase 1 (evolving-bath project) diagnostic: chained column 0 -----
