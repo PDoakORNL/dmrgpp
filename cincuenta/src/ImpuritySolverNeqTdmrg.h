@@ -1340,6 +1340,31 @@ private:
 		// birthColumn) -- gauge-invariant by construction, no sign-flip/
 		// phase correction needed (unlike ggtRaw/gltRaw above).
 		ComplexType ggtDiag = 0, gltDiag = 0;
+
+		// ---- Task 17 (incremental fillSelfConsistentRow) fields --------
+		// Outer step this column's ON-DISK checkpoint currently
+		// represents. Equals `born` until the column's own first advance.
+		// Used by the incremental design to determine "already advanced
+		// through step n, nothing to redo" vs "needs a fresh advance".
+		int reachedStep = 0;
+		// Snapshot of the cursor fields (particleRoot/MapTv/SrcTv, hole
+		// equivalents, and reachedStep itself) taken IMMEDIATELY BEFORE
+		// the most recent advanceColumn call on this column. advanceColumn
+		// destructively overwrites the cursor fields in place (a single
+		// mutable pointer, not an indexed history) -- so when a corrector
+		// at row n refines Vplus(n,.), simply decrementing reachedStep
+		// (GBEK's own watermark-rollback idiom for its own, differently-
+		// shaped, single in-memory state vector) is NOT enough: it would
+		// leave the cursor pointing at the (now stale) step-n checkpoint
+		// while claiming the column is only at step n-1. prepareTimeStep's
+		// rollback restores ALL of these fields together, undoing exactly
+		// one advanceColumn call. Only one level of snapshot is ever
+		// needed: NeqBathDecomposition::update(n,.) only ever mutates row
+		// n, so only the CURRENT row's own advance can ever need undoing.
+		int         prevReachedStep = 0;
+		std::string prevParticleRoot, prevHoleRoot;
+		int         prevParticleMapTv = 0, prevParticleSrcTv = -1;
+		int         prevHoleMapTv = 0, prevHoleSrcTv = -1;
 	};
 
 	// Birth a new column at time col.born. The particle and hole branches
@@ -1752,7 +1777,13 @@ private:
 		// solveSelfConsistent (Task 17 step 1) -- copy the persisted
 		// result as this call's own starting point rather than rebuilding
 		// it from scratch every call.
-		std::vector<Column> columns;
+		//
+		// Task 17 step 2: storage promoted from a local vector to the
+		// scColumns_ member, in preparation for step 4's real persistence.
+		// At THIS step it is still cleared and fully rebuilt every call
+		// (behavior-equivalent to the local-vector version).
+		std::vector<Column>& columns = scColumns_;
+		columns.clear();
 		columns.reserve(static_cast<SizeType>(n) + 1);
 		columns.emplace_back(scColumn0_);
 
@@ -2628,6 +2659,13 @@ private:
 	// copies this as its own starting point rather than mutating it
 	// in place -- see that method's own doc comment.
 	Column scColumn0_;
+	// Task 17 step 2: promoted from a local variable to member storage, in
+	// preparation for step 4's real persistence. At THIS step,
+	// fillSelfConsistentRow still clears and fully rebuilds this every
+	// call (behavior-equivalent to the local-vector version) -- isolates
+	// "does using member storage break anything" risk from the actual
+	// algorithmic change that comes later.
+	mutable std::vector<Column> scColumns_;
 	// Bumped at the start of every fillSelfConsistentRow call (see that
 	// method's doc comment) so each call gets its OWN file prefix --
 	// NeqDmftSolver's predictor/corrector loop calls computeGimp/
