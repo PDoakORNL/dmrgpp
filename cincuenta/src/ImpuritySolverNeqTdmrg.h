@@ -236,25 +236,16 @@ public:
 		// for this piece.
 		exactDiag_.computeGimp(gimp, n);
 
-		// Retarded/lesser (n,j), j=0..n: truncated-batch recompute -- rebuild
-		// the fan-out from t=0 up through step n fresh, reading Vplus(k,p)
-		// from decomp_'s CURRENT state. Correct and simple (no propagated-
-		// through/rewind bookkeeping needed: a corrector's prepareTimeStep
-		// call just refines decomp_ before the next computeGimp call, and
-		// this recompute always uses whatever is current); cost is O(n^2)
-		// per call, O(nT^3) total, acceptable at the tiny NtNeq (2-4) this
-		// project's compute-discipline convention already mandates for
-		// gate-style tests. See fancy-painting-moon.md, Phase 2, "truncated
-		// batch recompute" (advisor consult).
+		// Retarded/lesser (n,j), j=0..n: incremental fan-out (Task 17) --
+		// see fillSelfConsistentRow's own doc comment for the design.
 		fillSelfConsistentRow(gimp, n);
 	}
 
 	const KBType& gimp() const override { return neqBathRank_ > 0 ? exactDiag_.gimp() : gimp_; }
 
-	// Advance the Cholesky bath decomposition to step n. No propagated-
-	// through invalidation needed (unlike GBEK): computeGimp's truncated-
-	// batch recompute always rebuilds from scratch using decomp_'s current
-	// state, so there is nothing to invalidate.
+	// Advance the Cholesky bath decomposition to step n, then roll back
+	// any persisted column state a corrector's refined Vplus(n,.)
+	// invalidates -- see the rollback loop's own comment below.
 	void prepareTimeStep(int n, const KBType& delta) override
 	{
 		if (decomp_)
@@ -270,13 +261,6 @@ public:
 		// update(0,.) is itself a no-op, and no column is ever advanced to
 		// step 0 in the first place (reachedStep starts at born, and
 		// column 0's born==0).
-		//
-		// As of this step, fillSelfConsistentRow still clears scColumns_
-		// at the start of every call, so this loop is observationally a
-		// no-op (nothing persists across calls yet to roll back) -- wired
-		// in isolation ahead of step 4 so any compile/logic error here
-		// surfaces on its own, not mixed in with the real persistence
-		// change.
 		if (n == 0)
 			return;
 		for (auto& col : scColumns_) {
@@ -1755,38 +1739,46 @@ private:
 	// ---- Phase 2 (evolving-bath project): self-consistent row fill --------
 	//
 	// Fills gimp's retarded/lesser (n,j) for j=0..n (and the anti-Hermitian
-	// transpose lesser(j,n) for j<n) by rebuilding the FULL fan-out from
-	// t=0 through step n fresh -- same Column/birthColumn/advanceColumn
-	// mechanics as computeFullGridWithInertSecondBath, but bounded by n
-	// (not params_.nT) and reading the second-bath Connectors at each outer
-	// step k from decomp_->Vplus(k-1,p)/Vplus(k,p) (midpoint-averaged,
-	// mirroring ImpuritySolverNeqGBEK::computeVMid) instead of a fixed 0.
+	// transpose lesser(j,n) for j<n). Task 17: INCREMENTAL design --
+	// persists the column fan-out (scColumns_) across calls instead of
+	// rebuilding it from t=0 on every call. Complexity: O(nT^2*(1+neqDmftIter))
+	// over a full run, down from the original "truncated batch recompute"'s
+	// O(nT^3*neqDmftIter) (see fancy-painting-moon.md, Task #17 scope, for
+	// the full design derivation and the facts it rests on).
 	//
-	// Deliberately does NOT persist columns_ or any progress marker across
-	// calls: NeqDmftSolver's corrector loop (see NeqDmftSolver::timeStep)
-	// calls prepareTimeStep(n,...)/computeGimp(gimp,n) repeatedly for the
-	// SAME n as decomp_ is refined, and a full recompute from decomp_'s
-	// CURRENT state is trivially correct for that without any propagated-
-	// through/rewind bookkeeping. Cost is O(n^2) segments per call, O(nT^3)
-	// total over a run -- accepted for now (see the advisor consult
-	// recorded in fancy-painting-moon.md): incremental/persistent-state
-	// optimization is deferred, to be built later against this method's own
-	// passing gate as its regression net, not attempted alongside it.
+	// Correctness rests on NeqBathDecomposition::update(n,.) only ever
+	// mutating row n of its V_ (confirmed directly against its source) --
+	// once outer step k's own corrector loop finishes, Vplus(k,.) is frozen
+	// forever, so a column already advanced through step k never needs
+	// redoing for any later n>k. prepareTimeStep's rollback (see that
+	// method) undoes exactly the CURRENT row's last advance whenever a
+	// corrector refines Vplus(n,.); nothing earlier is ever touched.
 	//
-	// The newest column (born at step n, never naturally advanced within
-	// this bounded recompute since there is no step n+1 here) still needs
-	// its diagonal G(n,n): mirrors computeFullGrid's original handling of
-	// column nT exactly -- birth it, then one extra "throwaway" advance
-	// purely to trigger the diagonal-capture byproduct (see advanceColumn),
-	// discarding the resulting off-diagonal value. This throwaway advance's
-	// own Connectors value provably does not matter (confirmed empirically:
-	// see the "column diagonal is independent of the second-bath Connectors
-	// value" test) -- it reuses whatever this step's own vMid already is,
-	// rather than needing Vplus(n+1,*), which is not yet determined at this
-	// point (prepareTimeStep(n+1,...) has not run).
+	// Two pieces are deliberately kept OUTSIDE scColumns_, unchanged in
+	// spirit from the original design, because folding them in is a real
+	// correctness hazard, not just an optimization opportunity:
+	//   - n==0's diagonal capture operates on a LOCAL COPY of scColumn0_,
+	//     never scColumn0_ itself -- advanceColumn destructively overwrites
+	//     a column's cursor fields, and column 0 must stay pristine
+	//     (reachedStep=0, srcTv=-1) for row 1's own first-advance logic.
+	//   - the born=n "diagonal" column (birthed fresh every call, advanced
+	//     once to n+1 purely to capture ggtDiag/gltDiag via the "first
+	//     advance since birth" mechanism, then discarded) stays a LOCAL
+	//     Column, never pushed into scColumns_. It is birthed and advanced
+	//     using THIS row's Connectors (vMidConnectors(n), reused for both --
+	//     provably fine since the diagonal doesn't depend on Connectors at
+	//     all, see the "column diagonal is independent of Connectors"
+	//     test), which are NOT the correct Connectors for its real born=n
+	//     column's eventual first genuine advance at row n+1
+	//     (vMidConnectors(n+1)). Persisting this throwaway would silently
+	//     use the wrong Connectors for that later interval.
 	void fillSelfConsistentRow(KBType& gimp, int n) const
 	{
-		// Per-call file prefix -- see scCallCounter_'s doc comment.
+		// Per-call file prefix -- see scCallCounter_'s doc comment. Still
+		// sufficient for global uniqueness under persistence: a corrector
+		// re-visiting the same (column, step) pair after a rollback does so
+		// from a NEW call, hence a NEW chainRoot, so it never collides with
+		// the discarded pre-rollback attempt's files.
 		const std::string chainRoot = scChainRoot_ + ttos(scCallCounter_) + "_";
 		++scCallCounter_;
 
@@ -1804,38 +1796,17 @@ private:
 			return c;
 		};
 
-		// Column 0's ground-state run and birth are hoisted into
-		// solveSelfConsistent (Task 17 step 1) -- copy the persisted
-		// result as this call's own starting point rather than rebuilding
-		// it from scratch every call.
-		//
-		// Task 17 step 2: storage promoted from a local vector to the
-		// scColumns_ member, in preparation for step 4's real persistence.
-		// At THIS step it is still cleared and fully rebuilt every call
-		// (behavior-equivalent to the local-vector version).
-		std::vector<Column>& columns = scColumns_;
-		columns.clear();
-		columns.reserve(static_cast<SizeType>(n) + 1);
-		columns.emplace_back(scColumn0_);
-
-		// n==0: no natural advance happens for row 0 (the k=1..n loop below
-		// is empty), so column 0's diagonal -- normally captured as a
-		// byproduct of a column's FIRST advanceColumn call -- would never
-		// be captured at all. NeqDmftSolver::solve() calls
-		// computeGimp(gimp_,0) BEFORE its n=1..nT loop (to populate the t=0
-		// boundary condition), so this case genuinely occurs, not just in
-		// principle. Fix: give column 0 the same one-off throwaway advance
-		// (discarding the resulting off-diagonal) the newest column gets
-		// below for n>0. The connectors value used here provably doesn't
-		// matter (see the "column diagonal is independent of Connectors"
-		// test) -- Vplus(1,*) isn't determined yet at this point regardless
-		// (prepareTimeStep(1,...) hasn't run), so vMidConnectors(1) here is
-		// whatever decomp_'s default (all-zero) V_ gives, which is fine.
+		// n==0: see the class-level doc comment above -- a LOCAL copy of
+		// column 0 only, column 0 itself (scColumn0_) is never touched.
+		// decomp_->update(0,.) is a no-op (NeqBathDecomposition::update),
+		// so there is no corrector refinement to react to for row 0 either
+		// -- this is the entire computation for n==0.
 		if (n == 0) {
+			Column        tmp = scColumn0_;
 			SecondBathExt secondBath {
 				true, scNup_, scNdown_, vMidConnectors(1), scNsitesExt_ - 2, 1
 			};
-			advanceColumn(columns[0],
+			advanceColumn(tmp,
 			              1,
 			              chainRoot,
 			              params_.uFinal,
@@ -1843,103 +1814,157 @@ private:
 			              scPotTdmrg_,
 			              scNsitesExt_,
 			              secondBath);
+			applySignFlip(tmp.ggtRaw);
+			applySignFlip(tmp.gltRaw);
+			const ComplexType ggtD = ComplexType(0, -1) * tmp.ggtDiag;
+			const ComplexType gltD = ComplexType(0, 1) * tmp.gltDiag;
+			gimp.lesser(0, 0)      = gltD;
+			gimp.retarded(0, 0)    = ggtD - gltD;
+			return;
 		}
 
-		VectorComplexType lastConnectors(2 * scL_, ComplexType(0));
-		for (int k = 1; k <= n; ++k) {
-			lastConnectors = vMidConnectors(k);
-			SecondBathExt secondBath { true,           scNup_,           scNdown_,
-				                   lastConnectors, scNsitesExt_ - 2, 1 };
+		// If scColumns_ is somehow empty (only possible if
+		// solveSelfConsistent's setup was skipped), seed it with column 0.
+		// Normal path: scColumns_[0] already IS column 0 (or a persisted
+		// continuation of it), unchanged in identity across calls.
+		if (scColumns_.empty())
+			scColumns_.emplace_back(scColumn0_);
 
-			advanceColumn(columns[0],
-			              k,
-			              chainRoot,
-			              params_.uFinal,
-			              scHoppings_,
-			              scPotTdmrg_,
-			              scNsitesExt_,
-			              secondBath);
-
-			SizeType justBornIdx = columns.size();
-			if (k < n) {
-				columns.emplace_back();
-				columns.back().born = k;
-				birthColumn(columns.back(),
-				            columns[0].particleRoot,
-				            columns[0].particleSrcTv,
-				            columns[0].holeRoot,
-				            columns[0].holeSrcTv,
+		// (a) Ensure a column born=(n-1) exists -- birthed exactly ONCE,
+		// the first time any row n needs it, from column 0's CURRENT state
+		// (which is frozen at reachedStep==n-1 at this point: it was
+		// advanced there during row (n-1)'s own processing and never
+		// touched since). Must happen BEFORE column 0 advances to n below.
+		// For n==1 this is a no-op: born==0 already exists (it's column 0
+		// itself). On any corrector re-call for this same n, this is also
+		// a no-op: the column already exists from this row's first call,
+		// and its birth (unlike its later advances) does not depend on
+		// Vplus(n,.) at all, so it never needs re-birthing across
+		// correctors.
+		{
+			bool bornExists = false;
+			for (const auto& col : scColumns_)
+				if (col.born == n - 1) {
+					bornExists = true;
+					break;
+				}
+			if (!bornExists) {
+				const VectorComplexType birthConnectors = vMidConnectors(n - 1);
+				const SecondBathExt     birthBath {
+                                        true, scNup_, scNdown_, birthConnectors, scNsitesExt_ - 2, 1
+				};
+				// Copy (not reference) column 0's cursor fields BEFORE
+				// calling emplace_back below: emplace_back can reallocate
+				// scColumns_'s backing storage, which would leave a
+				// reference into scColumns_[0] dangling (a real bug this
+				// exact code hit during implementation -- caught by the
+				// "self-consistent wiring" tests, which failed with an
+				// empty RestartFilename= from reading a dangling
+				// particleRoot).
+				const std::string srcParticleRoot  = scColumns_[0].particleRoot;
+				const int         srcParticleSrcTv = scColumns_[0].particleSrcTv;
+				const std::string srcHoleRoot      = scColumns_[0].holeRoot;
+				const int         srcHoleSrcTv     = scColumns_[0].holeSrcTv;
+				scColumns_.emplace_back();
+				Column& nc = scColumns_.back();
+				nc.born    = n - 1;
+				birthColumn(nc,
+				            srcParticleRoot,
+				            srcParticleSrcTv,
+				            srcHoleRoot,
+				            srcHoleSrcTv,
 				            chainRoot,
-				            "column" + ttos(k),
+				            "column" + ttos(n - 1),
 				            params_.uFinal,
 				            scHoppings_,
 				            scPotTdmrg_,
 				            scNsitesExt_,
-				            secondBath);
-				justBornIdx = columns.size() - 1;
-			}
-
-			for (SizeType idx = 1; idx < columns.size(); ++idx) {
-				if (idx == justBornIdx)
-					continue;
-				advanceColumn(columns[idx],
-				              k,
-				              chainRoot,
-				              params_.uFinal,
-				              scHoppings_,
-				              scPotTdmrg_,
-				              scNsitesExt_,
-				              secondBath);
+				            birthBath);
+				nc.reachedStep       = n - 1;
+				nc.prevReachedStep   = n - 1;
+				nc.prevParticleRoot  = nc.particleRoot;
+				nc.prevParticleMapTv = nc.particleMapTv;
+				nc.prevParticleSrcTv = nc.particleSrcTv;
+				nc.prevHoleRoot      = nc.holeRoot;
+				nc.prevHoleMapTv     = nc.holeMapTv;
+				nc.prevHoleSrcTv     = nc.holeSrcTv;
 			}
 		}
 
-		if (n > 0) {
-			SecondBathExt secondBath { true,           scNup_,           scNdown_,
-				                   lastConnectors, scNsitesExt_ - 2, 1 };
-			columns.emplace_back();
-			columns.back().born = n;
-			birthColumn(columns.back(),
-			            columns[0].particleRoot,
-			            columns[0].particleSrcTv,
-			            columns[0].holeRoot,
-			            columns[0].holeSrcTv,
-			            chainRoot,
-			            "column" + ttos(n),
-			            params_.uFinal,
-			            scHoppings_,
-			            scPotTdmrg_,
-			            scNsitesExt_,
-			            secondBath);
-			advanceColumn(columns.back(),
-			              n + 1,
+		// (b) Advance column 0 and every other existing column from
+		// reachedStep (invariantly n-1, for all of them, including any
+		// column just birthed in (a)) to n. Written as a bounded "if", not
+		// an open-ended "while": given the invariants above plus
+		// prepareTimeStep's rollback, no persisted column can ever be more
+		// than one step behind n at this point.
+		const VectorComplexType lastConnectors = vMidConnectors(n);
+		const SecondBathExt     secondBath { true,           scNup_,           scNdown_,
+                                                 lastConnectors, scNsitesExt_ - 2, 1 };
+		for (auto& col : scColumns_) {
+			if (col.reachedStep >= n)
+				continue;
+			col.prevReachedStep   = col.reachedStep;
+			col.prevParticleRoot  = col.particleRoot;
+			col.prevParticleMapTv = col.particleMapTv;
+			col.prevParticleSrcTv = col.particleSrcTv;
+			col.prevHoleRoot      = col.holeRoot;
+			col.prevHoleMapTv     = col.holeMapTv;
+			col.prevHoleSrcTv     = col.holeSrcTv;
+
+			advanceColumn(col,
+			              n,
 			              chainRoot,
 			              params_.uFinal,
 			              scHoppings_,
 			              scPotTdmrg_,
 			              scNsitesExt_,
 			              secondBath);
+			col.reachedStep = n;
 		}
 
-		for (auto& col : columns) {
+		// (c) The born=n diagonal column: LOCAL, never persisted -- see
+		// the class-level doc comment above for why.
+		Column diagCol;
+		diagCol.born = n;
+		birthColumn(diagCol,
+		            scColumns_[0].particleRoot,
+		            scColumns_[0].particleSrcTv,
+		            scColumns_[0].holeRoot,
+		            scColumns_[0].holeSrcTv,
+		            chainRoot,
+		            "column" + ttos(n),
+		            params_.uFinal,
+		            scHoppings_,
+		            scPotTdmrg_,
+		            scNsitesExt_,
+		            secondBath);
+		advanceColumn(diagCol,
+		              n + 1,
+		              chainRoot,
+		              params_.uFinal,
+		              scHoppings_,
+		              scPotTdmrg_,
+		              scNsitesExt_,
+		              secondBath);
+		applySignFlip(diagCol.ggtRaw);
+		applySignFlip(diagCol.gltRaw);
+		{
+			const ComplexType ggtD = ComplexType(0, -1) * diagCol.ggtDiag;
+			const ComplexType gltD = ComplexType(0, 1) * diagCol.gltDiag;
+			gimp.lesser(n, n)      = gltD;
+			gimp.retarded(n, n)    = ggtD - gltD;
+		}
+
+		// Off-diagonal: every persisted column (born=0..n-1, all now at
+		// reachedStep==n) contributes gimp(n,j) and its anti-Hermitian
+		// transpose gimp(j,n).
+		for (auto& col : scColumns_) {
 			applySignFlip(col.ggtRaw);
 			applySignFlip(col.gltRaw);
 
-			const int j = col.born;
-			if (j != n)
-				continue; // only need row n's own diagonal from this column
-
-			const ComplexType ggtD = ComplexType(0, -1) * col.ggtDiag;
-			const ComplexType gltD = ComplexType(0, 1) * col.gltDiag;
-			gimp.lesser(j, j)      = gltD;
-			gimp.retarded(j, j)    = ggtD - gltD;
-		}
-
-		for (auto& col : columns) {
-			const int j = col.born;
-			if (j == n)
-				continue;
-			auto itG = col.ggtRaw.find(n);
-			auto itL = col.gltRaw.find(n);
+			const int j   = col.born;
+			auto      itG = col.ggtRaw.find(n);
+			auto      itL = col.gltRaw.find(n);
 			if (itG == col.ggtRaw.end() || itL == col.gltRaw.end())
 				continue;
 			const ComplexType ggt = ComplexType(0, -1) * itG->second;
