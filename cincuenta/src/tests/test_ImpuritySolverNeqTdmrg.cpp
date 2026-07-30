@@ -842,47 +842,16 @@ TEST_CASE("DIAGNOSTIC third advance -- does step-3 harvest track C2 (off-by-one 
 	          << " resultB=" << resultB << "\n";
 }
 
-// Advisor consult: each segment's TWO FiniteLoops rows fire TWO time
-// advances under the segment's own single Connectors value (not one), so a
-// 3-call chain lands on t=4dt when labeled step 3. Test whether roughly
-// DOUBLING advanceEach yields exactly one advance per segment: with a
-// static (repeated) Connectors value across all 3 calls, harvest ggtRaw[1],
-// ggtRaw[2], ggtRaw[3] and check the imaginary part grows linearly by step
-// count (1x, 2x, 3x a per-step reference), not 2x per call.
-TEST_CASE("DIAGNOSTIC advanceEach calibration -- step count vs printed time",
-          "[ImpuritySolverNeqTdmrg][Diagnostic]")
-{
-	int    argc    = 1;
-	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
-	char*  argv0[] = { arg0 };
-	char** argv    = argv0;
-
-	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
-
-	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configWithU("0.5"));
-	InputNgType::Readable  io(ioW);
-	ParamsType             params(io);
-	SolverType             solver(params, app, io);
-
-	const VectorRealType    bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
-	const SizeType          L          = 1;
-	const RealType          eps        = 3.0;
-	const VectorComplexType c          = { ComplexType(0.26, 0.0), ComplexType(0.26, 0.0) };
-
-	// nsitesExt = nBath+1+2L = 5+1+2 = 8, so default advanceEach = 6 (2
-	// advances/segment, confirmed). Scan candidates between 6 and 12 for
-	// the one giving exactly 1 advance/segment (imaginary part growing
-	// linearly by call count, ~1x per call instead of ~2x).
-	for (SizeType trial : { SizeType(6),
-	                        SizeType(7),
-	                        SizeType(8),
-	                        SizeType(9),
-	                        SizeType(10),
-	                        SizeType(11),
-	                        SizeType(12) }) {
-		const auto result = solver.diagnosticThirdAdvanceConnectors(
-		    bathParams, L, eps, c, c, c, "diagcalib" + std::to_string(trial) + "_", trial);
-		std::cout << "DIAGNOSTIC advanceEach=" << trial
-		          << " static-C step-3 harvest=" << result << "\n";
-	}
-}
+// Two calibration attempts were tried here and abandoned (both refuted by
+// data, not by inspection -- see TDMRG_EVOLVING_BATH.md Link 9 for the full
+// account): (1) scaling advanceEach with border-gated firing unchanged --
+// plateaued at the "2 advances/segment" value for every trial from 7-12,
+// never reaching 1; (2) adding advanceUnrestricted (removing the border
+// gate found in dmrg/Engine/ApplyOperatorExpression.h:769-773) and scaling
+// advanceEach as a pure count -- plateaued at "2 steps total across 3
+// calls" for trials 11-13 and "0 advances at all" for trials >=14, never
+// converging on "1 advance/segment" for any value. advanceEach cannot
+// express "exactly one advance per two-row segment" under either gating
+// mode with this engine. A real fix needs either dmrg/Engine/ instrumentation
+// or an outer-loop redesign around the 2-dt-per-segment time quantum --
+// both are scope decisions, not something to keep scanning for here.
