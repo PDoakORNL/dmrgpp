@@ -9,6 +9,7 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 namespace Dmft {
 
@@ -107,14 +108,26 @@ public:
 			timeStep(n);
 			auto   t1      = std::chrono::steady_clock::now();
 			double dt_wall = std::chrono::duration<double>(t1 - t0).count();
-			std::cout << "  step " << n << " / " << params_.nT << "  (" << std::fixed
-			          << std::setprecision(1) << dt_wall << " s)" << std::endl;
+			// Format into a LOCAL stream, not std::cout directly: std::fixed/
+			// setprecision are sticky on the stream object they're applied
+			// to, and DmrgRunner's own in-situ measurement prints
+			// (TargetingCommon::test()) write to this same global std::cout
+			// (redirected per-run to different log files, but the format
+			// state persists across redirects) -- setting precision(1) here
+			// directly previously truncated every subsequent measurement log
+			// in the process to 1 decimal digit, corrupting Task 15's gate
+			// comparison. See TDMRG_EVOLVING_BATH.md Link 12.
+			std::ostringstream dtStr;
+			dtStr << std::fixed << std::setprecision(1) << dt_wall;
+			std::cout << "  step " << n << " / " << params_.nT << "  (" << dtStr.str()
+			          << " s)" << std::endl;
 		}
 		double neq_total
 		    = std::chrono::duration<double>(std::chrono::steady_clock::now() - t_neq_start)
 		          .count();
-		std::cout << "NeqDmftSolver: neq phase total " << std::fixed << std::setprecision(1)
-		          << neq_total << " s\n";
+		std::ostringstream neqTotalStr;
+		neqTotalStr << std::fixed << std::setprecision(1) << neq_total;
+		std::cout << "NeqDmftSolver: neq phase total " << neqTotalStr.str() << " s\n";
 	}
 
 	// Access the impurity GF (populated after solve()).
