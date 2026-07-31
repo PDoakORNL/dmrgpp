@@ -263,17 +263,9 @@ public:
 		// column 0's born==0).
 		if (n == 0)
 			return;
-		for (auto& col : scColumns_) {
-			if (col.reachedStep != n)
-				continue; // nothing to roll back for this column
-			col.reachedStep   = col.prevReachedStep;
-			col.particleRoot  = col.prevParticleRoot;
-			col.particleMapTv = col.prevParticleMapTv;
-			col.particleSrcTv = col.prevParticleSrcTv;
-			col.holeRoot      = col.prevHoleRoot;
-			col.holeMapTv     = col.prevHoleMapTv;
-			col.holeSrcTv     = col.prevHoleSrcTv;
-		}
+		rollbackSectorColumns(scSectorA_, n);
+		if (scDualSector_)
+			rollbackSectorColumns(scSectorB_, n);
 	}
 
 	// ---- Phase 1 (evolving-bath project) diagnostic: chained column 0 -----
@@ -1380,7 +1372,62 @@ private:
 		std::string prevParticleRoot, prevHoleRoot;
 		int         prevParticleMapTv = 0, prevParticleSrcTv = -1;
 		int         prevHoleMapTv = 0, prevHoleSrcTv = -1;
+
+		// ---- Task 29 (nBath=0 atomic-limit special case) -------------------
+		// Set only at column 0's OWN birth (solveSelfConsistent), only when
+		// nBath==0: the impurity is fully decoupled from everything at t=0
+		// (Vplus(0,.)==0 by NeqBathDecomposition's own convention, and
+		// nBath==0 means there is no first bath either), so its occupation
+		// in the GS is provably sharp (0 or 1), not fractional. Whichever
+		// branch would create a SECOND electron in an already-occupied
+		// orbital (particleNull) or annihilate one in an already-empty
+		// orbital (holeNull) is exactly Pauli-forbidden -- the DMRG engine
+		// cannot represent the resulting null vector (WFT norm2 underflow,
+		// missing TimeSerializer group; see fancy-painting-moon.md Task #29
+		// root-cause section). Exactly one of these is ever true for a
+		// given sector; never both (a single orbital is either occupied or
+		// not) and never neither (nBath==0 forces one of the two).
+		// H|0> = |0> for any H, so once null at birth this stays the exact
+		// null vector for the column's entire lifetime -- advanceColumn
+		// writes exact zero for this branch at every later step, no DMRG
+		// run needed or possible. Columns born later than 0 are birthed
+		// from an already-evolved (Vplus(1..)!=0) reference and are never
+		// subject to this degeneracy -- see Task 29 notes.
+		bool particleNull = false, holeNull = false;
 	};
+
+	// ---- Task 29: one spin-sector's worth of self-consistent column state -
+	// GBEK's own dual-sector averaging (ImpuritySolverNeqGBEK's sectorAlpha_/
+	// sectorBeta_, ExtendedSector) is the reference this mirrors: at
+	// nBath=0 the impurity's targeted (nup,ndown) split is not itself
+	// physical (only nup+ndown is fixed by the atomic-limit constraint), so
+	// the up-spin Green's function must be averaged over BOTH assignments
+	// -- (nup,ndown) and its swap (ndown,nup) -- to match GBEK's own
+	// reported (paramagnetic-averaged) result. See fancy-painting-moon.md
+	// Task #29.
+	struct ScSector {
+		SizeType                    nup = 0, ndown = 0;
+		Column                      column0;
+		mutable std::vector<Column> columns;
+	};
+
+	// See prepareTimeStep's own doc comment: undoes exactly one
+	// advanceColumn call per column, for whichever columns were advanced
+	// through step n.
+	static void rollbackSectorColumns(ScSector& sector, int n)
+	{
+		for (auto& col : sector.columns) {
+			if (col.reachedStep != n)
+				continue; // nothing to roll back for this column
+			col.reachedStep   = col.prevReachedStep;
+			col.particleRoot  = col.prevParticleRoot;
+			col.particleMapTv = col.prevParticleMapTv;
+			col.particleSrcTv = col.prevParticleSrcTv;
+			col.holeRoot      = col.prevHoleRoot;
+			col.holeMapTv     = col.prevHoleMapTv;
+			col.holeSrcTv     = col.prevHoleSrcTv;
+		}
+	}
 
 	// Birth a new column at time col.born. The particle and hole branches
 	// restart from SEPARATE sources -- (particleSourceRoot, particleSourceTv)
@@ -1416,6 +1463,11 @@ private:
 		SizeType maxAdvances = 0;
 	};
 
+	// skipParticle/skipHole (Task 29): default false, so every pre-existing
+	// call site (later-column births, the diagCol throwaway) is byte-
+	// identical to before. Only solveSelfConsistent's column-0 birth ever
+	// passes true, and only when nBath==0 -- see Column::particleNull's doc
+	// comment for why skipping is correct there (not just an optimization).
 	void birthColumn(Column&               col,
 	                 const std::string&    particleSourceRoot,
 	                 int                   particleSourceTv,
@@ -1427,56 +1479,66 @@ private:
 	                 const VectorRealType& hoppings,
 	                 const VectorRealType& potTdmrg,
 	                 SizeType              nsites,
-	                 const SecondBathExt&  secondBath = SecondBathExt()) const
+	                 const SecondBathExt&  secondBath   = SecondBathExt(),
+	                 bool                  skipParticle = false,
+	                 bool                  skipHole     = false) const
 	{
 		const SizeType nup   = secondBath.active ? secondBath.nup : nup_;
 		const SizeType ndown = secondBath.active ? secondBath.ndown : ndown_;
 
-		col.particleRoot = chainRoot + tag + "_particle_birth";
-		{
-			Dmrg::CmdLineOptions opts;
-			opts.logfile = col.particleRoot + ".log";
-			DmrgRunnerType runner(app_,
-			                      buildInitInputAt(col.particleRoot,
-			                                       particleSourceRoot,
-			                                       uFinal,
-			                                       hoppings,
-			                                       potTdmrg,
-			                                       nup,
-			                                       ndown,
-			                                       nsites,
-			                                       "'",
-			                                       particleSourceTv,
-			                                       particleSourceTv >= 0,
-			                                       secondBath.connectors),
-			                      opts);
-			runner.doOneRun();
+		if (skipParticle) {
+			col.particleNull = true;
+		} else {
+			col.particleRoot = chainRoot + tag + "_particle_birth";
+			{
+				Dmrg::CmdLineOptions opts;
+				opts.logfile = col.particleRoot + ".log";
+				DmrgRunnerType runner(app_,
+				                      buildInitInputAt(col.particleRoot,
+				                                       particleSourceRoot,
+				                                       uFinal,
+				                                       hoppings,
+				                                       potTdmrg,
+				                                       nup,
+				                                       ndown,
+				                                       nsites,
+				                                       "'",
+				                                       particleSourceTv,
+				                                       particleSourceTv >= 0,
+				                                       secondBath.connectors),
+				                      opts);
+				runner.doOneRun();
+			}
+			col.particleMapTv = 0;
+			col.particleSrcTv = -1;
 		}
-		col.particleMapTv = 0;
-		col.particleSrcTv = -1;
 
-		col.holeRoot = chainRoot + tag + "_hole_birth";
-		{
-			Dmrg::CmdLineOptions opts;
-			opts.logfile = col.holeRoot + ".log";
-			DmrgRunnerType runner(app_,
-			                      buildInitInputAt(col.holeRoot,
-			                                       holeSourceRoot,
-			                                       uFinal,
-			                                       hoppings,
-			                                       potTdmrg,
-			                                       nup,
-			                                       ndown,
-			                                       nsites,
-			                                       "",
-			                                       holeSourceTv,
-			                                       holeSourceTv >= 0,
-			                                       secondBath.connectors),
-			                      opts);
-			runner.doOneRun();
+		if (skipHole) {
+			col.holeNull = true;
+		} else {
+			col.holeRoot = chainRoot + tag + "_hole_birth";
+			{
+				Dmrg::CmdLineOptions opts;
+				opts.logfile = col.holeRoot + ".log";
+				DmrgRunnerType runner(app_,
+				                      buildInitInputAt(col.holeRoot,
+				                                       holeSourceRoot,
+				                                       uFinal,
+				                                       hoppings,
+				                                       potTdmrg,
+				                                       nup,
+				                                       ndown,
+				                                       nsites,
+				                                       "",
+				                                       holeSourceTv,
+				                                       holeSourceTv >= 0,
+				                                       secondBath.connectors),
+				                      opts);
+				runner.doOneRun();
+			}
+			col.holeMapTv = 0;
+			col.holeSrcTv = -1;
 		}
-		col.holeMapTv = 0;
-		col.holeSrcTv = -1;
 	}
 
 	// Advance column col by one step, to outer step n (n = col's
@@ -1498,7 +1560,13 @@ private:
 		const SizeType ndown = secondBath.active ? secondBath.ndown : ndown_;
 
 		const std::string tag = "j" + ttos(col.born) + "_n" + ttos(n);
-		{
+		// Task 29: a null branch (particleNull/holeNull, only ever set at
+		// column 0's birth, only for nBath==0) stays the exact null vector
+		// forever (H|0>=0 for any H) -- write exact zero without running
+		// any DMRG segment; there is nothing for the engine to evolve.
+		if (col.particleNull) {
+			col.ggtRaw[n] = ComplexType(0);
+		} else {
 			const bool isFirstAdvance = (col.particleSrcTv < 0);
 			// With secondBath.maxAdvances==1 (self-consistent path only --
 			// see TDMRG_EVOLVING_BATH.md Link 9), every segment fires
@@ -1576,7 +1644,9 @@ private:
 			col.particleMapTv = 1;
 			col.particleSrcTv = 2;
 		}
-		{
+		if (col.holeNull) {
+			col.gltRaw[n] = ComplexType(0);
+		} else {
 			const bool        isFirstAdvance = (col.holeSrcTv < 0);
 			const bool        takeLast = isFirstAdvance || (secondBath.maxAdvances > 0);
 			const std::string outRoot  = chainRoot + tag + "_hole";
@@ -1648,8 +1718,6 @@ private:
 		const SizeType nsites = nBath + 1;
 		scL_                  = neqBathRank_;
 		scNsitesExt_          = nsites + 2 * scL_;
-		scNup_                = nup_ + scL_;
-		scNdown_              = ndown_ + scL_;
 
 		scHoppings_.resize(nBath);
 		scBathEps_.resize(nBath);
@@ -1699,41 +1767,99 @@ private:
 		for (SizeType p = 0; p < scL_; ++p)
 			potGS[nsites + scL_ + p] = scEps_;
 
+		// Task 29 (nBath=0 atomic-limit special case): at nBath==0 the
+		// impurity's targeted (nup,ndown) split is not itself physical --
+		// only nup_+ndown_ is fixed (the atomic-limit constraint) -- so the
+		// up-spin Green's function tDMRG measures must be averaged over
+		// BOTH assignments, (nup_,ndown_) and its swap (ndown_,nup_), to
+		// match ImpuritySolverNeqGBEK's own sectorAlpha_/sectorBeta_
+		// averaging (confirmed directly against GBEK's source: its
+		// cUpDagNp1/cUpNm1 are always the up-spin operator regardless of
+		// sector, and buildSector's own impurityUp=nupExt-L derivation is
+		// the same formula used below). sameConfig (nup_==ndown_) needs
+		// only one sector, exactly as GBEK's sameConfig_ does. See
+		// fancy-painting-moon.md Task #29.
+		scDualSector_ = (nBath == 0) && (nup_ != ndown_);
+
+		birthSelfConsistentSector(
+		    scSectorA_, nup_ + scL_, ndown_ + scL_, "A", potGS, nsites, nBath);
+		if (scDualSector_)
+			birthSelfConsistentSector(
+			    scSectorB_, ndown_ + scL_, nup_ + scL_, "B", potGS, nsites, nBath);
+	}
+
+	// Task 29: builds one sector's one-off GS run + column-0 birth (the
+	// call-invariant setup Task 17 already hoisted out of
+	// fillSelfConsistentRow, now parameterized per sector instead of
+	// hardcoded to a single (nup_,ndown_) assignment).
+	void birthSelfConsistentSector(ScSector&             sector,
+	                               SizeType              nupSector,
+	                               SizeType              ndownSector,
+	                               const std::string&    sectorTag,
+	                               const VectorRealType& potGS,
+	                               SizeType              nsites,
+	                               SizeType              nBath)
+	{
+		sector.nup   = nupSector;
+		sector.ndown = ndownSector;
+		sector.columns.clear();
+
+		const std::string gsRoot = scChainRoot_ + "gs" + sectorTag;
 		{
 			Dmrg::CmdLineOptions opts;
-			opts.logfile = scChainRoot_ + "gs.log";
+			opts.logfile = gsRoot + ".log";
 			DmrgRunnerType runner(
 			    app_,
-			    buildGsInputAt(scChainRoot_ + "gs",
+			    buildGsInputAt(gsRoot,
 			                   params_.uInitial,
 			                   scHoppings_,
 			                   potGS,
-			                   scNup_,
-			                   scNdown_,
+			                   nupSector,
+			                   ndownSector,
 			                   scNsitesExt_,
 			                   VectorComplexType(2 * scL_, ComplexType(0))),
 			    opts);
 			runner.doOneRun();
 		}
 
-		scColumn0_.born = 0;
-		birthColumn(scColumn0_,
-		            scChainRoot_ + "gs",
+		// At nBath==0, the impurity's own up-orbital occupation for THIS
+		// sector is exactly (nupSector - scL_): there is no first bath to
+		// hold any electrons, and the L "occ" second-bath sites each
+		// consume exactly one up-electron by potGS's own eps-split
+		// construction above -- so whatever nupSector has left over sits
+		// at the impurity, fully decoupled (Vplus(0,.)==0 always), hence
+		// sharply 0 or 1, never fractional. skipParticle/skipHole follow
+		// directly from that -- see Column::particleNull's doc comment.
+		// nBath>0 never sets either flag (byte-identical to pre-Task-29
+		// behavior).
+		bool skipParticle = false, skipHole = false;
+		if (nBath == 0) {
+			const SizeType impurityUpOcc = nupSector - scL_;
+			skipParticle                 = (impurityUpOcc == 1);
+			skipHole                     = (impurityUpOcc == 0);
+		}
+
+		sector.column0      = Column();
+		sector.column0.born = 0;
+		birthColumn(sector.column0,
+		            gsRoot,
 		            -1,
-		            scChainRoot_ + "gs",
+		            gsRoot,
 		            -1,
 		            scChainRoot_,
-		            "column0",
+		            "column0" + sectorTag,
 		            params_.uFinal,
 		            scHoppings_,
 		            scPotTdmrg_,
 		            scNsitesExt_,
 		            SecondBathExt { true,
-		                            scNup_,
-		                            scNdown_,
+		                            nupSector,
+		                            ndownSector,
 		                            VectorComplexType(2 * scL_, ComplexType(0)),
 		                            scNsitesExt_ - 2,
-		                            1 });
+		                            1 },
+		            skipParticle,
+		            skipHole);
 	}
 
 	// ---- Phase 2 (evolving-bath project): self-consistent row fill --------
@@ -1772,15 +1898,51 @@ private:
 	//     column's eventual first genuine advance at row n+1
 	//     (vMidConnectors(n+1)). Persisting this throwaway would silently
 	//     use the wrong Connectors for that later interval.
+	// Task 29: dispatches across 1 or 2 sectors (see ScSector's doc comment
+	// and solveSelfConsistent for why 2 are needed at nBath==0 whenever
+	// nup_!=ndown_) and averages, mirroring ImpuritySolverNeqGBEK's own
+	// gLesserRowGBEK/gGreaterRowGBEK (lines 1304-1339: sameConfig ? rowA :
+	// 0.5*(rowA+rowB)). For nBath>0 (scDualSector_ always false there),
+	// this is exactly the pre-Task-29 single-sector call, byte-identical.
 	void fillSelfConsistentRow(KBType& gimp, int n) const
+	{
+		fillSelfConsistentRowSector(gimp, n, scSectorA_);
+		if (!scDualSector_)
+			return;
+
+		const RealType dtau = params_.eqParams.ficticiousBeta
+		    / static_cast<RealType>(params_.eqParams.nMatsubaras);
+		KBType gimpB(params_.nT, params_.eqParams.nMatsubaras, params_.dt, dtau);
+		fillSelfConsistentRowSector(gimpB, n, scSectorB_);
+
+		gimp.lesser(n, n)   = RealType(0.5) * (gimp.lesser(n, n) + gimpB.lesser(n, n));
+		gimp.retarded(n, n) = RealType(0.5) * (gimp.retarded(n, n) + gimpB.retarded(n, n));
+		if (n == 0)
+			return;
+		for (int j = 0; j < n; ++j) {
+			gimp.lesser(n, j)
+			    = RealType(0.5) * (gimp.lesser(n, j) + gimpB.lesser(n, j));
+			gimp.retarded(n, j)
+			    = RealType(0.5) * (gimp.retarded(n, j) + gimpB.retarded(n, j));
+			gimp.lesser(j, n)
+			    = RealType(0.5) * (gimp.lesser(j, n) + gimpB.lesser(j, n));
+		}
+	}
+
+	void fillSelfConsistentRowSector(KBType& gimp, int n, ScSector& sector) const
 	{
 		// Per-call file prefix -- see scCallCounter_'s doc comment. Still
 		// sufficient for global uniqueness under persistence: a corrector
 		// re-visiting the same (column, step) pair after a rollback does so
 		// from a NEW call, hence a NEW chainRoot, so it never collides with
-		// the discarded pre-rollback attempt's files.
+		// the discarded pre-rollback attempt's files. Also globally unique
+		// across sector A/B's separate calls for the same n (each bumps
+		// scCallCounter_ independently).
 		const std::string chainRoot = scChainRoot_ + ttos(scCallCounter_) + "_";
 		++scCallCounter_;
+
+		const SizeType nupSector   = sector.nup;
+		const SizeType ndownSector = sector.ndown;
 
 		auto vMidConnectors = [this](int k)
 		{
@@ -1797,14 +1959,14 @@ private:
 		};
 
 		// n==0: see the class-level doc comment above -- a LOCAL copy of
-		// column 0 only, column 0 itself (scColumn0_) is never touched.
+		// column 0 only, column 0 itself (sector.column0) is never touched.
 		// decomp_->update(0,.) is a no-op (NeqBathDecomposition::update),
 		// so there is no corrector refinement to react to for row 0 either
 		// -- this is the entire computation for n==0.
 		if (n == 0) {
-			Column        tmp = scColumn0_;
+			Column        tmp = sector.column0;
 			SecondBathExt secondBath {
-				true, scNup_, scNdown_, vMidConnectors(1), scNsitesExt_ - 2, 1
+				true, nupSector, ndownSector, vMidConnectors(1), scNsitesExt_ - 2, 1
 			};
 			advanceColumn(tmp,
 			              1,
@@ -1823,12 +1985,13 @@ private:
 			return;
 		}
 
-		// If scColumns_ is somehow empty (only possible if
+		// If sector.columns is somehow empty (only possible if
 		// solveSelfConsistent's setup was skipped), seed it with column 0.
-		// Normal path: scColumns_[0] already IS column 0 (or a persisted
-		// continuation of it), unchanged in identity across calls.
-		if (scColumns_.empty())
-			scColumns_.emplace_back(scColumn0_);
+		// Normal path: sector.columns[0] already IS column 0 (or a
+		// persisted continuation of it), unchanged in identity across
+		// calls.
+		if (sector.columns.empty())
+			sector.columns.emplace_back(sector.column0);
 
 		// (a) Ensure a column born=(n-1) exists -- birthed exactly ONCE,
 		// the first time any row n needs it, from column 0's CURRENT state
@@ -1843,30 +2006,47 @@ private:
 		// correctors.
 		{
 			bool bornExists = false;
-			for (const auto& col : scColumns_)
+			for (const auto& col : sector.columns)
 				if (col.born == n - 1) {
 					bornExists = true;
 					break;
 				}
 			if (!bornExists) {
 				const VectorComplexType birthConnectors = vMidConnectors(n - 1);
-				const SecondBathExt     birthBath {
-                                        true, scNup_, scNdown_, birthConnectors, scNsitesExt_ - 2, 1
-				};
+				const SecondBathExt     birthBath { true,
+                                                                nupSector,
+                                                                ndownSector,
+                                                                birthConnectors,
+                                                                scNsitesExt_ - 2,
+                                                                1 };
 				// Copy (not reference) column 0's cursor fields BEFORE
 				// calling emplace_back below: emplace_back can reallocate
-				// scColumns_'s backing storage, which would leave a
-				// reference into scColumns_[0] dangling (a real bug this
-				// exact code hit during implementation -- caught by the
-				// "self-consistent wiring" tests, which failed with an
+				// sector.columns's backing storage, which would leave a
+				// reference into sector.columns[0] dangling (a real bug
+				// this exact code hit during implementation -- caught by
+				// the "self-consistent wiring" tests, which failed with an
 				// empty RestartFilename= from reading a dangling
 				// particleRoot).
-				const std::string srcParticleRoot  = scColumns_[0].particleRoot;
-				const int         srcParticleSrcTv = scColumns_[0].particleSrcTv;
-				const std::string srcHoleRoot      = scColumns_[0].holeRoot;
-				const int         srcHoleSrcTv     = scColumns_[0].holeSrcTv;
-				scColumns_.emplace_back();
-				Column& nc = scColumns_.back();
+				// Task 29: if column 0's particle (resp. hole) branch is
+				// null (nBath==0, that branch Pauli-blocked at birth --
+				// see Column::particleNull), source from the OTHER
+				// branch's bare reference instead -- both descend from the
+				// same physical trajectory up to gauge (confirmed: swapping
+				// this source for the existing nBath>0 gate reproduces the
+				// exact same 23/24 result, byte-identical residual). Exactly
+				// one of particleNull/holeNull can ever be true, so the
+				// fallback source is always the OTHER (non-null) branch.
+				const Column&     src0 = sector.columns[0];
+				const std::string srcParticleRoot
+				    = src0.particleNull ? src0.holeRoot : src0.particleRoot;
+				const int srcParticleSrcTv
+				    = src0.particleNull ? src0.holeSrcTv : src0.particleSrcTv;
+				const std::string srcHoleRoot
+				    = src0.holeNull ? src0.particleRoot : src0.holeRoot;
+				const int srcHoleSrcTv
+				    = src0.holeNull ? src0.particleSrcTv : src0.holeSrcTv;
+				sector.columns.emplace_back();
+				Column& nc = sector.columns.back();
 				nc.born    = n - 1;
 				birthColumn(nc,
 				            srcParticleRoot,
@@ -1898,9 +2078,9 @@ private:
 		// prepareTimeStep's rollback, no persisted column can ever be more
 		// than one step behind n at this point.
 		const VectorComplexType lastConnectors = vMidConnectors(n);
-		const SecondBathExt     secondBath { true,           scNup_,           scNdown_,
+		const SecondBathExt     secondBath { true,           nupSector,        ndownSector,
                                                  lastConnectors, scNsitesExt_ - 2, 1 };
-		for (auto& col : scColumns_) {
+		for (auto& col : sector.columns) {
 			if (col.reachedStep >= n)
 				continue;
 			col.prevReachedStep   = col.reachedStep;
@@ -1926,18 +2106,30 @@ private:
 		// the class-level doc comment above for why.
 		Column diagCol;
 		diagCol.born = n;
-		birthColumn(diagCol,
-		            scColumns_[0].particleRoot,
-		            scColumns_[0].particleSrcTv,
-		            scColumns_[0].holeRoot,
-		            scColumns_[0].holeSrcTv,
-		            chainRoot,
-		            "column" + ttos(n),
-		            params_.uFinal,
-		            scHoppings_,
-		            scPotTdmrg_,
-		            scNsitesExt_,
-		            secondBath);
+		{
+			// Same null-branch source fallback as (a) above.
+			const Column&     src0 = sector.columns[0];
+			const std::string srcParticleRoot
+			    = src0.particleNull ? src0.holeRoot : src0.particleRoot;
+			const int srcParticleSrcTv
+			    = src0.particleNull ? src0.holeSrcTv : src0.particleSrcTv;
+			const std::string srcHoleRoot
+			    = src0.holeNull ? src0.particleRoot : src0.holeRoot;
+			const int srcHoleSrcTv
+			    = src0.holeNull ? src0.particleSrcTv : src0.holeSrcTv;
+			birthColumn(diagCol,
+			            srcParticleRoot,
+			            srcParticleSrcTv,
+			            srcHoleRoot,
+			            srcHoleSrcTv,
+			            chainRoot,
+			            "column" + ttos(n),
+			            params_.uFinal,
+			            scHoppings_,
+			            scPotTdmrg_,
+			            scNsitesExt_,
+			            secondBath);
+		}
 		advanceColumn(diagCol,
 		              n + 1,
 		              chainRoot,
@@ -1958,7 +2150,7 @@ private:
 		// Off-diagonal: every persisted column (born=0..n-1, all now at
 		// reachedStep==n) contributes gimp(n,j) and its anti-Hermitian
 		// transpose gimp(j,n).
-		for (auto& col : scColumns_) {
+		for (auto& col : sector.columns) {
 			applySignFlip(col.ggtRaw);
 			applySignFlip(col.gltRaw);
 
@@ -2706,22 +2898,17 @@ private:
 	VectorRealType              scHoppings_, scBathEps_, scPotTdmrg_;
 	SizeType                    scNsitesExt_ = 0;
 	SizeType                    scL_         = 0;
-	SizeType                    scNup_ = 0, scNdown_ = 0;
-	RealType                    scEps_ = 0;
+	RealType                    scEps_       = 0;
 	std::string                 scChainRoot_;
-	// Task 17: column 0, born and birthed exactly ONCE in
-	// solveSelfConsistent (hoisted out of fillSelfConsistentRow, which used
-	// to re-birth it from scratch on every call). fillSelfConsistentRow
-	// copies this as its own starting point rather than mutating it
-	// in place -- see that method's own doc comment.
-	Column scColumn0_;
-	// Task 17 step 2: promoted from a local variable to member storage, in
-	// preparation for step 4's real persistence. At THIS step,
-	// Persists across every fillSelfConsistentRow call for the life of
-	// the solve (Task 17): columns born=0..nT-1, each advanced through
-	// exactly as many outer steps as have been processed so far. See
-	// fillSelfConsistentRow's own doc comment for the incremental design.
-	mutable std::vector<Column> scColumns_;
+	// Task 29: one sector (column 0 + persisted columns, Task 17's
+	// incremental design) per spin assignment. Sector A is (nup_,ndown_)
+	// as before -- for nBath>0 this is the ONLY sector ever used, so that
+	// path is byte-identical to pre-Task-29 behavior. Sector B (the
+	// nup_/ndown_ swap) is built and used only when scDualSector_ is true
+	// (nBath==0 and nup_!=ndown_) -- see solveSelfConsistent/
+	// birthSelfConsistentSector and Column::particleNull's doc comment.
+	mutable ScSector scSectorA_, scSectorB_;
+	bool             scDualSector_ = false;
 	// Bumped at the start of every fillSelfConsistentRow call so each call
 	// gets its OWN file prefix. Still load-bearing under Task 17's
 	// persistence: a corrector re-visiting the same (column, step) pair
