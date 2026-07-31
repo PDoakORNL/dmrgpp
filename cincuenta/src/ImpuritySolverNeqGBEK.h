@@ -33,9 +33,9 @@
 // Non-equilibrium impurity solver implementing the GBEK two-bath scheme:
 //   Gramsch, Balzer, Eckstein, Kollar — PRB 88, 235106 (2013).
 //
-// The hybridization Δ is split as Δ = Δ⁻ + Δ⁺:
-//   Δ⁻ : first bath — equilibrium memory from fixed {V_α, ε_α}
-//   Δ⁺ : second bath — neq dynamics via rank-L Cholesky of i·Δ⁺_<
+// The hybridization Λ is split as Λ = Λ⁻ + Λ⁺:
+//   Λ⁻ : first bath — equilibrium memory from fixed {V_α, ε_α}
+//   Λ⁺ : second bath — neq dynamics via rank-L Cholesky of i·Λ⁺_<
 //
 // For L=0 (first bath only), delegates entirely to ImpuritySolverNeqExactDiag
 // (exact Lehmann representation), which is the correct L=0 limit.
@@ -144,10 +144,10 @@ public:
 
 	// Advance the Cholesky decomposition to step n and (for L>0) invalidate
 	// the propagated state so the next computeGimp call re-propagates.
-	void prepareTimeStep(int n, const KBType& delta) override
+	void prepareTimeStep(int n, const KBType& lambda) override
 	{
 		if (decomp_)
-			decomp_->update(n, delta);
+			decomp_->update(n, lambda);
 		if (bathRank_ > 0 && n > 0) {
 			// V[n] just changed; invalidate cached PsiHist[n] and beyond, for
 			// both spin configurations.

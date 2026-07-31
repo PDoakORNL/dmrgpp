@@ -545,15 +545,15 @@ TEST_CASE("ImpuritySolverNeqTdmrg NeqBathRank=1 self-consistent wiring runs "
 
 	solver.computeGimp(gimp, 0);
 	latticeGf.initialize(gimp);
-	latticeGf.updateDelta(0, gimp);
-	solver.prepareTimeStep(0, latticeGf.delta());
+	latticeGf.updateLambda(0, gimp);
+	solver.prepareTimeStep(0, latticeGf.lambda());
 
 	const int nT = static_cast<int>(params.nT);
 	for (int n = 1; n <= nT; ++n) {
 		solver.computeGimp(gimp, n); // predictor
 		for (SizeType iter = 0; iter < params.neqDmftIter; ++iter) {
-			latticeGf.updateDelta(n, gimp);
-			solver.prepareTimeStep(n, latticeGf.delta());
+			latticeGf.updateLambda(n, gimp);
+			solver.prepareTimeStep(n, latticeGf.lambda());
 			solver.computeGimp(gimp, n); // corrector
 		}
 		latticeGf.advance(n);

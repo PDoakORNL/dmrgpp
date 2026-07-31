@@ -246,10 +246,10 @@ public:
 	// Advance the Cholesky bath decomposition to step n, then roll back
 	// any persisted column state a corrector's refined Vplus(n,.)
 	// invalidates -- see the rollback loop's own comment below.
-	void prepareTimeStep(int n, const KBType& delta) override
+	void prepareTimeStep(int n, const KBType& lambda) override
 	{
 		if (decomp_)
-			decomp_->update(n, delta);
+			decomp_->update(n, lambda);
 
 		// Task 17 (incremental fillSelfConsistentRow): decomp_->update(n,.)
 		// only ever mutates row n of its internal V_ (confirmed directly
@@ -491,7 +491,7 @@ public:
 	// extra advance into birth, both added mechanisms not yet validated
 	// against the monolithic reference the way the off-diagonal chaining
 	// below has been. Left as follow-up work; see project_tdmrg_evolving_bath
-	// memory. NeqLatticeGf::updateDelta DOES read the diagonal (it feeds
+	// memory. NeqLatticeGf::updateLambda DOES read the diagonal (it feeds
 	// NeqBathDecomposition's target `d` for the Cholesky column), so this
 	// gap must be closed before Phase 2 can be correct, not just before it
 	// is "nice to have".

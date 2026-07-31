@@ -48,12 +48,12 @@ public:
 	 */
 	virtual void computeGimp(KBType& gimp, int n) const = 0;
 
-	// Called after updateDelta fills row n of Δ, before the corrector computeGimp(n).
+	// Called after updateLambda fills row n of Λ, before the corrector computeGimp(n).
 	// Default: no-op (ExactDiag/Lanczos have a fixed bath that doesn't update per step).
 	// GBEK overrides this to update the Cholesky bath decomposition for step n.
-	virtual void prepareTimeStep(int /*n*/, const KBType& /*delta*/) { }
+	virtual void prepareTimeStep(int /*n*/, const KBType& /*lambda*/) { }
 
-	// Write -iΔ⁺_<(t_n,t_j) = Σ_p V(n,p)·conj(V(j,p)) to file.
+	// Write -iΛ⁺_<(t_n,t_j) = Σ_p V(n,p)·conj(V(j,p)) to file.
 	// No-op for solvers that have no second bath.
 	virtual void dumpPlusBath(const std::string& /*filename*/) const { }
 

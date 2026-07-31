@@ -18,7 +18,7 @@ namespace Dmft {
 // The loop advances the Kadanoff-Baym equations one real-time step at a time.
 // At each step n:
 //   1. Compute G_imp(n, j) from the impurity solver (fixed bath).
-//   2. Update the hybridization Δ(n, j) = t*² G_imp(n, j) (Bethe self-consistency).
+//   2. Update the hybridization Λ(n, j) = t*² G_imp(n, j) (Bethe self-consistency).
 //   3. Advance the Weiss field G_0(n, j) via the Volterra integro-differential equation.
 //
 // ImpSolverTemplate selects the impurity solver:
@@ -96,8 +96,8 @@ public:
 		latticeGf_.initialize(gimp_);
 		// Seed the Cholesky decomposition for step 0.
 		// prepareTimeStep(n) is called in the n>=1 loop; n=0 must be primed here.
-		latticeGf_.updateDelta(0, gimp_);
-		impSolver_.prepareTimeStep(0, latticeGf_.delta());
+		latticeGf_.updateLambda(0, gimp_);
+		impSolver_.prepareTimeStep(0, latticeGf_.lambda());
 
 		std::cout << "NeqDmftSolver: starting time propagation to t_max=" << params_.tMax
 		          << " with nT=" << params_.nT << " steps" << std::endl;
@@ -143,7 +143,11 @@ public:
 		const std::string& p = params_.neqOutputPrefix;
 		gimp_.dump(p.empty() ? "green" : p + "-green");
 		latticeGf_.g0().dump(p.empty() ? "weiss-green" : p + "-weiss-green");
-		latticeGf_.delta().dump(p.empty() ? "weiss-delta" : p + "-weiss-delta");
+		// Filename kept as "weiss-delta" (external tooling convention, ~20
+		// gbek_reference/*.py scripts hardcode this path) even though the
+		// accessor below is lambda() -- the quantity is GBEK/Wolf's Λ(t,t'),
+		// not the equilibrium hybridization Δ; see NeqLatticeGf.h.
+		latticeGf_.lambda().dump(p.empty() ? "weiss-delta" : p + "-weiss-delta");
 		impSolver_.dumpPlusBath(p.empty() ? "plus-bath-lesser" : p + "-plus-bath-lesser");
 		impSolver_.dumpV(p.empty() ? "cholesky-V" : p + "-cholesky-V");
 		impSolver_.dumpDoccAndEnergy(p.empty() ? "docc-energy" : p + "-docc-energy");
@@ -155,7 +159,7 @@ private:
 	//
 	// Self-consistency following GEBK Fig. 2(b) progressive scheme (PRB 88, 235106):
 	//   Predictor: computeGimp uses V[n] from the previous step (extrapolation).
-	//   Corrector iterations: updateDelta fills row n of Δ, prepareTimeStep updates
+	//   Corrector iterations: updateLambda fills row n of Λ, prepareTimeStep updates
 	//   the Cholesky bath V[n] from the complete row, then computeGimp re-evaluates.
 	//   For ExactDiag/Lanczos prepareTimeStep is a no-op; NeqDmftIter correctors run.
 	//   For GBEK L>0, NeqDmftIter=2-5 converges in 1-3 correctors.
@@ -166,12 +170,12 @@ private:
 		impSolver_.computeGimp(gimp_, n);
 
 		for (SizeType iter = 0; iter < params_.neqDmftIter; ++iter) {
-			// Δ(n, j) = t*² G_imp(n, j) — fills delta row n
-			latticeGf_.updateDelta(n, gimp_);
+			// Λ(n, j) = t*² G_imp(n, j) — fills lambda row n
+			latticeGf_.updateLambda(n, gimp_);
 
-			// Update bath for step n using the now-complete delta row n.
+			// Update bath for step n using the now-complete lambda row n.
 			// No-op for ExactDiag/Lanczos; updates Cholesky V[n] for GBEK.
-			impSolver_.prepareTimeStep(n, latticeGf_.delta());
+			impSolver_.prepareTimeStep(n, latticeGf_.lambda());
 
 			// Corrector: re-evaluate G_imp with the updated bath.
 			// Always called so that advance(n) sees G^< computed with the
