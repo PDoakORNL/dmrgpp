@@ -1048,3 +1048,78 @@ TEST_CASE("DIAGNOSTIC Task 17: DmrgRunner is bit-deterministic given identical i
 	CHECK(resultA.real() == resultB.real());
 	CHECK(resultA.imag() == resultB.imag());
 }
+
+// ---- Task 17 regression pin: the incremental fillSelfConsistentRow
+// (O(nT^2*(1+neqDmftIter))) must keep reproducing the exact numbers the
+// original "truncated batch recompute" (O(nT^3*neqDmftIter)) produced.
+// The batch implementation itself was edited away during Task 17 (not
+// kept as a standing reference -- see fancy-painting-moon.md, Task #17),
+// so this pins the values that were manually confirmed bit-identical
+// between the two implementations at every one of Task 17's five
+// migration steps (see project_tdmrg_evolving_bath memory), independent
+// of the separate GBEK cross-check (whose 1e-4 margin is far looser than
+// what this test can catch). Same bathParams/config as the FullGate
+// test, but tDMRG-only (no GBEK solve) -- keeps this fast and catches any
+// future accidental drift in the incremental algorithm itself, not just
+// gross disagreement with GBEK.
+TEST_CASE("ImpuritySolverNeqTdmrg NeqBathRank=1 self-consistent: incremental "
+          "algorithm matches pinned batch-recompute reference values",
+          "[ImpuritySolverNeqTdmrg][Phase2][RegressionPin]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+	                           configWithU("0.5", "testTdmrgChainRegPin") + "NeqBathRank=1;\n");
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	using TdmrgNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
+	TdmrgNeqSolverType solver(params, app, io);
+	solver.solve(bathParams);
+
+	const auto& gimp = solver.gimp();
+
+	// Values pinned from the last batch-recompute run before Task 17's
+	// rewrite (and reconfirmed bit-identical after every migration step).
+	// Tolerance (1e-6) is far tighter than the FullGate test's GBEK-
+	// comparison margin (1e-4) -- this test isn't checking physics
+	// against an independent reference, it's checking the incremental
+	// rewrite against its own known-correct predecessor.
+	const RealType tol = 1e-6;
+
+	CHECK(gimp.retarded(0, 0).real() == Catch::Approx(0.0).margin(tol));
+	CHECK(gimp.retarded(0, 0).imag() == Catch::Approx(-1.0).margin(tol));
+	CHECK(gimp.lesser(0, 0).real() == Catch::Approx(0.0).margin(tol));
+	CHECK(gimp.lesser(0, 0).imag() == Catch::Approx(0.5).margin(tol));
+
+	CHECK(gimp.retarded(1, 0).real() == Catch::Approx(0.0).margin(tol));
+	CHECK(gimp.retarded(1, 0).imag() == Catch::Approx(-0.996754).margin(tol));
+	CHECK(gimp.lesser(1, 0).real() == Catch::Approx(-0.031695).margin(tol));
+	CHECK(gimp.lesser(1, 0).imag() == Catch::Approx(0.498377).margin(tol));
+
+	CHECK(gimp.retarded(1, 1).real() == Catch::Approx(0.0).margin(tol));
+	CHECK(gimp.retarded(1, 1).imag() == Catch::Approx(-1.0).margin(tol));
+	CHECK(gimp.lesser(1, 1).real() == Catch::Approx(0.0).margin(tol));
+	CHECK(gimp.lesser(1, 1).imag() == Catch::Approx(0.5).margin(tol));
+
+	CHECK(gimp.retarded(2, 0).real() == Catch::Approx(0.000118).margin(tol));
+	CHECK(gimp.retarded(2, 0).imag() == Catch::Approx(-0.983645).margin(tol));
+	CHECK(gimp.lesser(2, 0).real() == Catch::Approx(-0.063042).margin(tol));
+	CHECK(gimp.lesser(2, 0).imag() == Catch::Approx(0.491821).margin(tol));
+
+	CHECK(gimp.retarded(2, 1).real() == Catch::Approx(0.0).margin(tol));
+	CHECK(gimp.retarded(2, 1).imag() == Catch::Approx(-0.994700).margin(tol));
+	CHECK(gimp.lesser(2, 1).real() == Catch::Approx(-0.031684).margin(tol));
+	CHECK(gimp.lesser(2, 1).imag() == Catch::Approx(0.497352).margin(tol));
+
+	CHECK(gimp.retarded(2, 2).real() == Catch::Approx(0.0).margin(tol));
+	CHECK(gimp.retarded(2, 2).imag() == Catch::Approx(-1.0).margin(tol));
+	CHECK(gimp.lesser(2, 2).real() == Catch::Approx(0.0).margin(tol));
+	CHECK(gimp.lesser(2, 2).imag() == Catch::Approx(0.500011).margin(tol));
+}
