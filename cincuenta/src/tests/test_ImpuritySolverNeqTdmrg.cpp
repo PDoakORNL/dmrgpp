@@ -1123,3 +1123,219 @@ TEST_CASE("ImpuritySolverNeqTdmrg NeqBathRank=1 self-consistent: incremental "
 	CHECK(gimp.lesser(2, 2).real() == Catch::Approx(0.0).margin(tol));
 	CHECK(gimp.lesser(2, 2).imag() == Catch::Approx(0.500011).margin(tol));
 }
+
+// ---- Task 28: Wolf et al. (PRB 90, 235131) cosine hopping-ramp protocol ----
+//
+// Confirms the ramp mechanism itself (NeqLatticeGf::tStarAt, feeding
+// updateLambda) needs NO impurity-solver-specific code: a pure NeqLatticeGf
+// unit test with a synthetic constant gimp, no DMRG/ED involved at all.
+// NeqAtomicLimit=1 forces t*=0 at n=0 (the paper's atomic-limit starting
+// point -- "no impurity-bath correlations in the initial state"); QuenchShape
+// "cosine"/QuenchDuration=0.25 then ramps t* toward BandwidthFinal/4 per the
+// paper's v(t). Grep confirms ImpuritySolverNeqGBEK.h reads none of these
+// three params either -- if GBEK needs zero solver-side ramp code, tDMRG
+// needs zero too. See plan file Task #28 "What research found".
+TEST_CASE("NeqLatticeGf cosine ramp: Lambda(n,n) starts at zero (atomic "
+          "limit) and grows monotonically as t* ramps up",
+          "[NeqLatticeGf][Task28][RampMechanics]")
+{
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+	                           configWithU("0.5", "testRampMechanics")
+	                               + "QuenchShape=\"cosine\";\n"
+	                                 "QuenchDuration=0.25;\n"
+	                                 "BandwidthFinal=4;\n"
+	                                 "NeqAtomicLimit=1;\n");
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+
+	Dmft::NeqLatticeGf<ComplexType> latticeGf(params);
+	Dmft::KadanoffBaym<ComplexType> gimp(
+	    params.nT,
+	    params.eqParams.nMatsubaras,
+	    params.dt,
+	    params.eqParams.ficticiousBeta / static_cast<RealType>(params.eqParams.nMatsubaras));
+
+	// Synthetic, constant-in-time atomic-limit-like G_imp: with a constant
+	// gimp, any n-dependence seen in Lambda(n,n) can only come from the
+	// ramp's own t*(n) scaling, not from the impurity solver.
+	const int nT = static_cast<int>(params.nT);
+	for (int n = 0; n <= nT; ++n) {
+		for (int j = 0; j <= n; ++j) {
+			gimp.retarded(n, j) = ComplexType(0, -1);
+			gimp.lesser(n, j)   = ComplexType(0, 0.5);
+		}
+	}
+
+	latticeGf.initialize(gimp);
+	latticeGf.updateLambda(0, gimp);
+
+	// NeqAtomicLimit forces t*(0)=0, so Lambda(0,0)=t*(0)^2*gimp(0,0) must
+	// be exactly zero -- the paper's atomic-limit starting condition.
+	CHECK(latticeGf.lambda().retarded(0, 0).real() == Catch::Approx(0.0).margin(1e-12));
+	CHECK(latticeGf.lambda().retarded(0, 0).imag() == Catch::Approx(0.0).margin(1e-12));
+
+	// TmaxNeq=0.2, NtNeq=2 (configWithU's fixed values) => dt=0.1, so
+	// n=1,2 land at t=0.1,0.2, both still short of QuenchDuration=0.25 --
+	// strictly inside the ramp, never reaching the tStarFinal_ plateau.
+	RealType prevMag = 0;
+	for (int n = 1; n <= nT; ++n) {
+		latticeGf.updateLambda(n, gimp);
+		const RealType mag = std::abs(latticeGf.lambda().retarded(n, n));
+		CHECK(mag > prevMag);
+		prevMag = mag;
+	}
+}
+
+// ---- Task 28: config-only smoke test under a genuine, non-degenerate ------
+//               cosine ramp (NOT the literal atomic limit)
+//
+// Reuses configWithU + the FullGate test's EXACT proven bathParams
+// (nBath=5, symmetric nonzero hoppings, already known non-degenerate) --
+// only the ramp params (QuenchShape/QuenchDuration/BandwidthFinal/
+// NeqAtomicLimit) are added on top. This deliberately does NOT attempt
+// GBEK/Wolf's literal "hoppings=0, decoupled first bath" atomic-limit
+// starting point: reading GBEK's own production reference inputs
+// (inputNeqAtomicLimitGBEKL3_fastramp.ain) revealed that NeqAtomicLimit=1
+// makes GBEK BYPASS the equilibrium bath fit and construct a genuine
+// nBath=0 (bare impurity) Fock space for the real neq computation --
+// NumberOfBathPoints=1/TargetElectronsUp=1,Down=0 in that file are
+// placeholder values whose result is discarded, not the real bath. tDMRG's
+// star geometry cannot do literal nBath=0 (TSPAdvanceEach=nsites-2
+// degenerates at nsites=1, already documented in Phase 1) -- so reaching
+// GBEK's literal atomic limit is a SEPARATE, harder capability gap, not
+// something "config-only" can close; it needs its own task (see plan file).
+//
+// Multiple attempts to approximate the atomic limit via "nBath>=1,
+// hoppings=0" instead (matching this file's existing inert-second-bath
+// precedent, just applied to the first bath) were tried and abandoned:
+// symmetric per-spin target counts (Up=Down=3, nBath=5) hit a genuine
+// ground-state degeneracy (the decoupled impurity's implicit level tied
+// exactly with a bath eps value at the filled/empty boundary, confirmed via
+// the advisor and by hand-computing the level ranking -- both solvers broke
+// the tie differently, producing a same-magnitude opposite-sign Re[G^R]);
+// a fully spin-polarized fix (Up=n,Down=0) hit ImpuritySolverNeqExactDiag's
+// hard-enforced nup+ndown==nsites (documented gap, memory
+// project_neq_ed_arbitrary_filling) and its Lehmann N+-1 sector needing an
+// interior nup; a half-filled asymmetric fix (Up=2,Down=1,nBath=2) crashed
+// with a near-zero-norm state in the eps-split GS run. Per advisor
+// guidance, this was recognized as config-engineering against a
+// structurally unreachable target rather than a config to keep searching
+// for, and abandoned in favor of THIS test, which validates the actually
+// achievable claim: the ramp mechanism itself, applied to a REAL (nonzero)
+// first bath, needs no tDMRG-side code.
+//
+// BandwidthFinal=8 (not 4, matching the base LatticeGf's implied t*=1) is
+// chosen so the ramp is genuinely non-trivial: NeqAtomicLimit=1 forces
+// t*(0)=0, ramping via the cosine shape toward t*_f=0.25*8=2.0 -- a real
+// start-to-finish change, not a same-value no-op.
+TEST_CASE("ImpuritySolverNeqTdmrg runs under a cosine hopping ramp "
+          "(NeqBathRank=1, nonzero first bath)",
+          "[ImpuritySolverNeqTdmrg][Task28][RampSmoke]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+	                           configWithU("0.5", "testTdmrgRampSmoke")
+	                               + "NeqBathRank=1;\n"
+	                                 "QuenchShape=\"cosine\";\n"
+	                                 "QuenchDuration=0.25;\n"
+	                                 "BandwidthFinal=8;\n"
+	                                 "NeqAtomicLimit=1;\n");
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+
+	using TdmrgNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
+	TdmrgNeqSolverType neqSolver(params, app, io);
+
+	// Same symmetric 5-site bath used throughout this file's Phase 1/2
+	// gates -- already proven non-degenerate.
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+	neqSolver.solve(bathParams);
+
+	const auto& gimp = neqSolver.gimp();
+	const int   nT   = static_cast<int>(params.nT);
+	for (int n = 0; n <= nT; ++n) {
+		for (int j = 0; j <= n; ++j) {
+			CHECK(std::isfinite(gimp.retarded(n, j).real()));
+			CHECK(std::isfinite(gimp.retarded(n, j).imag()));
+			CHECK(std::isfinite(gimp.lesser(n, j).real()));
+			CHECK(std::isfinite(gimp.lesser(n, j).imag()));
+		}
+	}
+}
+
+// ---- Task 28: tDMRG vs GBEK cross-check under a cosine hopping ramp -------
+//
+// Same cross-check philosophy as the FullGate test above, with the ramp
+// params added on top of the identical config/bathParams -- the real
+// acceptance gate for Task #28's central claim: if tDMRG's second-bath
+// machinery already receives the ramped Lambda correctly (via the same
+// solver-agnostic NeqLatticeGf path GBEK already uses), the two solvers
+// must still agree to the tolerance the static-bath FullGate test
+// established. See the RampSmoke test above for why this does NOT attempt
+// GBEK/Wolf's literal nBath=0 atomic limit.
+TEST_CASE("ImpuritySolverNeqTdmrg vs ImpuritySolverNeqGBEK agree under a "
+          "cosine hopping ramp",
+          "[ImpuritySolverNeqTdmrg][Task28][RampGate]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	const std::string rampExtra = "NeqBathRank=1;\n"
+	                              "QuenchShape=\"cosine\";\n"
+	                              "QuenchDuration=0.25;\n"
+	                              "BandwidthFinal=8;\n"
+	                              "NeqAtomicLimit=1;\n";
+
+	// Same symmetric 5-site bath used throughout this file's Phase 1/2
+	// gates -- already proven non-degenerate.
+	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
+
+	InputNgType::Writeable ioWT(Dmft::CincuentaInputCheck {},
+	                            configWithU("0.5", "testTdmrgRampGate") + rampExtra);
+	InputNgType::Readable  io_t(ioWT);
+	ParamsType             paramsT(io_t);
+	using TdmrgNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
+	TdmrgNeqSolverType tdmrgSolver(paramsT, app, io_t);
+	tdmrgSolver.solve(bathParams);
+
+	InputNgType::Writeable ioWG(Dmft::CincuentaInputCheck {},
+	                            configWithU("0.5", "testTdmrgRampGateGBEK") + rampExtra);
+	InputNgType::Readable  io_g(ioWG);
+	ParamsType             paramsG(io_g);
+	using GbekNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqGBEK>;
+	GbekNeqSolverType gbekSolver(paramsG, io_g);
+	gbekSolver.solve(bathParams);
+
+	const auto& gimpT = tdmrgSolver.gimp();
+	const auto& gimpG = gbekSolver.gimp();
+
+	const int      nT2 = static_cast<int>(paramsT.nT);
+	const RealType tol = 1e-4;
+	for (int n = 0; n <= nT2; ++n) {
+		for (int j = 0; j <= n; ++j) {
+			const ComplexType retT = gimpT.retarded(n, j);
+			const ComplexType lesT = gimpT.lesser(n, j);
+			const ComplexType retG = gimpG.retarded(n, j);
+			const ComplexType lesG = gimpG.lesser(n, j);
+
+			std::cout << "[ramp] n=" << n << " j=" << j << " tDMRG G^R=" << retT
+			          << " G^<=" << lesT << " GBEK G^R=" << retG << " G^<=" << lesG
+			          << "\n";
+
+			CHECK(retT.real() == Catch::Approx(retG.real()).margin(tol));
+			CHECK(retT.imag() == Catch::Approx(retG.imag()).margin(tol));
+			CHECK(lesT.real() == Catch::Approx(lesG.real()).margin(tol));
+			CHECK(lesT.imag() == Catch::Approx(lesG.imag()).margin(tol));
+		}
+	}
+}
