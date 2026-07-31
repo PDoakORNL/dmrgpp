@@ -687,6 +687,140 @@ TEST_CASE("ImpuritySolverNeqTdmrg vs ImpuritySolverNeqGBEK: NeqBathRank=1 "
 	}
 }
 
+// ---- Task 29: nBath=0 atomic-limit self-consistent gate -------------------
+//
+// Same cross-check philosophy as Task 15's FullGate above, but with
+// bathParams={} (literal nBath=0, Wolf et al.'s / GBEK's NeqAtomicLimit
+// starting point -- Lambda^-===0) instead of a real 5-site bath. This is
+// the acceptance gate for Task 29's dual-sector averaging + null-branch
+// skip (see Column::particleNull, ScSector, solveSelfConsistent's doc
+// comment). TargetElectronsUp=1/Down=0 matches the atomic-limit
+// constraint (nup_+ndown_==1) ImpuritySolverNeqExactDiag::solve() enforces
+// for its own nBath==0 bypass -- exactDiag_ is a member of both solvers
+// here, so both sides hit that same bypass for their equilibrium/
+// Matsubara piece.
+//
+// STATUS (2026-07-31): known RED -- SIGSEGV, not just a failing assertion.
+// Caught cleanly by Catch2's signal handler (reports as one failed test
+// case, does not abort the binary/suite), so safe to leave in the tracked
+// suite, same as Task 15's own documented residual. Root cause is NOT the
+// dual-sector/null-branch-skip machinery this gate was written to verify
+// (that machinery is independently confirmed correct -- see
+// fancy-painting-moon.md Task #29's "continued" section): column 0's GS
+// birth run has dir0:Connectors=[0,0] at nBath=0 (no first bath, second
+// bath always inert at birth time) -- a fully disconnected 3-site system,
+// pathological for two-site DMRG's density-matrix truncation independent
+// of which branch (particle/hole) is later applied. Confirmed via
+// h5ls -r comparison that the GS checkpoint itself is structurally normal
+// (identical /Def/FinalPsi layout to a working nBath>0 run); the crash is
+// in the subsequent birth run reading it. Not yet resolved -- see the plan
+// file for the current best next step (whether DMRG++ supports injecting
+// an explicit product-state checkpoint, bypassing the variational GS run
+// for this one case).
+static std::string configAtomicLimit(const std::string& rootName)
+{
+	return "##Ainur1.0\n\n"
+	       "FicticiousBeta=20;\n"
+	       "ChemicalPotential=0.;\n"
+	       "Matsubaras=200;\n"
+	       "LatticeGf=\"energy,semicircular,4\";\n"
+	       "NumberOfBathPoints=1;\n"
+	       "DmftNumberOfIterations=1;\n"
+	       "DmftTolerance=1e-6;\n"
+	       "ImpuritySolver=\"exactdiag\";\n"
+	       "FitOptions=particleholesymmetric;\n"
+	       "MinParamsDelta=0.01;\n"
+	       "MinParamsMaxIter=10000;\n"
+	       "MinParamsDelta2=0.01;\n"
+	       "MinParamsTolerance=1e-4;\n"
+	       "MinParamsVerbose=0;\n"
+	       "vector InitBathVector=[0.5, 0.0];\n"
+	       "int ImpuritySite=0;\n"
+	       "real HubbardU=2.;\n"
+	       "TargetElectronsUp=1;\n"
+	       "TargetElectronsDown=0;\n"
+	       "RootOutputname=\""
+	    + rootName
+	    + "\";\n"
+	      "InfiniteLoopKeptStates=100;\n"
+	      "matrix FiniteLoopsGs=[[@auto, 100, 0],[@auto, 100, 0]];\n"
+	      "real OmegaBegin=-6.;\n"
+	      "integer OmegaTotal=20;\n"
+	      "real OmegaStep=0.3;\n"
+	      "real OmegaDelta=0.1;\n"
+	      "integer TridiagSteps=200;\n"
+	      "real TridiagEps=1e-9;\n"
+	      "TruncationTolerance=\"1e-10,100\";\n"
+	      "CorrectionVectorEta=0.;\n"
+	      "GsWeight=0.1;\n"
+	      "matrix FiniteLoopsOmega=[[@auto, 100, 2],[@auto, 100, 2]];\n"
+	      "HubbardUFinal=2.;\n"
+	      "TmaxNeq=0.2;\n"
+	      "NtNeq=2;\n"
+	      "NeqDmftIter=1;\n"
+	      "NeqDmftTolerance=0.001;\n"
+	      "NeqSolver=\"tdmrg\";\n"
+	      "matrix FiniteLoopsTdmrg=[\n"
+	      "    [@auto, 100, 0],[@auto, 100, 0],\n"
+	      "    [@auto, 100, 0],[@auto, 100, 0]];\n"
+	      "TSPTimeSteps=5;\n"
+	      "TSPAdvanceEach=1;\n"
+	      "NeqBathRank=1;\n";
+}
+
+TEST_CASE("ImpuritySolverNeqTdmrg vs ImpuritySolverNeqGBEK: nBath=0 atomic "
+          "limit, NeqBathRank=1 self-consistent bath evolution agree",
+          "[ImpuritySolverNeqTdmrg][Phase2][Task29][AtomicLimitGate]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	const VectorRealType emptyBathParams; // nBath=0
+
+	InputNgType::Writeable ioWT(Dmft::CincuentaInputCheck {},
+	                            configAtomicLimit("testTdmrgAtomicGate"));
+	InputNgType::Readable  io_t(ioWT);
+	ParamsType             paramsT(io_t);
+	using TdmrgNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
+	TdmrgNeqSolverType tdmrgSolver(paramsT, app, io_t);
+	tdmrgSolver.solve(emptyBathParams);
+
+	InputNgType::Writeable ioWG(Dmft::CincuentaInputCheck {},
+	                            configAtomicLimit("testTdmrgAtomicGateGBEK"));
+	InputNgType::Readable  io_g(ioWG);
+	ParamsType             paramsG(io_g);
+	using GbekNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqGBEK>;
+	GbekNeqSolverType gbekSolver(paramsG, io_g);
+	gbekSolver.solve(emptyBathParams);
+
+	const auto& gimpT = tdmrgSolver.gimp();
+	const auto& gimpG = gbekSolver.gimp();
+
+	const int      nT2 = static_cast<int>(paramsT.nT);
+	const RealType tol = 1e-4;
+	for (int n = 0; n <= nT2; ++n) {
+		for (int j = 0; j <= n; ++j) {
+			const ComplexType retT = gimpT.retarded(n, j);
+			const ComplexType lesT = gimpT.lesser(n, j);
+			const ComplexType retG = gimpG.retarded(n, j);
+			const ComplexType lesG = gimpG.lesser(n, j);
+
+			std::cout << "n=" << n << " j=" << j << " tDMRG G^R=" << retT
+			          << " G^<=" << lesT << " GBEK G^R=" << retG << " G^<=" << lesG
+			          << "\n";
+
+			CHECK(retT.real() == Catch::Approx(retG.real()).margin(tol));
+			CHECK(retT.imag() == Catch::Approx(retG.imag()).margin(tol));
+			CHECK(lesT.real() == Catch::Approx(lesG.real()).margin(tol));
+			CHECK(lesT.imag() == Catch::Approx(lesG.imag()).margin(tol));
+		}
+	}
+}
+
 // ---- DIAGNOSTIC (temporary): isolate whether fillSelfConsistentRow(gimp,2)
 // is wrong standalone, or only when preceded by calls for n=0,1 within the
 // same solver's lifetime (same reused chainRoot files). Not a permanent
