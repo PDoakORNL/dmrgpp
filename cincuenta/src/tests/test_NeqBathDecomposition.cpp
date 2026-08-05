@@ -141,6 +141,46 @@ TEST_CASE("L=3: all three columns alive after seeding phase", "[NeqBathDecomposi
 	CHECK(std::abs(decomp.Vplus(2, 2)) < 1e-15);
 }
 
+// General, formal statement of the seeding-order invariant this whole class
+// rests on (added 2026-08-05 as item #1 of the fast-isolated-test set, see
+// TDMRG_EVOLVING_BATH.md): at rank L, calling update(n,.) for n=1..L visits
+// exactly the "standard Cholesky" seeding phase (update()'s n<=L branch).
+// After EACH call to update(n,.) in that phase, for every row n' already
+// visited (n'=1..n), Vplus(n',p) must be nonzero for p<n' (that row's own
+// column, seeded at n'=p+1, and all earlier columns, seeded at earlier
+// rows) and EXACTLY zero for p>=n' (columns not due to be seeded until a
+// LATER row). This pins down "row n seeds pair n-1; pairs n..L-1 remain at
+// exact-zero coupling until their own row" precisely, not just via
+// spot-checks at individual (row,col) pairs as the L=2/L=3 tests above do.
+TEST_CASE("L=4: seeding invariant holds after every row of the standard "
+          "Cholesky phase, for every previously-visited row simultaneously",
+          "[NeqBathDecomposition][seeding]")
+{
+	const SizeType L      = 4;
+	const SizeType nT     = L; // exercise only the seeding phase (n<=L)
+	auto           target = makePsdTarget(nT, static_cast<int>(L));
+	auto           delta  = makeDelta(nT, target);
+	auto           decomp = makeDecomp(L, nT);
+
+	for (int n = 1; n <= static_cast<int>(L); ++n) {
+		decomp.update(n, delta);
+
+		// Re-check EVERY row visited so far (1..n), not just row n itself:
+		// once a row's entries are set by update(), they must never change
+		// on a later call within the seeding phase (n<=L never touches an
+		// earlier row).
+		for (int nPrime = 1; nPrime <= n; ++nPrime) {
+			for (int p = 0; p < static_cast<int>(L); ++p) {
+				if (p < nPrime) {
+					CHECK(std::abs(decomp.Vplus(nPrime, p)) > 1e-6);
+				} else {
+					CHECK(std::abs(decomp.Vplus(nPrime, p)) < 1e-15);
+				}
+			}
+		}
+	}
+}
+
 // ── Reconstruction accuracy tests ─────────────────────────────────────────
 
 TEST_CASE("L=1 reconstructs a rank-1 matrix exactly", "[NeqBathDecomposition][reconstruction]")
