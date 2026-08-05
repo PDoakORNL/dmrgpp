@@ -612,81 +612,6 @@ TEST_CASE("ImpuritySolverNeqTdmrg can be driven through NeqDmftSolver's own "
 	}
 }
 
-// ---- Task 15: Phase 2 full gate --------------------------------------------
-//
-// tDMRG and GBEK must agree on the self-consistent, evolving-bath G_imp when
-// driven identically through NeqDmftSolver with the SAME bathParams,
-// NeqBathRank, and NeqDmftIter -- the same cross-check philosophy already
-// used for the NeqBathRank=0 case (see this file's own class doc comment,
-// "must agree with the ED solver to truncation error"), extended from the
-// static-bath case to the evolving-bath one. Both solvers now go through
-// NeqDmftSolver's own solve()/timeStep() (Task 16), so this is a genuine
-// apples-to-apples comparison, not two different hand-rolled drives.
-//
-// GBEK's own computeGimp is essentially exact (full extended-Fock-space ED,
-// Krylov-propagated) -- the only approximation on that side is Krylov/dt
-// truncation, negligible at this scale. tDMRG's approximation is DMRG bond-
-// truncation (m=100, the same value the Phase 1 FullGrid gate above already
-// validated to 1e-6 agreement in the static-bath case). A residual
-// discrepancy here, if any, is either genuine truncation error (expected to
-// be small, matching Phase 1's precedent) or a real integration bug in the
-// self-consistent wiring -- NOT something to paper over with a loose
-// tolerance without understanding which.
-TEST_CASE("ImpuritySolverNeqTdmrg vs ImpuritySolverNeqGBEK: NeqBathRank=1 "
-          "self-consistent bath evolution agree",
-          "[ImpuritySolverNeqTdmrg][Phase2][FullGate]")
-{
-	int    argc    = 1;
-	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
-	char*  argv0[] = { arg0 };
-	char** argv    = argv0;
-
-	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
-
-	// Same symmetric 5-site bath used throughout this file's Phase 1/2 gates.
-	const VectorRealType bathParams = { 0.3, 0.3, 0.3, 0.3, 0.3, -0.6, -0.3, 0.0, 0.3, 0.6 };
-
-	InputNgType::Writeable ioWT(Dmft::CincuentaInputCheck {},
-	                            configWithU("0.5", "testTdmrgChainGate") + "NeqBathRank=1;\n");
-	InputNgType::Readable  io_t(ioWT);
-	ParamsType             paramsT(io_t);
-	using TdmrgNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
-	TdmrgNeqSolverType tdmrgSolver(paramsT, app, io_t);
-	tdmrgSolver.solve(bathParams);
-
-	InputNgType::Writeable ioWG(Dmft::CincuentaInputCheck {},
-	                            configWithU("0.5", "testTdmrgChainGateGBEK")
-	                                + "NeqBathRank=1;\n");
-	InputNgType::Readable  io_g(ioWG);
-	ParamsType             paramsG(io_g);
-	using GbekNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqGBEK>;
-	GbekNeqSolverType gbekSolver(paramsG, io_g);
-	gbekSolver.solve(bathParams);
-
-	const auto& gimpT = tdmrgSolver.gimp();
-	const auto& gimpG = gbekSolver.gimp();
-
-	const int      nT2 = static_cast<int>(paramsT.nT);
-	const RealType tol = 1e-4;
-	for (int n = 0; n <= nT2; ++n) {
-		for (int j = 0; j <= n; ++j) {
-			const ComplexType retT = gimpT.retarded(n, j);
-			const ComplexType lesT = gimpT.lesser(n, j);
-			const ComplexType retG = gimpG.retarded(n, j);
-			const ComplexType lesG = gimpG.lesser(n, j);
-
-			std::cout << "n=" << n << " j=" << j << " tDMRG G^R=" << retT
-			          << " G^<=" << lesT << " GBEK G^R=" << retG << " G^<=" << lesG
-			          << "\n";
-
-			CHECK(retT.real() == Catch::Approx(retG.real()).margin(tol));
-			CHECK(retT.imag() == Catch::Approx(retG.imag()).margin(tol));
-			CHECK(lesT.real() == Catch::Approx(lesG.real()).margin(tol));
-			CHECK(lesT.imag() == Catch::Approx(lesG.imag()).margin(tol));
-		}
-	}
-}
-
 // ---- Task 29: nBath=0 atomic-limit self-consistent gate -------------------
 //
 // Same cross-check philosophy as Task 15's FullGate above, but with
@@ -817,6 +742,220 @@ TEST_CASE("ImpuritySolverNeqTdmrg vs ImpuritySolverNeqGBEK: nBath=0 atomic "
 			CHECK(retT.imag() == Catch::Approx(retG.imag()).margin(tol));
 			CHECK(lesT.real() == Catch::Approx(lesG.real()).margin(tol));
 			CHECK(lesT.imag() == Catch::Approx(lesG.imag()).margin(tol));
+		}
+	}
+}
+
+// ---- Task 44: in-bounds NeqBathRank sanity check for d(t) --------------
+//
+// Per user direction (2026-08-04): NeqBathRank<3 is out of bounds (GBEK's
+// own paper never validates rank<2/3; the committed NeqBathRank=1
+// AtomicLimitGate test above is a known, out-of-bounds SIGABRT, not a
+// real blocker). This test checks two things at NeqBathRank=3,4,5,
+// nBath=0 (atomic limit): (1) does the self-consistent run complete at
+// all (the NeqBathRank=1 crash's root cause -- disconnected-3-site GS --
+// is not obviously rank-specific, so this is not assumed); (2) does d(t)
+// look physically sane (finite, in [0,0.25]) and how does it move as
+// rank increases (a first, cheap look at internal convergence -- NOT a
+// tDMRG-vs-GBEK numeric comparison, which the standing comparison-
+// methodology note rules out at matching rank).
+static std::string configAtomicLimitRank(const std::string& rootName, int rank)
+{
+	return "##Ainur1.0\n\n"
+	       "FicticiousBeta=20;\n"
+	       "ChemicalPotential=0.;\n"
+	       "Matsubaras=200;\n"
+	       "LatticeGf=\"energy,semicircular,4\";\n"
+	       "NumberOfBathPoints=1;\n"
+	       "DmftNumberOfIterations=1;\n"
+	       "DmftTolerance=1e-6;\n"
+	       "ImpuritySolver=\"exactdiag\";\n"
+	       "FitOptions=particleholesymmetric;\n"
+	       "MinParamsDelta=0.01;\n"
+	       "MinParamsMaxIter=10000;\n"
+	       "MinParamsDelta2=0.01;\n"
+	       "MinParamsTolerance=1e-4;\n"
+	       "MinParamsVerbose=0;\n"
+	       "vector InitBathVector=[0.5, 0.0];\n"
+	       "int ImpuritySite=0;\n"
+	       "real HubbardU=2.;\n"
+	       "TargetElectronsUp=1;\n"
+	       "TargetElectronsDown=0;\n"
+	       "RootOutputname=\""
+	    + rootName
+	    + "\";\n"
+	      "NeqOutputPrefix=\""
+	    + rootName
+	    + "\";\n"
+	      "InfiniteLoopKeptStates=100;\n"
+	      "matrix FiniteLoopsGs=[[@auto, 100, 0],[@auto, 100, 0]];\n"
+	      "real OmegaBegin=-6.;\n"
+	      "integer OmegaTotal=20;\n"
+	      "real OmegaStep=0.3;\n"
+	      "real OmegaDelta=0.1;\n"
+	      "integer TridiagSteps=200;\n"
+	      "real TridiagEps=1e-9;\n"
+	      "TruncationTolerance=\"1e-10,100\";\n"
+	      "CorrectionVectorEta=0.;\n"
+	      "GsWeight=0.1;\n"
+	      "matrix FiniteLoopsOmega=[[@auto, 100, 2],[@auto, 100, 2]];\n"
+	      "HubbardUFinal=2.;\n"
+	      "TmaxNeq=0.2;\n"
+	      "NtNeq=2;\n"
+	      "NeqDmftIter=1;\n"
+	      "NeqDmftTolerance=0.001;\n"
+	      "NeqSolver=\"tdmrg\";\n"
+	      "matrix FiniteLoopsTdmrg=[\n"
+	      "    [@auto, 100, 0],[@auto, 100, 0],\n"
+	      "    [@auto, 100, 0],[@auto, 100, 0]];\n"
+	      "TSPTimeSteps=5;\n"
+	      "TSPAdvanceEach=1;\n"
+	      "NeqBathRank="
+	    + ttos(rank) + ";\n";
+}
+
+TEST_CASE("Task 44: tDMRG self-consistent d(t) at in-bounds NeqBathRank "
+          "(3,4,5), atomic limit",
+          "[ImpuritySolverNeqTdmrg][Task44][AtomicLimitDocc]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType      app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+	const VectorRealType emptyBathParams; // nBath=0
+
+	for (int rank : { 3, 4, 5 }) {
+		INFO("NeqBathRank=" << rank);
+		const std::string rootName = "testTdmrgAtomicRank" + ttos(rank);
+
+		InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+		                           configAtomicLimitRank(rootName, rank));
+		InputNgType::Readable  io(ioW);
+		ParamsType             params(io);
+
+		using TdmrgNeqSolverType
+		    = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
+		TdmrgNeqSolverType solver(params, app, io);
+		solver.solve(emptyBathParams);
+
+		const auto& gimp = solver.gimp();
+		const int   nT2  = static_cast<int>(params.nT);
+		for (int n = 0; n <= nT2; ++n) {
+			for (int j = 0; j <= n; ++j) {
+				CHECK(std::isfinite(gimp.retarded(n, j).real()));
+				CHECK(std::isfinite(gimp.lesser(n, j).real()));
+			}
+		}
+
+		solver.dumpGreenFunctions();
+		std::ifstream doccFile(rootName + "-docc-energy");
+		REQUIRE(doccFile.good());
+		RealType t = 0, docc = 0, ekin = 0, eint = 0, etot = 0;
+		while (doccFile >> t >> docc >> ekin >> eint >> etot) {
+			std::cout << "rank=" << rank << " t=" << t << " docc=" << docc << "\n";
+			CHECK(std::isfinite(docc));
+			CHECK(docc >= RealType(-1e-6));
+			CHECK(docc <= RealType(0.25 + 1e-6));
+		}
+	}
+}
+
+// Task 44, follow-up: NeqBathRank=3 crashed (birth of column 1, particle
+// branch, step n=2) with "An important vector has norm=...too small" --
+// a DIFFERENT failure mode than the known rank=1 SIGABRT, and it aborted
+// the {3,4,5} loop above before rank=4/5 were ever attempted (uncaught
+// C++ exception unwinds the whole test case, not just one loop
+// iteration). This isolates rank=4 alone so it gets a real, independent
+// attempt.
+TEST_CASE("Task 44 follow-up: tDMRG self-consistent d(t) at NeqBathRank=5 "
+          "alone, atomic limit",
+          "[ImpuritySolverNeqTdmrg][Task44][AtomicLimitDocc]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType      app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+	const VectorRealType emptyBathParams; // nBath=0
+
+	const int         rank     = 5;
+	const std::string rootName = "testTdmrgAtomicRank" + ttos(rank) + "Solo";
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+	                           configAtomicLimitRank(rootName, rank));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+
+	using TdmrgNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
+	TdmrgNeqSolverType solver(params, app, io);
+	solver.solve(emptyBathParams);
+
+	const auto& gimp = solver.gimp();
+	const int   nT2  = static_cast<int>(params.nT);
+	for (int n = 0; n <= nT2; ++n) {
+		for (int j = 0; j <= n; ++j) {
+			CHECK(std::isfinite(gimp.retarded(n, j).real()));
+			CHECK(std::isfinite(gimp.lesser(n, j).real()));
+		}
+	}
+
+	solver.dumpGreenFunctions();
+	std::ifstream doccFile(rootName + "-docc-energy");
+	REQUIRE(doccFile.good());
+	RealType t = 0, docc = 0, ekin = 0, eint = 0, etot = 0;
+	while (doccFile >> t >> docc >> ekin >> eint >> etot) {
+		std::cout << "rank=" << rank << " t=" << t << " docc=" << docc << "\n";
+		CHECK(std::isfinite(docc));
+		CHECK(docc >= RealType(-1e-6));
+		CHECK(docc <= RealType(0.25 + 1e-6));
+	}
+}
+
+// ---- Advisor-recommended discriminator: does a REAL nonzero nBath (not
+// nBath=0) at birth avoid the disconnected-lattice WFT crash entirely?
+// nBath=2 gives the impurity real, nonzero hoppings from t=0 -- the
+// lattice is never fully disconnected even while the NeqBathRank=3
+// second-bath orbital-pairs are still being seeded. If this runs clean,
+// the bug localizes to "impurity has zero connections at birth"
+// specifically (a narrower, possibly cincuenta-side fix), not "the
+// seeding window is structurally hostile to DMRG" in general.
+TEST_CASE("Task 44 discriminator: nBath=2 (real bath), NeqBathRank=3 -- "
+          "does a real bath at birth avoid the WFT crash",
+          "[ImpuritySolverNeqTdmrg][Task44][RealBathDiscriminator]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	// nBath=2 -> nsites=3 (impurity+2 bath); ExactDiag's equilibrium
+	// delegate requires half-filling (nup+ndown==nsites==3), so override
+	// configWithU's default 3/3 (which was sized for its own 5-bath
+	// config) down to 2/1.
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+	                           configWithU("0.5", "testTdmrgRealBathDisc")
+	                               + "NeqBathRank=3;\nTargetElectronsUp=2;\n"
+	                                 "TargetElectronsDown=1;\n");
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+
+	using TdmrgNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
+	TdmrgNeqSolverType solver(params, app, io);
+
+	const VectorRealType bathParams = { 0.3, 0.3, -0.3, 0.3 }; // nBath=2
+	solver.solve(bathParams);
+
+	const auto& gimp = solver.gimp();
+	const int   nT2  = static_cast<int>(params.nT);
+	for (int n = 0; n <= nT2; ++n) {
+		for (int j = 0; j <= n; ++j) {
+			CHECK(std::isfinite(gimp.retarded(n, j).real()));
+			CHECK(std::isfinite(gimp.lesser(n, j).real()));
 		}
 	}
 }

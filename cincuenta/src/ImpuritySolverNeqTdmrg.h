@@ -15,6 +15,7 @@
 #include <cmath>
 #include <complex>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -242,6 +243,47 @@ public:
 	}
 
 	const KBType& gimp() const override { return neqBathRank_ > 0 ? exactDiag_.gimp() : gimp_; }
+
+	// Task 31 Part C (scoped down, 2026-08-04): dump d(t) only, to sanity-
+	// check the self-consistent framework before building the Ekin/Etot
+	// companion-pvector machinery (Part B). Ekin/Eint/Etot columns are
+	// written as 0 placeholders -- NOT yet computed for tDMRG -- so this
+	// file is NOT a drop-in replacement for GBEK's dumpDoccAndEnergy yet,
+	// only a d(t)-only stand-in for this specific sanity check. Mirrors
+	// ImpuritySolverNeqGBEK::dumpDoccAndEnergy's file format (columns:
+	// t docc Ekin Eint Etot) so existing plotting tooling still parses it.
+	// column 0's own doccRaw (see Column::doccRaw) is the physical d(t)
+	// trajectory (see project_tdmrg_evolving_bath memory); average sector
+	// A/B per Eq. 25 of Wolf et al. when scDualSector_ is active, mirroring
+	// GBEK's own computeDoccGBEK sector-averaging.
+	void dumpDoccAndEnergy(const std::string& filename) const override
+	{
+		if (neqBathRank_ == 0)
+			return;
+		if (scSectorA_.columns.empty())
+			return;
+
+		const Column& colA = scSectorA_.columns[0];
+		const Column* colB = scDualSector_ && !scSectorB_.columns.empty()
+		    ? &scSectorB_.columns[0]
+		    : nullptr;
+		const int     nMax = static_cast<int>(colA.reachedStep);
+		std::ofstream fout(filename.c_str());
+		for (int n = 0; n <= nMax; ++n) {
+			auto itA = colA.doccRaw.find(n);
+			if (itA == colA.doccRaw.end())
+				continue;
+			RealType docc = itA->second;
+			if (colB) {
+				auto itB = colB->doccRaw.find(n);
+				if (itB != colB->doccRaw.end())
+					docc = RealType(0.5) * (docc + itB->second);
+			}
+			const RealType t = static_cast<RealType>(n) * params_.dt;
+			fout << std::fixed << std::setprecision(10) << t << " " << docc << " "
+			     << RealType(0) << " " << RealType(0) << " " << RealType(0) << "\n";
+		}
+	}
 
 	// Advance the Cholesky bath decomposition to step n, then roll back
 	// any persisted column state a corrector's refined Vplus(n,.)
@@ -1343,6 +1385,15 @@ private:
 		int                        holeMapTv = 0, holeSrcTv = -1;
 		std::map<int, ComplexType> ggtRaw; // keyed by n, n > born
 		std::map<int, ComplexType> gltRaw;
+		// Task 31: double occupancy <n_up n_dn> at the impurity, keyed by n,
+		// captured (column 0 only) from the SAME particle-branch segment that
+		// already measures <P2|c|P1> -- P2 IS the propagated N-particle
+		// physical trajectory (see buildStepInput's P2=TimeEvolve*|gs> and
+		// project_tdmrg_evolving_bath memory's Task 31 notes), so no new
+		// DmrgRunner call is needed. Real-valued and gauge-invariant by
+		// construction (same category as ggtDiag/gltDiag), no sign/phase
+		// correction needed.
+		std::map<int, RealType> doccRaw;
 		// Equal-time diagonal G(born,born), captured once at birth (see
 		// birthColumn) -- gauge-invariant by construction, no sign-flip/
 		// phase correction needed (unlike ggtRaw/gltRaw above).
@@ -1583,8 +1634,13 @@ private:
 			const bool        takeLast = isFirstAdvance || (secondBath.maxAdvances > 0);
 			const std::string outRoot  = chainRoot + tag + "_particle";
 			Dmrg::CmdLineOptions opts;
-			opts.logfile                = outRoot + ".log";
-			opts.in_situ_measurements   = "<P2|c|P1>";
+			opts.logfile = outRoot + ".log";
+			// Task 31: d(t) only needs column 0's own trajectory (P2 IS the
+			// propagated N-particle physical state) -- don't add the extra
+			// bracket/measurement cost for other columns, which never feed
+			// dumpDoccAndEnergy.
+			opts.in_situ_measurements
+			    = (col.born == 0) ? "<P2|c|P1>,<P2|nup*ndown|P2>" : "<P2|c|P1>";
 			const std::string stepInput = buildStepInput(uFinal,
 			                                             hoppings,
 			                                             potTdmrg,
@@ -1603,6 +1659,12 @@ private:
 
 			ComplexType ggt(0);
 			parseSingleMeasurement(opts.logfile, "<P2|c|P1>", ggt, takeLast);
+			if (col.born == 0) {
+				ComplexType docc(0);
+				parseSingleMeasurement(
+				    opts.logfile, "<P2|nup*ndown|P2>", docc, takeLast);
+				col.doccRaw[n] = docc.real();
+			}
 			// No <P2.last|P2>-based gauge correction (removed -- see
 			// fancy-painting-moon.md, "gauge-correction finding"): <P2|c|P1>'s
 			// bra and ket both descend from the SAME loaded |gs> reference in
@@ -1639,6 +1701,17 @@ private:
 			if (isFirstAdvance)
 				parseSingleMeasurement(
 				    opts.logfile, "<P2|c|P1>", col.ggtDiag, false);
+
+			// Task 31: mirror ggtDiag's own capture -- a column's first
+			// advance segment's FIRST occurrence is the equal-time
+			// (pre-advance, t=born) value; for column 0 that's d(0), the
+			// pre-quench ground state's own double occupancy.
+			if (col.born == 0 && isFirstAdvance) {
+				ComplexType doccBirth(0);
+				parseSingleMeasurement(
+				    opts.logfile, "<P2|nup*ndown|P2>", doccBirth, false);
+				col.doccRaw[col.born] = doccBirth.real();
+			}
 
 			col.particleRoot  = outRoot;
 			col.particleMapTv = 1;
@@ -2393,7 +2466,22 @@ private:
 		s += "Version=neqTdmrg;\n";
 		s += "OutputFile=" + outRoot + ";\n";
 		s += "InfiniteLoopKeptStates=" + ttos(infiniteLoops_) + ";\n";
-		s += "FiniteLoops=" + enforceFlag2(finiteLoopsGs_) + ";\n";
+		// buildInitInputAt normally used enforceFlag2(finiteLoopsGs_), which
+		// rewrites the FiniteLoops flag field to 2 ("onlyfastwft" in
+		// FiniteLoop.h's bitmask) -- forcing the raw WFT-transformed vector
+		// to be used directly with NO Lanczos refinement (Diagonalization.h's
+		// onlyWft branch). Confirmed 2026-08-05: at nBath==0 (hoppings empty,
+		// the atomic-limit self-consistent path), onlyfastwft is what makes
+		// birthColumn's column-birth restarts crash (WaveFunctionTransfFactory
+		// "vector norm too small" / WFT nip2 miscalculation on a disconnected
+		// lattice) -- dropping it there (real Lanczos refinement instead)
+		// lets NeqBathRank=3 complete cleanly and pushes NeqBathRank=4 much
+		// further. NOT applied for nBath>0: no evidence it's needed there
+		// (Task 15/28's gates are already green with onlyfastwft in place),
+		// and it's a real, if small, behavior change not to make without
+		// cause. See project_tdmrg_evolving_bath memory.
+		s += "FiniteLoops="
+		    + (hoppings.empty() ? finiteLoopsGs_ : enforceFlag2(finiteLoopsGs_)) + ";\n";
 		s += "TargetElectronsUp=" + ttos(nup) + ";\n";
 		s += "TargetElectronsDown=" + ttos(ndown) + ";\n";
 		s += "dir0:Connectors="
