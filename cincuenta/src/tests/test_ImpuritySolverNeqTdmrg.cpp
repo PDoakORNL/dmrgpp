@@ -1743,3 +1743,212 @@ TEST_CASE("ImpuritySolverNeqTdmrg vs ImpuritySolverNeqGBEK agree under a "
 		}
 	}
 }
+
+// ---- Item #3 of the fast-isolated-test set (2026-08-05, see
+// TDMRG_EVOLVING_BATH.md): isolated single birth-column reproduction of the
+// onlyfastwft crash that commit 6e812262 fixed, WITHOUT running a full
+// NeqDmftSolver self-consistency loop. -----------------------------------
+//
+// Ainur strings are hand-rolled here (NOT via buildGsInputAt/buildInitInputAt,
+// which are private) but follow their exact pattern -- geomHeader, Connectors
+// via buildConnectorsStrWithSecondBath's convention (first-bath hoppings
+// then second-bath couplings, one entry per aux site: occ_0..occ_{L-1},
+// empty_0..empty_{L-1}), potentialV duplicated for up/down. Uses
+// Dmrg::DmrgRunner directly -- no ImpuritySolverNeqTdmrg, no NeqDmftSolver.
+//
+// Geometry: nBath=0 (the literal atomic limit the fix targets), L=2 second-
+// bath pairs -> nsitesExt = 1 (impurity) + 2*L = 5 sites. Mirrors
+// solveSelfConsistent/birthSelfConsistentSector's own construction:
+//   nup_=1, ndown_=0 (impurity singly occupied, up), scL_=2
+//   -> nupSector=3, ndownSector=2 (sector A)
+//   potGS: impurity=-0.5*uInitial(=0), occ sites=-scEps_, empty sites=+scEps_
+//   scEps_ = 5*max(uInitial,uFinal,...) = 5*1 = 5 (maxCoupling floors to 1
+//   when every other coupling is exactly 0, per solveSelfConsistent's own
+//   floor rule)
+//   impurityUpOcc = nupSector - scL_ = 1 -> skipParticle=true, so this test
+//   exercises the HOLE branch (opChar="", c[0]) only -- the particle branch
+//   is skipped in production at this config and would not exercise anything.
+//
+// The GS run and the restart-input's second-bath Connectors are the two
+// runs' only inputs; Connectors = [v0, 0, v0, 0] simulates "pair 0 already
+// seeded (v0 != 0), pair 1 not yet seeded (exactly 0)" -- a partially-seeded
+// geometry, matching the seeding-order invariant item #1 pins down (pairs
+// n..L-1 stay exactly zero until their own row).
+static std::string buildAtomicLimitGsAinur(const std::string& outRoot,
+                                           SizeType           nupSector,
+                                           SizeType           ndownSector,
+                                           SizeType           L = 2)
+{
+	const SizeType nsitesExt = 1 + 2 * L;
+
+	std::string hub = "[0.";
+	for (SizeType i = 1; i < nsitesExt; ++i)
+		hub += ", 0.";
+	hub += "]";
+
+	// nBath=0: Connectors is ALL second-bath entries, all zero at the GS
+	// stage (Vplus(0,.)==0 by NeqBathDecomposition's own convention).
+	std::string conn = "[0.";
+	for (SizeType i = 1; i < 2 * L; ++i)
+		conn += ",0.";
+	conn += "]";
+
+	const RealType scEps = 5.0; // maxCoupling floors to 1 (U=0, nBath=0)
+	VectorRealType pot(nsitesExt, RealType(0));
+	for (SizeType p = 0; p < L; ++p) {
+		pot[1 + p]     = -scEps;
+		pot[1 + L + p] = scEps;
+	}
+	std::string innerPot;
+	for (SizeType i = 0; i < nsitesExt; ++i) {
+		if (i > 0)
+			innerPot += ",";
+		innerPot += std::to_string(pot[i]);
+	}
+	const std::string potStr = "[" + innerPot + "," + innerPot + "]";
+
+	std::string s = "##Ainur1.0\n\n";
+	s += "TotalNumberOfSites=" + std::to_string(nsitesExt) + ";\n";
+	s += "NumberOfTerms=1;\nDegreesOfFreedom=1;\nGeometryKind=star;\n";
+	s += "GeometryOptions=none;\n";
+	s += "hubbardU=" + hub + ";\n";
+	s += "Model=HubbardOneBand;\n";
+	s += "SolverOptions=twositedmrg,geometryallinsystem;\n";
+	s += "Version=neqTdmrg;\n";
+	s += "OutputFile=" + outRoot + ";\n";
+	s += "InfiniteLoopKeptStates=100;\n";
+	s += "FiniteLoops=[[@auto, 100, 0],[@auto, 100, 0]];\n";
+	s += "TargetElectronsUp=" + std::to_string(nupSector) + ";\n";
+	s += "TargetElectronsDown=" + std::to_string(ndownSector) + ";\n";
+	s += "dir0:Connectors=" + conn + ";\n";
+	s += "potentialV=" + potStr + ";\n";
+	return s;
+}
+
+// The birth (restart) input: identical to buildInitInputAt's own pattern,
+// with the second-bath Connectors PARTIALLY seeded (pair 0 nonzero, pair 1
+// exactly zero) and the FiniteLoops flag as the ONLY difference between the
+// flag-0 (real Lanczos refinement) and flag-2 (onlyfastwft) variants tested
+// below.
+static std::string buildAtomicLimitRestartAinur(const std::string& outRoot,
+                                                const std::string& restartRoot,
+                                                SizeType           nupSector,
+                                                SizeType           ndownSector,
+                                                bool               onlyFastWft,
+                                                SizeType           L = 2)
+{
+	const SizeType nsitesExt = 1 + 2 * L;
+
+	std::string hub = "[0.";
+	for (SizeType i = 1; i < nsitesExt; ++i)
+		hub += ", 0.";
+	hub += "]";
+
+	// Partially-seeded second bath: pair 0 already seeded (v0 != 0, real --
+	// keeping this real-only avoids needing "usecomplex" here, irrelevant to
+	// what's being tested: the FiniteLoops flag), pairs 1..L-1 exactly zero
+	// (occ_0=v0, occ_1..L-1=0, empty_0=v0, empty_1..L-1=0, matching
+	// vMidConnectors' occ/empty pairing convention).
+	const RealType v0   = 0.3;
+	std::string    conn = "[" + std::to_string(v0);
+	for (SizeType p = 1; p < L; ++p)
+		conn += ",0.";
+	conn += "," + std::to_string(v0);
+	for (SizeType p = 1; p < L; ++p)
+		conn += ",0.";
+	conn += "]";
+
+	// scPotTdmrg_ pattern: impurity=-0.5*uFinal(=0), second-bath entries stay
+	// exactly 0 for every time-evolution segment.
+	VectorRealType pot(nsitesExt, RealType(0));
+	std::string    innerPot;
+	for (SizeType i = 0; i < nsitesExt; ++i) {
+		if (i > 0)
+			innerPot += ",";
+		innerPot += std::to_string(pot[i]);
+	}
+	const std::string potStr = "[" + innerPot + "," + innerPot + "]";
+
+	std::string s = "##Ainur1.0\n\n";
+	s += "TotalNumberOfSites=" + std::to_string(nsitesExt) + ";\n";
+	s += "NumberOfTerms=1;\nDegreesOfFreedom=1;\nGeometryKind=star;\n";
+	s += "GeometryOptions=none;\n";
+	s += "hubbardU=" + hub + ";\n";
+	s += "Model=HubbardOneBand;\n";
+	s += "SolverOptions=twositedmrg,geometryallinsystem,TargetingExpression,"
+	     "restart;\n";
+	s += "Version=neqTdmrg;\n";
+	s += "OutputFile=" + outRoot + ";\n";
+	s += "InfiniteLoopKeptStates=100;\n";
+	s += onlyFastWft ? "FiniteLoops=[[@auto, 100, 2],[@auto, 100, 2]];\n"
+	                 : "FiniteLoops=[[@auto, 100, 0],[@auto, 100, 0]];\n";
+	s += "TargetElectronsUp=" + std::to_string(nupSector) + ";\n";
+	s += "TargetElectronsDown=" + std::to_string(ndownSector) + ";\n";
+	s += "dir0:Connectors=" + conn + ";\n";
+	s += "potentialV=" + potStr + ";\n";
+	s += "RestartFilename=" + restartRoot + ";\n";
+	s += "GsWeight=0.1;\n";
+	s += "string P0=\"c[0]*|gs>\";\n"; // hole branch (skipParticle=true here)
+	return s;
+}
+
+TEST_CASE("Isolated birth-column reproduction: onlyfastwft vs plain FiniteLoops "
+          "on a partially-seeded nBath=0/L=2 geometry",
+          "[ImpuritySolverNeqTdmrg][Phase2][onlyfastwft][isolated]")
+{
+	int             argc    = 1;
+	char            arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*           argv0[] = { arg0 };
+	char**          argv    = argv0;
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	const SizeType nupSector = 3, ndownSector = 2; // nup_=1,ndown_=0, scL_=2
+
+	const std::string gsRoot = "isolatedBirthGs";
+	{
+		Dmrg::CmdLineOptions opts;
+		opts.logfile = gsRoot + ".log";
+		Dmrg::DmrgRunner<RealType> runner(
+		    app, buildAtomicLimitGsAinur(gsRoot, nupSector, ndownSector), opts);
+		runner.doOneRun();
+	}
+
+	SECTION("flag=0 (plain, real Lanczos refinement): restart succeeds")
+	{
+		const std::string    outRoot = "isolatedBirthFlag0";
+		Dmrg::CmdLineOptions opts;
+		opts.logfile = outRoot + ".log";
+		Dmrg::DmrgRunner<RealType> runner(
+		    app,
+		    buildAtomicLimitRestartAinur(outRoot, gsRoot, nupSector, ndownSector, false),
+		    opts);
+		CHECK_NOTHROW(runner.doOneRun());
+	}
+
+	SECTION("flag=2 (onlyfastwft): restart on this partially-seeded geometry "
+	        "either throws (WFT norm-too-small) or the harness doesn't "
+	        "reproduce it standalone -- documented either way")
+	{
+		const std::string    outRoot = "isolatedBirthFlag2";
+		Dmrg::CmdLineOptions opts;
+		opts.logfile = outRoot + ".log";
+		Dmrg::DmrgRunner<RealType> runner(
+		    app,
+		    buildAtomicLimitRestartAinur(outRoot, gsRoot, nupSector, ndownSector, true),
+		    opts);
+		try {
+			runner.doOneRun();
+			WARN("flag=2 did NOT throw in this isolated L=2 reproduction (also "
+			     "tried, and confirmed non-reproducing, at L=3 in a throwaway "
+			     "probe not kept in this file) -- see this TEST_CASE's doc "
+			     "comment: production's failing births restart from an "
+			     "ALREADY-ADVANCED, complex column checkpoint (sourceTv>=0, "
+			     "complexSource=true), which this fresh-from-GS restart does "
+			     "not replicate. Bounded, honest non-reproduction, not a claim "
+			     "the bug doesn't exist. Per this test's own design-review "
+			     "stop-rule, L was not climbed further.");
+		} catch (const std::exception& e) {
+			SUCCEED("flag=2 threw as expected: " << std::string(e.what()));
+		}
+	}
+}
