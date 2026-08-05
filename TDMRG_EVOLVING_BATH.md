@@ -621,3 +621,77 @@ manifested as an empty `RestartFilename=` Ainur parse error, caught by the
 two tests that drive `fillSelfConsistentRow` through `NeqDmftSolver`'s real
 corrector loop. Full design derivation in `fancy-painting-moon.md`'s
 "Task #17 scope" section.
+
+
+---
+
+## Fast-isolated-test set (2026-08-05)
+
+Self-consistent `NeqDmftSolver` runs are expensive (tens of minutes once
+Lanczos refinement is real, more at higher rank), which makes iterating on
+the machinery above slow. This section adds four FAST, ISOLATED tests, each
+proving/documenting one specific mechanism without a full multi-step
+self-consistent loop.
+
+**1. `NeqBathDecomposition` seeding-order invariant**
+(`cincuenta/src/tests/test_NeqBathDecomposition.cpp`) — this test file
+already existed (pre-dating this session) with spot-check tests for L=2/L=3.
+Added a general L=4 test that checks, after EVERY row of the seeding phase,
+simultaneously for every row visited so far: `Vplus(n',p)` nonzero for
+`p<n'`, exactly zero for `p>=n'`. Formalizes "row n seeds pair n-1; pairs
+n..L-1 stay exact-zero" precisely. Milliseconds; pure logic, no DMRG engine.
+
+**2. Eps-split GS seeding at higher L** — extended the existing
+`measureSecondBathOccupations` L=1 gate to L=3,4,5 (single throwaway GS run
+per case, no time evolution). **Finding: the mechanism is NOT
+rank-independent.** L=3 passes with the original 2-sweep `FiniteLoopsGs`;
+L=4 needed 4 sweeps to converge; L=5 fails even with 4 sweeps and eps pushed
+to 60x the calibration rule's value — an electron migrates from the
+impurity/bath sector into the nominally fully-decoupled auxiliary manifold,
+with specific sites swapped rather than merely partially mixed (occupations
+non-integer: 0.539, 0.694, 1.096, 0.671 on sites that carry zero Hamiltonian
+coupling to anything). Two pieces of evidence point at an exact permutation
+degeneracy (all L occ sites, and separately all L empty sites, sit at
+identical potential and are mutually decoupled, so per-site occupation is
+not a determined observable within that manifold) rather than an eps
+calibration problem: larger eps made L=4's failure signature WORSE, not
+better, and the occupations are non-integer rather than showing a
+competing-product-state signature. A staggered-per-pair-eps experiment was
+attempted to confirm this directly but produced garbage output from a bug
+in the throwaway probe harness (not investigated further — see
+`feedback_compute_discipline`); the degeneracy hypothesis is the leading
+read of the data but is NOT independently confirmed. **Possibly the same
+underlying mechanism the parallel `NtNeq>=NeqBathRank`/DM-eigs investigation
+is chasing** (many near-degenerate decoupled orbitals at higher L), though
+the failure signature (occupation migrating to the wrong site vs. a
+`printSumAndCheckEigs` truncation-crash) is different enough that it should
+be treated as an adjacent, not necessarily identical, finding.
+
+**3. Isolated single-birth-column onlyfastwft reproduction** — a small
+(L=2, `nsitesExt=5`, nBath=0) GS run + hole-branch restart
+(`c[0]*|gs>`, matching `skipParticle=true` at this config), Connectors
+partially seeded (pair 0 nonzero, pair 1 exactly zero), varying only the
+`FiniteLoops` flag (0 vs 2) via `Dmrg::DmrgRunner` directly — no
+`ImpuritySolverNeqTdmrg`, no `NeqDmftSolver`. **Result: did NOT reproduce**
+at L=2 or L=3 (flag=2 doesn't throw either way). Reported as a bounded,
+honest non-reproduction: the leading hypothesis is that production's
+actually-failing births restart from an ALREADY-ADVANCED, complex column
+checkpoint (`RestartSourceTvForPsi>=0`, `complexSource=true`), which a
+fresh-from-GS restart doesn't replicate. Not climbed to higher L per this
+test's own design-review stop-rule (avoid open-ended compute chasing a
+maybe-reproducible crash). Left in the suite as a documented `WARN`, not a
+silently-omitted test.
+
+**4. Engine-level degenerate-density-matrix documentation** — NOT built as
+a `dmrg/Engine/tests/` fixture. That directory contains exactly one
+existing test (`test_LastKrylovSlots.cpp`), a trivial header-only unit test
+with zero lattice/Model/Basis/Geometry setup — there is no precedent for a
+Diagonalization/Truncation-level fixture there, and building one from
+scratch would exceed the rest of this test set combined. Per this task's
+own explicit permission, documenting instead: the relevant artifact is
+item #2's L=5 finding above — a real, reproducible (in seconds, via a
+single GS run) case of DMRG operating on a lattice with an exact residual
+degeneracy (the L occ / L empty auxiliary sites, mutually decoupled,
+identical potential). That finding, not a synthetic two-site Truncation.h
+fixture, is the fastest available window onto "what does DMRG's
+density-matrix truncation do with an exact degeneracy" for this project.
