@@ -1724,8 +1724,19 @@ private:
 			const bool        takeLast = isFirstAdvance || (secondBath.maxAdvances > 0);
 			const std::string outRoot  = chainRoot + tag + "_hole";
 			Dmrg::CmdLineOptions opts;
-			opts.logfile              = outRoot + ".log";
-			opts.in_situ_measurements = "<P1|c|P2>";
+			opts.logfile = outRoot + ".log";
+			// Task 31 (hole-branch mirror): for columns where the particle
+			// branch is Pauli-blocked (col.particleNull, nBath==0 only --
+			// see Column::particleNull's doc comment), the particle branch
+			// above never runs a real DMRG segment, so it never populates
+			// col.doccRaw. buildStepInput's P2=TimeEvolve{...}*|gs> is
+			// shared verbatim between the particle and hole branches
+			// (unconditional, independent of restartRoot/mappedP0Tv/
+			// sourceTvForPsi), so P2 here is the SAME propagated
+			// N-particle physical trajectory as in the particle branch --
+			// <P2|nup*ndown|P2> transfers over unchanged.
+			opts.in_situ_measurements
+			    = (col.born == 0) ? "<P1|c|P2>,<P2|nup*ndown|P2>" : "<P1|c|P2>";
 			DmrgRunnerType runner(app_,
 			                      buildStepInput(uFinal,
 			                                     hoppings,
@@ -1752,6 +1763,31 @@ private:
 			if (isFirstAdvance)
 				parseSingleMeasurement(
 				    opts.logfile, "<P1|c|P2>", col.gltDiag, false);
+
+			// Mirrors the particle branch's docc capture above. When both
+			// branches are active (nBath>0, the general case), this writes
+			// the same physical <n_up n_dn> value the particle branch
+			// already wrote for this n -- harmless (birth's isFirstAdvance/
+			// takeLast is always in lockstep between the two branches: both
+			// srcTv fields start at -1 together at birth and are advanced
+			// to 2 within the same advanceColumn call, so they never
+			// disagree), not a double-count. When the particle branch is
+			// null (col.particleNull), this is the ONLY place col.doccRaw
+			// gets populated.
+			if (col.born == 0) {
+				ComplexType docc(0);
+				parseSingleMeasurement(
+				    opts.logfile, "<P2|nup*ndown|P2>", docc, takeLast);
+				col.doccRaw[n] = docc.real();
+			}
+
+			// Mirrors the particle branch's birth-time capture above.
+			if (col.born == 0 && isFirstAdvance) {
+				ComplexType doccBirth(0);
+				parseSingleMeasurement(
+				    opts.logfile, "<P2|nup*ndown|P2>", doccBirth, false);
+				col.doccRaw[col.born] = doccBirth.real();
+			}
 
 			col.holeRoot  = outRoot;
 			col.holeMapTv = 1;
