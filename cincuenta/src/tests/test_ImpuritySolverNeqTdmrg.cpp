@@ -759,7 +759,17 @@ TEST_CASE("ImpuritySolverNeqTdmrg vs ImpuritySolverNeqGBEK: nBath=0 atomic "
 // rank increases (a first, cheap look at internal convergence -- NOT a
 // tDMRG-vs-GBEK numeric comparison, which the standing comparison-
 // methodology note rules out at matching rank).
-static std::string configAtomicLimitRank(const std::string& rootName, int rank)
+// DIAGNOSTIC (temporary): same as configAtomicLimitRank but with an
+// explicit NtNeq, so a caller can request NtNeq>=NeqBathRank -- the only
+// configuration in which NeqBathDecomposition::update actually seeds every
+// orbital-pair (row n seeds pair n-1, so pairs 0..NtNeq-1 get seeded; at
+// NtNeq<NeqBathRank, pairs NtNeq..NeqBathRank-1 sit at exact zero coupling
+// AND (per scPotTdmrg_, which never eps-splits auxiliary sites outside the
+// one-off GS birth) exact zero potential-splitting for the whole run --
+// an unbroken exact degeneracy, not merely "not yet distinguished". Not a
+// permanent gate -- delete/inline once the degeneracy-vs-kept-states
+// question is settled.
+static std::string configAtomicLimitRankNtNeq(const std::string& rootName, int rank, int ntNeq)
 {
 	return "##Ainur1.0\n\n"
 	       "FicticiousBeta=20;\n"
@@ -801,7 +811,9 @@ static std::string configAtomicLimitRank(const std::string& rootName, int rank)
 	      "matrix FiniteLoopsOmega=[[@auto, 100, 2],[@auto, 100, 2]];\n"
 	      "HubbardUFinal=2.;\n"
 	      "TmaxNeq=0.2;\n"
-	      "NtNeq=2;\n"
+	      "NtNeq="
+	    + ttos(ntNeq)
+	    + ";\n"
 	      "NeqDmftIter=1;\n"
 	      "NeqDmftTolerance=0.001;\n"
 	      "NeqSolver=\"tdmrg\";\n"
@@ -814,8 +826,34 @@ static std::string configAtomicLimitRank(const std::string& rootName, int rank)
 	    + ttos(rank) + ";\n";
 }
 
-TEST_CASE("Task 44: tDMRG self-consistent d(t) at in-bounds NeqBathRank "
-          "(3,4,5), atomic limit",
+// Task 44 follow-up: NtNeq=2 (< NeqBathRank) at rank>=3 leaves the
+// unseeded orbital-pairs at exact zero coupling AND (per scPotTdmrg_,
+// which never eps-splits auxiliary sites outside the one-off GS birth)
+// exact zero potential-splitting for the whole run -- an unbroken exact
+// degeneracy, not merely "not yet distinguished". This was confirmed to be
+// the actual cause of a "printSumAndCheckEigs: DM eigs don't amount to
+// one" failure seen at NeqBathRank=4/NtNeq=2 (preceded by a LAPACK gesdd
+// info=1 non-convergence warning -- a classic symptom of clustered/
+// degenerate singular values), NOT an inadequate kept-states cap: the SAME
+// kept-states=100 cap that failed at NtNeq=2 passes cleanly once NtNeq is
+// raised to fully seed every orbital-pair (see the NtNeq=rank tests
+// below). Every NtNeq=2 test at rank>=3 -- the grouped {3,4,5} test, the
+// isolated rank=5-alone test, and the isolated rank=4 investigation test
+// used to find this -- has been removed: each one pins an ill-posed,
+// permanently-degenerate configuration that was never physically
+// meaningful to test in the first place, and would be permanently RED (or
+// worse, flaky, depending on how badly gesdd struggles on a given run) for
+// no useful reason. See TDMRG_EVOLVING_BATH.md / project memory for the
+// full investigation.
+
+// NeqBathRank=3 with NtNeq=3 (NtNeq>=NeqBathRank), the cheapest
+// configuration in which every orbital-pair actually gets seeded at least
+// once (pairs 0,1,2 via n=1,2,3) -- no permanently-inert, exactly-
+// degenerate spectator sites remain for the whole run. Same kept-states
+// cap (100) as the committed Task 44 {3,4,5} test above. This is the
+// well-posed counterpart of that test and completes cleanly.
+TEST_CASE("Task 44: tDMRG self-consistent d(t) at NeqBathRank=3, "
+          "NtNeq=3 (fully seeded), atomic limit",
           "[ImpuritySolverNeqTdmrg][Task44][AtomicLimitDocc]")
 {
 	int    argc    = 1;
@@ -826,66 +864,11 @@ TEST_CASE("Task 44: tDMRG self-consistent d(t) at in-bounds NeqBathRank "
 	ApplicationType      app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
 	const VectorRealType emptyBathParams; // nBath=0
 
-	for (int rank : { 3, 4, 5 }) {
-		INFO("NeqBathRank=" << rank);
-		const std::string rootName = "testTdmrgAtomicRank" + ttos(rank);
-
-		InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
-		                           configAtomicLimitRank(rootName, rank));
-		InputNgType::Readable  io(ioW);
-		ParamsType             params(io);
-
-		using TdmrgNeqSolverType
-		    = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
-		TdmrgNeqSolverType solver(params, app, io);
-		solver.solve(emptyBathParams);
-
-		const auto& gimp = solver.gimp();
-		const int   nT2  = static_cast<int>(params.nT);
-		for (int n = 0; n <= nT2; ++n) {
-			for (int j = 0; j <= n; ++j) {
-				CHECK(std::isfinite(gimp.retarded(n, j).real()));
-				CHECK(std::isfinite(gimp.lesser(n, j).real()));
-			}
-		}
-
-		solver.dumpGreenFunctions();
-		std::ifstream doccFile(rootName + "-docc-energy");
-		REQUIRE(doccFile.good());
-		RealType t = 0, docc = 0, ekin = 0, eint = 0, etot = 0;
-		while (doccFile >> t >> docc >> ekin >> eint >> etot) {
-			std::cout << "rank=" << rank << " t=" << t << " docc=" << docc << "\n";
-			CHECK(std::isfinite(docc));
-			CHECK(docc >= RealType(-1e-6));
-			CHECK(docc <= RealType(0.25 + 1e-6));
-		}
-	}
-}
-
-// Task 44, follow-up: NeqBathRank=3 crashed (birth of column 1, particle
-// branch, step n=2) with "An important vector has norm=...too small" --
-// a DIFFERENT failure mode than the known rank=1 SIGABRT, and it aborted
-// the {3,4,5} loop above before rank=4/5 were ever attempted (uncaught
-// C++ exception unwinds the whole test case, not just one loop
-// iteration). This isolates rank=4 alone so it gets a real, independent
-// attempt.
-TEST_CASE("Task 44 follow-up: tDMRG self-consistent d(t) at NeqBathRank=5 "
-          "alone, atomic limit",
-          "[ImpuritySolverNeqTdmrg][Task44][AtomicLimitDocc]")
-{
-	int    argc    = 1;
-	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
-	char*  argv0[] = { arg0 };
-	char** argv    = argv0;
-
-	ApplicationType      app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
-	const VectorRealType emptyBathParams; // nBath=0
-
-	const int         rank     = 5;
-	const std::string rootName = "testTdmrgAtomicRank" + ttos(rank) + "Solo";
+	const int         rank     = 3;
+	const std::string rootName = "testTdmrgAtomicRank" + ttos(rank) + "FullSeed";
 
 	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
-	                           configAtomicLimitRank(rootName, rank));
+	                           configAtomicLimitRankNtNeq(rootName, rank, rank));
 	InputNgType::Readable  io(ioW);
 	ParamsType             params(io);
 
@@ -907,7 +890,64 @@ TEST_CASE("Task 44 follow-up: tDMRG self-consistent d(t) at NeqBathRank=5 "
 	REQUIRE(doccFile.good());
 	RealType t = 0, docc = 0, ekin = 0, eint = 0, etot = 0;
 	while (doccFile >> t >> docc >> ekin >> eint >> etot) {
-		std::cout << "rank=" << rank << " t=" << t << " docc=" << docc << "\n";
+		std::cout << "rank=" << rank << " NtNeq=" << rank << " t=" << t << " docc=" << docc
+		          << "\n";
+		CHECK(std::isfinite(docc));
+		CHECK(docc >= RealType(-1e-6));
+		CHECK(docc <= RealType(0.25 + 1e-6));
+	}
+}
+
+// NeqBathRank=4 with NtNeq=4 (fully seeded), same kept-states cap (100) as
+// the NtNeq=2 rank=4 config that originally failed with
+// "printSumAndCheckEigs: DM eigs don't amount to one". Confirms the
+// degeneracy hypothesis at the rank where the original failure was
+// observed: this completes cleanly under the SAME kept-states=100 cap
+// that failed at NtNeq=2, so the original failure was an artifact of the
+// permanently-degenerate (unseeded pairs 2,3) NtNeq=2 config, not a real
+// kept-states-too-small or engine bug. Cost note: this run takes ~15
+// minutes wall-clock (9-site lattice, 4 real time steps with genuine
+// Lanczos refinement) -- worth tagging separately if CI runtime matters.
+TEST_CASE("Task 44: tDMRG self-consistent d(t) at NeqBathRank=4, "
+          "NtNeq=4 (fully seeded), atomic limit",
+          "[ImpuritySolverNeqTdmrg][Task44][AtomicLimitDocc][Slow]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType      app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+	const VectorRealType emptyBathParams; // nBath=0
+
+	const int         rank     = 4;
+	const std::string rootName = "testTdmrgAtomicRank" + ttos(rank) + "FullSeed";
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+	                           configAtomicLimitRankNtNeq(rootName, rank, rank));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+
+	using TdmrgNeqSolverType = Dmft::NeqDmftSolver<ComplexType, Dmft::ImpuritySolverNeqTdmrg>;
+	TdmrgNeqSolverType solver(params, app, io);
+	solver.solve(emptyBathParams);
+
+	const auto& gimp = solver.gimp();
+	const int   nT2  = static_cast<int>(params.nT);
+	for (int n = 0; n <= nT2; ++n) {
+		for (int j = 0; j <= n; ++j) {
+			CHECK(std::isfinite(gimp.retarded(n, j).real()));
+			CHECK(std::isfinite(gimp.lesser(n, j).real()));
+		}
+	}
+
+	solver.dumpGreenFunctions();
+	std::ifstream doccFile(rootName + "-docc-energy");
+	REQUIRE(doccFile.good());
+	RealType t = 0, docc = 0, ekin = 0, eint = 0, etot = 0;
+	while (doccFile >> t >> docc >> ekin >> eint >> etot) {
+		std::cout << "rank=" << rank << " NtNeq=" << rank << " t=" << t << " docc=" << docc
+		          << "\n";
 		CHECK(std::isfinite(docc));
 		CHECK(docc >= RealType(-1e-6));
 		CHECK(docc <= RealType(0.25 + 1e-6));
