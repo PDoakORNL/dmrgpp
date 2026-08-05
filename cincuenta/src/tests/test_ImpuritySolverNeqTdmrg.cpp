@@ -444,8 +444,14 @@ TEST_CASE("ImpuritySolverNeqTdmrg second-bath eps-split seeding holds at "
 	// L extra up- and L extra down-electrons for the eps-split (nupExt=L+1,
 	// ndownExt=L, total 2L+1) -- if the 2L auxiliary sites correctly hold
 	// 2L electrons between them (checked above), the remaining single
-	// electron in the total count is pinned at the impurity/first-bath
-	// sector, i.e. the impurity is singly occupied as intended.
+	// electron is confined to the impurity+first-bath sector's TOTAL
+	// occupation. That is NOT the same as "the impurity is singly occupied"
+	// at this nBath=1 config: the first-bath hopping V=0.5 delocalizes that
+	// one electron across the impurity and bath site, so <n_imp> itself is
+	// ~0.5, not 1 -- the "impurity singly occupied" claim is exact only at
+	// nBath=0 (no bath site to share the electron with), which this
+	// particular test config (inherited from the L=1 SecondBathSeeding
+	// test, nBath=1) does not exercise.
 	CHECK(auxTotal == Catch::Approx(2.0 * L).margin(1e-4));
 }
 
