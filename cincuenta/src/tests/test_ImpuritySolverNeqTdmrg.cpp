@@ -6,6 +6,7 @@
 #include "NeqLatticeGf.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <complex>
 #include <iostream>
 #include <string>
@@ -272,7 +273,7 @@ TEST_CASE("ImpuritySolverNeqTdmrg full grid matches ExactDiag full grid (U=0.5)"
 // first-bath site (nBath=1) is used, matching the standalone smoke test in
 // build/tmp/eps_split_seed/ that first found this requirement empirically
 // -- see project_tdmrg_evolving_bath memory / fancy-painting-moon.md plan.
-static std::string configForSecondBathTest()
+static std::string configForSecondBathTest(const std::string& rootName = "testTdmrgSecondBathSeed")
 {
 	return "##Ainur1.0\n\n"
 	       "FicticiousBeta=20;\n"
@@ -294,30 +295,33 @@ static std::string configForSecondBathTest()
 	       "real HubbardU=0.;\n"
 	       "TargetElectronsUp=1;\n"
 	       "TargetElectronsDown=0;\n"
-	       "RootOutputname=\"testTdmrgSecondBathSeed\";\n"
-	       "InfiniteLoopKeptStates=60;\n"
-	       "matrix FiniteLoopsGs=[[@auto, 60, 0],[@auto, 60, 0]];\n"
-	       "real OmegaBegin=-6.;\n"
-	       "integer OmegaTotal=20;\n"
-	       "real OmegaStep=0.3;\n"
-	       "real OmegaDelta=0.1;\n"
-	       "integer TridiagSteps=200;\n"
-	       "real TridiagEps=1e-9;\n"
-	       "TruncationTolerance=\"1e-10,100\";\n"
-	       "CorrectionVectorEta=0.;\n"
-	       "GsWeight=0.1;\n"
-	       "matrix FiniteLoopsOmega=[[@auto, 60, 2],[@auto, 60, 2]];\n"
-	       "HubbardUFinal=0.;\n"
-	       "TmaxNeq=0.2;\n"
-	       "NtNeq=2;\n"
-	       "NeqDmftIter=1;\n"
-	       "NeqDmftTolerance=0.001;\n"
-	       "NeqSolver=\"tdmrg\";\n"
-	       "matrix FiniteLoopsTdmrg=[\n"
-	       "    [@auto, 60, 0],[@auto, 60, 0],\n"
-	       "    [@auto, 60, 0],[@auto, 60, 0]];\n"
-	       "TSPTimeSteps=5;\n"
-	       "TSPAdvanceEach=4;\n";
+	       "RootOutputname=\""
+	    + rootName
+	    + "\";\n"
+	      "InfiniteLoopKeptStates=60;\n"
+	      "matrix FiniteLoopsGs=[[@auto, 60, 0],[@auto, 60, 0],[@auto, 60, "
+	      "0],[@auto, 60, 0]];\n"
+	      "real OmegaBegin=-6.;\n"
+	      "integer OmegaTotal=20;\n"
+	      "real OmegaStep=0.3;\n"
+	      "real OmegaDelta=0.1;\n"
+	      "integer TridiagSteps=200;\n"
+	      "real TridiagEps=1e-9;\n"
+	      "TruncationTolerance=\"1e-10,100\";\n"
+	      "CorrectionVectorEta=0.;\n"
+	      "GsWeight=0.1;\n"
+	      "matrix FiniteLoopsOmega=[[@auto, 60, 2],[@auto, 60, 2]];\n"
+	      "HubbardUFinal=0.;\n"
+	      "TmaxNeq=0.2;\n"
+	      "NtNeq=2;\n"
+	      "NeqDmftIter=1;\n"
+	      "NeqDmftTolerance=0.001;\n"
+	      "NeqSolver=\"tdmrg\";\n"
+	      "matrix FiniteLoopsTdmrg=[\n"
+	      "    [@auto, 60, 0],[@auto, 60, 0],\n"
+	      "    [@auto, 60, 0],[@auto, 60, 0]];\n"
+	      "TSPTimeSteps=5;\n"
+	      "TSPAdvanceEach=4;\n";
 }
 
 TEST_CASE("ImpuritySolverNeqTdmrg second-bath eps-split seeding requires eps "
@@ -362,6 +366,87 @@ TEST_CASE("ImpuritySolverNeqTdmrg second-bath eps-split seeding requires eps "
 		    = (std::abs(occ[0] - 2.0) < 1e-4) && (std::abs(occ[1] - 0.0) < 1e-4);
 		CHECK_FALSE(seededCorrectly);
 	}
+}
+
+// Same eps-split GS seeding mechanism as the L=1 test directly above, but at
+// higher rank (L=3,4,5) -- item #2 of the fast-isolated-test set added
+// 2026-08-05 to reduce reliance on slow multi-step self-consistent runs (see
+// TDMRG_EVOLVING_BATH.md). Each case is a SINGLE throwaway GS run (no time
+// evolution, no self-consistency loop, no NeqDmftSolver): the same
+// nBath=1/V=0.5 geometry as configForSecondBathTest(), extended by
+// measureSecondBathOccupations to nsitesExt = 2 + 2L sites, with eps = 5*V as
+// established by the L=1 case's calibration rule. Confirms the intended
+// product state -- L occupied auxiliary sites (<n>~2), L empty auxiliary
+// sites (<n>~0), impurity singly-occupied -- is reached at each rank, not
+// just L=1.
+//
+// FINDING (2026-08-05, use CHECK not REQUIRE below so all three L still run
+// and report): this is NOT rank-independent. L=3 passes with the original
+// FiniteLoopsGs (2 sweeps). L=4 needed FiniteLoopsGs bumped to 4 sweeps here
+// to converge -- with only 2 it also failed. L=5, even with 4 sweeps AND eps
+// pushed up to 60*V (30, vs the L=1 rule's 2.5), still fails: one electron
+// migrates from the impurity/first-bath sector into the (nominally fully
+// decoupled, since second-bath Connectors=0 at the GS stage) auxiliary
+// manifold, and specific occ/empty sites end up swapped rather than merely
+// partially mixed. This is a genuine rank-dependent breakdown of the
+// eps-split seeding mechanism, not a test artifact -- more sweeps did NOT
+// fix L=5, so it is not simply "needs more DMRG convergence effort" the way
+// L=4 was. Plausibly related to the parallel NtNeq>=NeqBathRank/DM-eigs
+// investigation's underlying concern (many near-degenerate decoupled
+// orbitals at higher L), though the failure mode observed here (occupation
+// migrating to the WRONG site, not a degenerate-DM truncation crash) is
+// different enough that it should be treated as a separate, adjacent
+// finding rather than assumed to be the same bug. Not investigated further
+// here (see feedback_compute_discipline: don't chase an open physics
+// question with more compute without a plan).
+TEST_CASE("ImpuritySolverNeqTdmrg second-bath eps-split seeding holds at "
+          "higher rank (L=3,4,5)",
+          "[ImpuritySolverNeqTdmrg][Phase2][SecondBathSeeding]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	// GENERATE must come BEFORE building the config/root name: each L gets
+	// its OWN RootOutputname (and measureSecondBathOccupations further
+	// appends "secondbath_seed_gs" to it, but the geometry -- nsitesExt --
+	// differs per L, so the prefix itself must differ too). Reusing one
+	// prefix across differing lattice sizes is exactly the cross-TEST_CASE
+	// checkpoint contamination mechanism documented above
+	// configWithU()/runChainedVsMonolithicComparison -- confirmed real, not
+	// hypothetical. Root names stay bare alphanumeric per that same
+	// constraint (no periods).
+	const SizeType L = GENERATE(SizeType(3), SizeType(4), SizeType(5));
+	CAPTURE(L);
+	const std::string rootName = "testTdmrgSecondBathSeedL" + ttos(L);
+
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {}, configForSecondBathTest(rootName));
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	// nBath=1, hopping V=0.5, bathEps=0 -- identical geometry to the L=1 case.
+	const VectorRealType bathParams = { 0.5, 0.0 };
+	const RealType       eps        = 5.0 * 0.5; // same calibration rule as the L=1 case
+
+	const auto occ = solver.measureSecondBathOccupations(bathParams, L, eps);
+	REQUIRE(occ.size() == 2 * L);
+	RealType auxTotal = 0;
+	for (SizeType p = 0; p < L; ++p) {
+		CHECK(occ[p] == Catch::Approx(2.0).margin(1e-4));
+		CHECK(occ[L + p] == Catch::Approx(0.0).margin(1e-4));
+		auxTotal += occ[p] + occ[L + p];
+	}
+	// TargetElectronsUp=1, TargetElectronsDown=0 (base impurity sector) plus
+	// L extra up- and L extra down-electrons for the eps-split (nupExt=L+1,
+	// ndownExt=L, total 2L+1) -- if the 2L auxiliary sites correctly hold
+	// 2L electrons between them (checked above), the remaining single
+	// electron in the total count is pinned at the impurity/first-bath
+	// sector, i.e. the impurity is singly occupied as intended.
+	CHECK(auxTotal == Catch::Approx(2.0 * L).margin(1e-4));
 }
 
 // Phase 2 fan-out gate (advisor-recommended first check, per
