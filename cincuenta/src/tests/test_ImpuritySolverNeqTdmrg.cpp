@@ -455,6 +455,94 @@ TEST_CASE("ImpuritySolverNeqTdmrg second-bath eps-split seeding holds at "
 	CHECK(auxTotal == Catch::Approx(2.0 * L).margin(1e-4));
 }
 
+// nBath=0 version of the test directly above -- Fig 9a's ACTUAL regime
+// (Wolf et al.'s literal atomic limit, Lambda^-===0), not the nBath=1 config
+// above. nBath=1 means exactly one bath site + one impurity (nsites=nBath+1,
+// confirmed directly in measureSecondBathOccupations) -- below the ~2-bath-
+// site floor DMRG needs to resolve anything as a real bath, so the L=5
+// failure found in the test above (electron migrates into the auxiliary
+// manifold, scrambled non-integer occupations, persists even at 4 sweeps and
+// eps=60x the coupling) is not necessarily representative of what happens in
+// a physically well-posed configuration. nBath=0 is NOT an arbitrary small
+// config in the same way -- it's the exact special case Fig 9a itself uses,
+// and we have GBEK's atomic-limit results as a reference, unlike any nonzero
+// nBath (no paper reference available to validate against). This answers a
+// different, more directly relevant question: does the SAME eps-split
+// occupation-migration failure occur in the one regime that actually matters
+// for Fig 9a?
+//
+// Uses configAtomicLimitRankNtNeq's own HubbardU=2 base config (matching the
+// real atomic-limit production tests) rather than configForSecondBathTest's
+// HubbardU=0, so the eps calibration below is meaningful. The rank/ntNeq
+// arguments to that helper are irrelevant here (measureSecondBathOccupations
+// takes L directly and never reads params_.neqBathRank_/nT) -- only
+// uInitial/uFinal (=2 there) actually matter for potExt/eps calibration.
+// Forward declaration: defined later in this file (Task 44 section).
+static std::string configAtomicLimitRankNtNeq(const std::string& rootName, int rank, int ntNeq);
+
+TEST_CASE("ImpuritySolverNeqTdmrg second-bath eps-split seeding holds at "
+          "higher rank (L=3,4,5), nBath=0 (Fig 9a's actual regime)",
+          "[ImpuritySolverNeqTdmrg][Phase2][SecondBathSeeding]")
+{
+	int    argc    = 1;
+	char   arg0[]  = "test_ImpuritySolverNeqTdmrg";
+	char*  argv0[] = { arg0 };
+	char** argv    = argv0;
+
+	ApplicationType app("test_ImpuritySolverNeqTdmrg", &argc, &argv, 1);
+
+	const SizeType L = GENERATE(SizeType(3), SizeType(4), SizeType(5));
+	CAPTURE(L);
+	const std::string rootName = "testTdmrgSecondBathSeedNb0L" + ttos(L);
+
+	// Override the base config's 2-sweep FiniteLoopsGs with 4 sweeps (Ainur
+	// takes the LAST occurrence of a duplicate key) -- matching the nBath=1
+	// test's own finding that L=4 needed more sweeps than L=3 to converge.
+	// Testing whether the nBath=0 failure at L=3 (unlike nBath=1, where L=3
+	// passed at 2 sweeps) is similarly just under-converged, or something
+	// worse.
+	// Override the base config's 2-sweep FiniteLoopsGs with 4 sweeps.
+	// EXPERIMENT tried and REFUTED (2026-08-05): reducing InfiniteLoopKeptStates
+	// to match the true bond dimension (1, since the whole nBath=0 system is
+	// an exact product state) made things WORSE, not better -- L=3 failed at
+	// kept-states=4 where it passes at kept-states=100. So the failure is NOT
+	// about DMRG's infinite-growth Lanczos step entertaining too large a
+	// near-degenerate manifold; if anything the growth phase needs MORE
+	// representational room to work through, even though the converged
+	// answer only needs bond dimension 1. Left at kept-states=100 (the base
+	// config's own default) pending further investigation.
+	InputNgType::Writeable ioW(Dmft::CincuentaInputCheck {},
+	                           configAtomicLimitRankNtNeq(rootName, static_cast<int>(L), 2)
+	                               + "FiniteLoopsGs=[[@auto, 100, 0],[@auto, 100, "
+	                                 "0],[@auto, 100, 0],[@auto, 100, 0]];\n");
+	InputNgType::Readable  io(ioW);
+	ParamsType             params(io);
+	SolverType             solver(params, app, io);
+
+	const VectorRealType emptyBathParams; // nBath=0
+	// Same calibration rule solveSelfConsistent itself uses for scEps_ in
+	// production: 5 * max(uInitial, uFinal, |hoppings|, |bathEps|) -- here
+	// hoppings/bathEps are empty (nBath=0), and uInitial==uFinal==2.
+	const RealType eps = 5.0 * 2.0;
+
+	const auto occ = solver.measureSecondBathOccupations(emptyBathParams, L, eps);
+	REQUIRE(occ.size() == 2 * L);
+	RealType auxTotal = 0;
+	for (SizeType p = 0; p < L; ++p) {
+		CHECK(occ[p] == Catch::Approx(2.0).margin(1e-4));
+		CHECK(occ[L + p] == Catch::Approx(0.0).margin(1e-4));
+		auxTotal += occ[p] + occ[L + p];
+	}
+	// At nBath=0, TargetElectronsUp=1/Down=0 (the exact atomic-limit
+	// constraint -- singly occupied impurity, no bath to share the electron
+	// with) plus L extra up/down electrons for the eps-split. Unlike the
+	// nBath=1 test above, the impurity here IS exactly singly occupied (no
+	// bath site to delocalize onto), so the remaining single electron
+	// (beyond the 2L auxiliary electrons checked above) should sit entirely
+	// at the impurity.
+	CHECK(auxTotal == Catch::Approx(2.0 * L).margin(1e-4));
+}
+
 // Phase 2 fan-out gate (advisor-recommended first check, per
 // fancy-painting-moon.md): extend the geometry with 2L second-bath sites
 // via computeFullGridWithInertSecondBath, holding Vplus=0 for EVERY step
