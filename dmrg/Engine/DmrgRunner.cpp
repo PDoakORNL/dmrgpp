@@ -1,4 +1,6 @@
 #include "DmrgRunner.h"
+#include "MatrixVectorTypes.hpp"
+#include <type_traits>
 
 namespace Dmrg {
 
@@ -91,25 +93,21 @@ void DmrgRunner<RealType>::doOneRun2(const OptionsForIntrospect& op_options) con
 	                                         ParametersDmrgSolverType,
 	                                         InputNgType::Readable,
 	                                         SuperGeometryType>;
+	using MatrixVectorModelType  = typename MatrixVectorTypes<ComplexOrRealType>::ModelType;
+	static_assert(std::is_same_v<ModelBaseType, MatrixVectorModelType>,
+	              "DmrgRunner and MatrixVectorTypes must use the same model type");
 
-	assert(dmrg_solver_params_);
-	if (dmrg_solver_params_->options.isSet("MatrixVectorStored")) {
-		doOneRun3<MatrixVectorStored<ModelBaseType>>(op_options);
-	} else if (dmrg_solver_params_->options.isSet("MatrixVectorOnTheFly")) {
-		doOneRun3<MatrixVectorOnTheFly<ModelBaseType>>(op_options);
-	} else {
-		doOneRun3<MatrixVectorKron<ModelBaseType>>(op_options);
-	}
+	doOneRun3<ComplexOrRealType>(op_options);
 }
 
 template <typename RealType>
-template <typename MatrixVectorType>
+template <typename ComplexOrRealType>
 void DmrgRunner<RealType>::doOneRun3(const OptionsForIntrospect& op_options) const
 {
-	using ComplexOrRealType = typename MatrixVectorType::ComplexOrRealType;
 	using SuperGeometryType
 	    = SuperGeometry<ComplexOrRealType, InputNgType::Readable, ProgramGlobals>;
 	using VectorWithOffsetsType = VectorWithOffsets<ComplexOrRealType>;
+	using MatrixVectorType      = MatrixVector<ComplexOrRealType>;
 
 	assert(io_);
 	assert(dmrg_solver_params_);

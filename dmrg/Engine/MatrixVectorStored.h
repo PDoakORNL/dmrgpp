@@ -85,28 +85,31 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include <vector>
 
 namespace Dmrg {
-template <typename ModelType_> class MatrixVectorStored : public MatrixVectorBase<ModelType_> {
+template <typename ComplexOrRealType_>
+class MatrixVectorStored final : public MatrixVectorBase<ComplexOrRealType_> {
 
-	using BaseType = MatrixVectorBase<ModelType_>;
+	using BaseType = MatrixVectorBase<ComplexOrRealType_>;
 
 public:
 
-	using ModelType                 = ModelType_;
+	using ModelType                 = typename BaseType::ModelType;
 	using HamiltonianConnectionType = typename ModelType::HamiltonianConnectionType;
 	using ParametersType            = typename ModelType::ParametersType;
 	using ModelHelperType           = typename ModelType::ModelHelperType;
 	using SparseMatrixType          = typename ModelHelperType::SparseMatrixType;
 	using RealType                  = typename ModelHelperType::RealType;
 	using value_type                = typename SparseMatrixType::value_type;
-	using ComplexOrRealType         = typename SparseMatrixType::value_type;
+	using ComplexOrRealType         = ComplexOrRealType_;
 	using VectorRealType            = typename PsimagLite::Vector<RealType>::Type;
+	using VectorType                = typename BaseType::VectorType;
 	using OptionsType               = typename ParametersType::OptionsType;
 	using FullMatrixType            = PsimagLite::Matrix<ComplexOrRealType>;
 
 	MatrixVectorStored(const ModelType&                     model,
 	                   const HamiltonianConnectionType&     hc,
 	                   const typename ModelHelperType::Aux& aux)
-	    : model_(model)
+	    : BaseType(hc, aux)
+	    , model_(model)
 	    , progress_("MatrixVectorStored")
 	{
 		const OptionsType& options     = model.params().options;
@@ -126,19 +129,14 @@ public:
 			std::cerr << "WARNING: MatrixVectorStored being used for a large run!\n";
 	}
 
-	SizeType rows() const { return matrixStored_.rows(); }
+	const SparseMatrixType& toCRS() const override { return matrixStored_; }
 
-	SizeType cols() const { return matrixStored_.cols(); }
-
-	const SparseMatrixType& toCRS() const { return matrixStored_; }
-
-	template <typename SomeVectorType>
-	void matrixVectorProduct(SomeVectorType& x, SomeVectorType const& y) const
+	void matrixVectorProduct(VectorType& x, const VectorType& y) const override
 	{
 		matrixStored_.matrixVectorProduct(x, y);
 	}
 
-	void fullDiag(VectorRealType& eigs, FullMatrixType& fm) const
+	void fullDiag(VectorRealType& eigs, FullMatrixType& fm) const override
 	{
 		BaseType::fullDiag(eigs, fm, matrixStored_, model_.params().maxMatrixRankStored);
 	}

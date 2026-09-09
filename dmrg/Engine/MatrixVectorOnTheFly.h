@@ -84,19 +84,21 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include <vector>
 
 namespace Dmrg {
-template <typename ModelType_> class MatrixVectorOnTheFly : public MatrixVectorBase<ModelType_> {
+template <typename ComplexOrRealType_>
+class MatrixVectorOnTheFly final : public MatrixVectorBase<ComplexOrRealType_> {
 
-	using BaseType = MatrixVectorBase<ModelType_>;
+	using BaseType = MatrixVectorBase<ComplexOrRealType_>;
 
 public:
 
-	using ModelType                 = ModelType_;
+	using ModelType                 = typename BaseType::ModelType;
 	using ModelHelperType           = typename ModelType::ModelHelperType;
 	using RealType                  = typename ModelHelperType::RealType;
 	using SparseMatrixType          = typename ModelHelperType::SparseMatrixType;
 	using value_type                = typename SparseMatrixType::value_type;
-	using ComplexOrRealType         = typename SparseMatrixType::value_type;
+	using ComplexOrRealType         = ComplexOrRealType_;
 	using VectorRealType            = typename PsimagLite::Vector<RealType>::Type;
+	using VectorType                = typename BaseType::VectorType;
 	using FullMatrixType            = PsimagLite::Matrix<ComplexOrRealType>;
 	using HamiltonianConnectionType = typename ModelType::HamiltonianConnectionType;
 	using AuxType                   = typename ModelHelperType::Aux;
@@ -104,7 +106,8 @@ public:
 	MatrixVectorOnTheFly(const ModelType&                 model,
 	                     const HamiltonianConnectionType& hc,
 	                     const AuxType&                   aux)
-	    : model_(model)
+	    : BaseType(hc, aux)
+	    , model_(model)
 	    , hc_(hc)
 	    , aux_(aux)
 	{
@@ -116,12 +119,7 @@ public:
 		assert(isHermitian(matrixStored_, true));
 	}
 
-	SizeType rows() const { return hc_.modelHelper().size(aux_.m()); }
-
-	SizeType cols() const { return rows(); }
-
-	template <typename SomeVectorType>
-	void matrixVectorProduct(SomeVectorType& x, SomeVectorType const& y) const
+	void matrixVectorProduct(VectorType& x, const VectorType& y) const override
 	{
 		if (matrixStored_.rows() > 0)
 			matrixStored_.matrixVectorProduct(x, y);
@@ -129,12 +127,12 @@ public:
 			model_.matrixVectorProduct(x, y, hc_, aux_);
 	}
 
-	void fullDiag(VectorRealType& eigs, FullMatrixType& fm) const
+	void fullDiag(VectorRealType& eigs, FullMatrixType& fm) const override
 	{
 		int mrs = model_.params().maxMatrixRankStored;
-		if (mrs < static_cast<int>(rows())) {
+		if (mrs < static_cast<int>(this->rows())) {
 			std::cerr << "Full diag will likely fail, it would need ";
-			std::cerr << rows() << " but you gave only " << mrs << "\n";
+			std::cerr << this->rows() << " but you gave only " << mrs << "\n";
 		}
 
 		BaseType::fullDiag(eigs, fm, matrixStored_, mrs);
