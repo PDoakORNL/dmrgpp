@@ -80,30 +80,49 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #ifndef DMRG_MATRIX_VECTOR_BASE_H
 #define DMRG_MATRIX_VECTOR_BASE_H
 
+#include "MatrixVectorTypes.hpp"
 #include <PsimagLite/PsimagLite.h>
+#include <cassert>
 #include <vector>
 
 namespace Dmrg {
-template <typename ModelType_> class MatrixVectorBase {
+template <typename ComplexOrRealType_> class MatrixVectorBase {
 
 public:
 
-	using ModelType         = ModelType_;
-	using ModelHelperType   = typename ModelType::ModelHelperType;
-	using RealType          = typename ModelHelperType::RealType;
-	using SparseMatrixType  = typename ModelHelperType::SparseMatrixType;
-	using ComplexOrRealType = typename SparseMatrixType::value_type;
+	using TypesType         = MatrixVectorTypes<ComplexOrRealType_>;
+	using ModelType         = typename TypesType::ModelType;
+	using ModelHelperType   = typename TypesType::ModelHelperType;
+	using RealType          = typename TypesType::RealType;
+	using SparseMatrixType  = typename TypesType::SparseMatrixType;
+	using ComplexOrRealType = ComplexOrRealType_;
+	using value_type        = ComplexOrRealType;
 	using VectorRealType    = typename PsimagLite::Vector<RealType>::Type;
 	using VectorType        = typename PsimagLite::Vector<ComplexOrRealType>::Type;
 	using FullMatrixType    = PsimagLite::Matrix<ComplexOrRealType>;
+
+	using HamiltonianConnectionType = typename ModelType::HamiltonianConnectionType;
+	using AuxType                   = typename ModelHelperType::Aux;
+
+	MatrixVectorBase(const HamiltonianConnectionType& hc, const AuxType& aux)
+	    : rows_(computeRows(hc, aux))
+	{ }
+
+	virtual ~MatrixVectorBase() = default;
+
+	SizeType rows() const { return rows_; }
+
+	SizeType cols() const { return rows_; }
+
+	virtual void matrixVectorProduct(VectorType& x, const VectorType& y) const = 0;
 
 	SizeType reflectionSector() const { return 0; }
 
 	void reflectionSector(SizeType) { }
 
-	void fullDiag(VectorRealType& eigs, FullMatrixType& fm) const;
+	virtual void fullDiag(VectorRealType& eigs, FullMatrixType& fm) const = 0;
 
-	const SparseMatrixType& toCRS() const
+	virtual const SparseMatrixType& toCRS() const
 	{
 		throw PsimagLite::RuntimeError("This MatrixVector class doesn't support toCRS()\n");
 	}
@@ -137,6 +156,21 @@ public:
 		fm = matrixStored.toDense();
 		diag(fm, eigs, 'V');
 	}
+
+private:
+
+	static SizeType computeRows(const HamiltonianConnectionType& hc, const AuxType& aux)
+	{
+		const auto&    lrs    = hc.modelHelper().leftRightSuper();
+		const SizeType m      = aux.m();
+		const SizeType offset = lrs.super().partition(m);
+		assert(lrs.super().partition(m + 1) >= offset);
+		const SizeType rows = lrs.super().partition(m + 1) - offset;
+		assert(rows > 0);
+		return rows;
+	}
+
+	const SizeType rows_;
 }; // class MatrixVectorBase
 } // namespace Dmrg
 
