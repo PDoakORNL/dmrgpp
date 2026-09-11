@@ -4,7 +4,9 @@
 # rank-2 second bath (six sites in the extended real-time problem).
 # The non-atomic equilibrium bath deliberately leaves Lambda^- nonzero.
 FicticiousBeta=16;
-ChemicalPotential=1.;
+# The particle-hole-symmetric fit uses the interaction-centered impurity level,
+# so the chemical potential must be zero.
+ChemicalPotential=0.;
 Matsubaras=16;
 LatticeGf="energy,semicircular,4";
 NumberOfBathPoints=1;

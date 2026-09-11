@@ -16,7 +16,7 @@ namespace {
 
 const std::string config = "##Ainur1.0\n\n"
                            "FicticiousBeta=10.;\n"
-                           "ChemicalPotential=1.;\n"
+                           "ChemicalPotential=0.;\n"
                            "Matsubaras=3;\n"
                            "LatticeGf=\"energy,semicircular,4\";\n"
                            "NumberOfBathPoints=1;\n"
