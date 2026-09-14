@@ -313,7 +313,8 @@ private:
 		// MagneticFieldZ is the coefficient of Sz in H, not in L.
 		// For separate sites, supply signed entries: +b on the physical
 		// leg and -b on its ancilla, as for the exchange connectors.
-		const ComplexOrRealType imaginaryUnit = ImginaryUnitOrFail<ComplexOrRealType>::value();
+		const ComplexOrRealType imaginaryUnit
+		    = ImginaryUnitOrFail<ComplexOrRealType>::value();
 		hmatrix += (-imaginaryUnit * tmp) * sz_p.getCRS();
 
 		if (!is_separate_) {
