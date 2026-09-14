@@ -332,6 +332,7 @@ set(_isolated_dmrg_test_names input8901 input8902 input8903 ldaggerl_hermitian_r
                               ldaggerl_onthefly_rejected)
 foreach(test_name IN LISTS _isolated_dmrg_test_names)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${test_name})
+  set_tests_properties(${test_name} PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${test_name})
 endforeach()
 
 add_test(NAME input8902 COMMAND $<TARGET_FILE:dmrg> -f ${PATH_TO_INPUTS}/input8902.ain)
