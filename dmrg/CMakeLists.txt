@@ -328,17 +328,8 @@ string(REPLACE "matrixvectorstored," "MatrixVectorOnTheFly," _ldaggerl_onthefly_
 set(_ldaggerl_onthefly_input_file ${CMAKE_CURRENT_BINARY_DIR}/input8902_ldaggerl_onthefly.ain)
 file(WRITE ${_ldaggerl_onthefly_input_file} "${_ldaggerl_onthefly_input}")
 
-set(_isolated_dmrg_test_names input8901 input8902 input8903 ldaggerl_hermitian_rejected ldaggerl_kron_rejected
-                              ldaggerl_onthefly_rejected)
-foreach(test_name IN LISTS _isolated_dmrg_test_names)
-  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${test_name})
-  set_tests_properties(${test_name} PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${test_name})
-endforeach()
-
 add_test(NAME input8902 COMMAND $<TARGET_FILE:dmrg> -f ${PATH_TO_INPUTS}/input8902.ain)
-set_tests_properties(input8902 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/input8902)
 add_test(NAME input8903 COMMAND $<TARGET_FILE:dmrg> -f ${PATH_TO_INPUTS}/input8903.ain)
-set_tests_properties(input8903 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/input8903)
 
 add_test(
   NAME ldaggerl_hermitian_rejected
@@ -346,8 +337,6 @@ add_test(
     ${CMAKE_COMMAND} -DDMRG_EXECUTABLE=$<TARGET_FILE:dmrg> -DINPUT_FILE=${PATH_TO_INPUTS}/input2.ain
     -DEXTRA_OPTION=LdAgGeRl "-DEXPECTED_DIAGNOSTIC=LdaggerL cannot be used with a Hermitian model" -P
     ${CMAKE_SOURCE_DIR}/TestSuite/expectFailure.cmake)
-set_tests_properties(ldaggerl_hermitian_rejected PROPERTIES WORKING_DIRECTORY
-                                                            ${CMAKE_CURRENT_BINARY_DIR}/ldaggerl_hermitian_rejected)
 
 add_test(
   NAME ldaggerl_kron_rejected
@@ -355,8 +344,6 @@ add_test(
     ${CMAKE_COMMAND} -DDMRG_EXECUTABLE=$<TARGET_FILE:dmrg> -DINPUT_FILE=${_ldaggerl_kron_input_file}
     "-DEXPECTED_DIAGNOSTIC=LdaggerL is not implemented for MatrixVectorKron" -P
     ${CMAKE_SOURCE_DIR}/TestSuite/expectFailure.cmake)
-set_tests_properties(ldaggerl_kron_rejected PROPERTIES WORKING_DIRECTORY
-                                                       ${CMAKE_CURRENT_BINARY_DIR}/ldaggerl_kron_rejected)
 
 add_test(
   NAME ldaggerl_onthefly_rejected
@@ -364,8 +351,14 @@ add_test(
     ${CMAKE_COMMAND} -DDMRG_EXECUTABLE=$<TARGET_FILE:dmrg> -DINPUT_FILE=${_ldaggerl_onthefly_input_file}
     "-DEXPECTED_DIAGNOSTIC=LdaggerL is not implemented for MatrixVectorOnTheFly" -P
     ${CMAKE_SOURCE_DIR}/TestSuite/expectFailure.cmake)
-set_tests_properties(ldaggerl_onthefly_rejected PROPERTIES WORKING_DIRECTORY
-                                                           ${CMAKE_CURRENT_BINARY_DIR}/ldaggerl_onthefly_rejected)
+
+set(_isolated_dmrg_test_names input8901 input8902 input8903 ldaggerl_hermitian_rejected ldaggerl_kron_rejected
+                              ldaggerl_onthefly_rejected)
+foreach(test_name IN LISTS _isolated_dmrg_test_names)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${test_name})
+  set_tests_properties(${test_name} PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${test_name})
+endforeach()
+
 add_test(NAME input9000 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9000.ain) # energy -0.472136
 add_test(NAME input9001 COMMAND ./dmrg -f ${PATH_TO_INPUTS}/input9001.ain "<P0|n|P0>"
 )# in-situ 1 (1.010966,0.000000) 0.500000 <P0|n|P0> (1.000000,0.000000)
