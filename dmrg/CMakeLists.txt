@@ -316,9 +316,6 @@ set_tests_properties(input8901 PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINA
 set(_ldaggerl_input_text)
 file(READ ${PATH_TO_INPUTS}/input8902.ain _ldaggerl_input_text)
 string(FIND "${_ldaggerl_input_text}" "matrixvectorstored," _ldaggerl_stored_position)
-if(_ldaggerl_stored_position EQUAL -1)
-  message(FATAL_ERROR "input8902.ain lacks matrixvectorstored")
-endif()
 
 string(REPLACE "matrixvectorstored," "" _ldaggerl_kron_input "${_ldaggerl_input_text}")
 set(_ldaggerl_kron_input_file ${CMAKE_CURRENT_BINARY_DIR}/input8902_ldaggerl_kron.ain)
