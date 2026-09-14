@@ -310,11 +310,15 @@ private:
 		RealType            tmp   = v[site];
 		std::string         label = (is_separate_) ? "sz" : "sz_p";
 		const OperatorType& sz_p  = ModelBaseType::naturalOperator(label, site, 0);
-		hmatrix += tmp * sz_p.getCRS();
+		// MagneticFieldZ is the coefficient of Sz in H, not in L.
+		// For separate sites, supply signed entries: +b on the physical
+		// leg and -b on its ancilla, as for the exchange connectors.
+		const ComplexOrRealType imaginaryUnit = ImginaryUnitOrFail<ComplexOrRealType>::value();
+		hmatrix += (-imaginaryUnit * tmp) * sz_p.getCRS();
 
 		if (!is_separate_) {
 			const OperatorType& sz_a = ModelBaseType::naturalOperator("sz_a", site, 0);
-			hmatrix += tmp * sz_a.getCRS();
+			hmatrix += (imaginaryUnit * tmp) * sz_a.getCRS();
 		}
 	}
 
@@ -322,12 +326,15 @@ private:
 	                     const std::string&       op_name,
 	                     const ComplexOrRealType& factor)
 	{
-		ModelTermType& spsm = ModelBaseType::createTerm(connection_name);
+		// The commutator prefactor (+/- i) is the same for both exchange
+		// directions. Automatic Hermitian completion would conjugate it.
+		ModelTermType& spsm = ModelBaseType::createTerm(connection_name, false);
 		OpForLinkType  splus(op_name);
 
 		auto valueModiferTerm0
 		    = [factor](ComplexOrRealType& value) { value *= (0.5 * factor); };
 		spsm.push(splus, 'N', splus, 'C', valueModiferTerm0);
+		spsm.push(splus, 'C', splus, 'N', valueModiferTerm0);
 	}
 
 	void connectionSzSz(const std::string&       connection_name,
