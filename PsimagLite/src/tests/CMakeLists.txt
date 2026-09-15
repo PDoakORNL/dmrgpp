@@ -26,3 +26,7 @@ catch_discover_tests(test_GetBraOrKet)
 add_executable(test_Matrix test_Matrix.cpp)
 target_link_libraries(test_Matrix PRIVATE Catch2::Catch2WithMain psimaglite)
 catch_discover_tests(test_Matrix)
+
+add_executable(test_CrsMatrixMultiply test_CrsMatrixMultiply.cpp)
+target_link_libraries(test_CrsMatrixMultiply PRIVATE Catch2::Catch2WithMain psimaglite)
+catch_discover_tests(test_CrsMatrixMultiply)

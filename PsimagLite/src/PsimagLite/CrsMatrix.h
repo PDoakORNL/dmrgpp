@@ -89,6 +89,8 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include <algorithm>
 #include <cassert>
 #include <fstream>
+#include <unordered_map>
+#include <vector>
 
 namespace PsimagLite {
 
@@ -978,52 +980,53 @@ void printFullMatrix(const CrsMatrix<T>& s,
 }
 
 //! C = A*B,  all matrices are CRS matrices
-//! idea is from http://web.maths.unsw.edu.au/~farid/Papers/Hons/node23.html
 template <typename S, typename S3, typename S2>
 void multiply(CrsMatrix<S>& C, CrsMatrix<S3> const& A, CrsMatrix<S2> const& B)
 {
-	int                        j, s, mlast, itemp, jbk;
-	SizeType                   n = A.rows();
-	typename Vector<int>::Type ptr(B.cols(), -1), index(B.cols(), 0);
-	typename Vector<S>::Type   temp(B.cols(), 0);
-	S                          tmp;
+	if (A.cols() != B.rows())
+		throw RuntimeError("CrsMatrix::multiply: incompatible matrix dimensions\n");
 
-	C.resize(n, B.cols());
+	CrsMatrix<S> result;
+	result.resize(A.rows(), B.cols());
 
-	// mlast pointer to the last place we updated in the C vector
-	mlast = 0;
-	// for (SizeType l=0;l<n;l++) ptr[l] = -1;
-	// over the rows of A
-	for (SizeType i = 0; i < n; i++) {
-		C.setRow(i, mlast);
-		// start calculations for row
-		itemp = 0;
-		for (j = A.getRowPtr(i); j < A.getRowPtr(i + 1); j++) {
-			SizeType istart = B.getRowPtr(A.getCol(j));
-			SizeType iend   = B.getRowPtr(A.getCol(j) + 1);
-			for (SizeType k = istart; k < iend; k++) {
-				jbk = B.getCol(k);
-				tmp = A.getValue(j) * B.getValue(k);
-				if (ptr[jbk] < 0) {
-					ptr[jbk]        = itemp;
-					temp[ptr[jbk]]  = tmp;
-					index[ptr[jbk]] = jbk;
-					itemp++;
-				} else {
-					temp[ptr[jbk]] += tmp;
-				}
+	std::unordered_map<SizeType, S> accumulator;
+	std::vector<SizeType>           columns;
+	SizeType                        nonzeros = 0;
+
+	for (SizeType row = 0; row < A.rows(); ++row) {
+		result.setRow(row, nonzeros);
+		accumulator.clear();
+		columns.clear();
+
+		for (int ka = A.getRowPtr(row); ka < A.getRowPtr(row + 1); ++ka) {
+			const SizeType inner = A.getCol(ka);
+			for (int kb = B.getRowPtr(inner); kb < B.getRowPtr(inner + 1); ++kb) {
+				const SizeType column   = B.getCol(kb);
+				const S        product  = A.getValue(ka) * B.getValue(kb);
+				auto           inserted = accumulator.emplace(column, product);
+				if (inserted.second)
+					columns.push_back(column);
+				else
+					inserted.first->second += product;
 			}
 		}
-		// before you leave this row update array c , jc
-		for (s = 0; s < itemp; s++) {
-			C.pushValue(temp[s]);
-			C.pushCol(index[s]);
-			ptr[index[s]] = -1;
+
+		std::sort(columns.begin(), columns.end());
+		for (const SizeType column : columns) {
+			const S& value = accumulator.at(column);
+			if (value == S(0))
+				continue;
+
+			result.pushCol(column);
+			result.pushValue(value);
+			++nonzeros;
 		}
-		mlast += itemp;
 	}
-	C.setRow(n, mlast);
-	C.checkValidity();
+
+	result.setRow(A.rows(), nonzeros);
+	if (result.rows() > 0 && result.cols() > 0)
+		result.checkValidity();
+	C.swap(result);
 }
 
 // vector2 = sparseMatrix * vector1
