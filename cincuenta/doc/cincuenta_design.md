@@ -2,10 +2,9 @@
 
 > **Scope note (2026-08-13):** this document was written 2026-05-15 and covers
 > only the **equilibrium** DMFT self-consistency loop (`ImpuritySolverDmrg`,
-> `ImpuritySolverExactDiag`). It predates and does not mention the
-> **non-equilibrium (neq)** solver path — `ImpuritySolverNeqExactDiag`,
-> `ImpuritySolverNeqTdmrg`, `ImpuritySolverNeqGBEK`, `NeqSolver=`, `TmaxNeq=`,
-> etc. For the neq-DMFT ED input format, see
+> `ImpuritySolverExactDiag`). It predates the **non-equilibrium (neq)** GBEK
+> solver path (`ImpuritySolverNeqGBEK`, `TmaxNeq=`, etc.). For the neq-DMFT
+> input format, see
 > [`neq_dmft_ed_input.md`](neq_dmft_ed_input.md). Treat the equilibrium
 > material below as a useful but unverified starting point — it has not been
 > re-checked against the current code.
@@ -150,11 +149,12 @@ zero-energy site for odd `nBath`).  This halves the number of free energy
 unknowns, making the fit better conditioned for half-filled, particle-hole
 symmetric models.
 
-When this is selected the
-chemical potential is required to be to U/2 (true for all LatticeGf or
-only semicircular?) Additionally `TargetElectronsUp + TargetElectronsDown ==
-NumberOfBathPoints + 1` (i.e., exactly half-filling of the full star-geometry
-system: must be specified.)
+`ModelParams` represents the interaction in centered form,
+`U n_up n_down - (U/2)(n_up+n_down)`, by placing `-U/2` on the impurity.
+Therefore this option requires `ChemicalPotential=0`; its bath energies are
+mirrored as `(epsilon,-epsilon)` around zero. Additionally,
+`TargetElectronsUp + TargetElectronsDown == NumberOfBathPoints + 1` is required
+(i.e., exactly half-filling of the full star-geometry system).
 
 ### Step 3 — Solve the impurity problem
 

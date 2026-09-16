@@ -127,10 +127,6 @@ All rights reserved
 \end{titlepage}
 \tableofcontents
 
-\begin{center}
-\includegraphics[width=2cm]{Under_construction_icon-blue}\\
-{\tiny http://commons.wikimedia.org/wiki/File:Under\_construction\_icon-blue.svg}
-\end{center}
 \pagebreak
 
 \chapter{Input}\label{sec:inputfile}

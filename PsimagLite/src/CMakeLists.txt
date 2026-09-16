@@ -119,6 +119,17 @@ else()
   endif()
 endif()
 
+# Third-party targets should not inherit this project's clang-tidy checks.
+set(KOKKOS_TARGETS kokkosalgorithms kokkoscontainers kokkoscore kokkossimd kokkoskernels)
+foreach(target ${KOKKOS_TARGETS})
+  if(TARGET ${target})
+    set_target_properties(${target} PROPERTIES CXX_CLANG_TIDY "")
+  endif()
+endforeach()
+if(TARGET kokkoskernels)
+  set_target_properties(kokkoskernels PROPERTIES CXX_CLANG_TIDY "")
+endif()
+
 set(DMRGPP_KOKKOS_PROVENANCE
     "${_dmrgpp_kokkos_provenance}"
     CACHE INTERNAL "How Kokkos was resolved" FORCE)
@@ -128,7 +139,7 @@ set(DMRGPP_KOKKOSKERNELS_PROVENANCE
 message(
   STATUS "Kokkos dependency pair: Kokkos=${DMRGPP_KOKKOS_PROVENANCE}, KokkosKernels=${DMRGPP_KOKKOSKERNELS_PROVENANCE}")
 
-target_link_libraries(psimaglite PUBLIC Kokkos::kokkoskernels Kokkos::kokkos)
+target_link_libraries(psimaglite PUBLIC Kokkos::kokkoskernels)
 target_sources(psimaglite PRIVATE PsimagLite/KokkosGemm.cpp)
 
 target_include_directories(psimaglite PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/Io
