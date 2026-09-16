@@ -17,38 +17,27 @@ add_library(
   PsimagLite/Ainur/AinurConvert.cpp)
 
 # Resolve Kokkos and KokkosKernels as a coherent pair. An installed
-# KokkosKernels package must be considered before a Kokkos target exists so its
-# package configuration can select the Kokkos installation it was built with.
+# KokkosKernels package selects the Kokkos installation it was built with. If
+# that pair is unavailable, build both dependencies from source.
 include(FetchContent)
 
-if(TARGET Kokkos::kokkoskernels)
-  message(
-    FATAL_ERROR
-      "A pre-existing Kokkos::kokkoskernels target cannot be verified as coherent with Kokkos::kokkos; let DMRG++ resolve the pair"
-  )
+if(TARGET Kokkos::kokkos OR TARGET Kokkos::kokkoskernels)
+  message(FATAL_ERROR "Kokkos targets must not exist before DMRG++ resolves Kokkos and KokkosKernels as a pair")
 endif()
 
-set(_dmrgpp_probe_kokkoskernels TRUE)
-if(FETCHCONTENT_TRY_FIND_PACKAGE_MODE STREQUAL "NEVER"
-   OR FETCHCONTENT_SOURCE_DIR_KOKKOS
-   OR FETCHCONTENT_SOURCE_DIR_KOKKOSKERNELS
-   OR TARGET Kokkos::kokkos)
-  set(_dmrgpp_probe_kokkoskernels FALSE)
-endif()
-
-if(_dmrgpp_probe_kokkoskernels)
+set(_dmrgpp_kokkoskernels_package_found FALSE)
+if(NOT FETCHCONTENT_TRY_FIND_PACKAGE_MODE STREQUAL "NEVER"
+   AND NOT FETCHCONTENT_SOURCE_DIR_KOKKOS
+   AND NOT FETCHCONTENT_SOURCE_DIR_KOKKOSKERNELS)
   list(APPEND CMAKE_MESSAGE_INDENT "[KokkosKernels] ")
   find_package(KokkosKernels 5.1 QUIET CONFIG NAMES KokkosKernels)
   list(POP_BACK CMAKE_MESSAGE_INDENT)
+  if(KokkosKernels_FOUND)
+    set(_dmrgpp_kokkoskernels_package_found TRUE)
+  endif()
 endif()
 
-if(KokkosKernels_FOUND)
-  if(NOT TARGET Kokkos::kokkos OR NOT TARGET Kokkos::kokkoskernels)
-    message(FATAL_ERROR "The KokkosKernels package did not provide both Kokkos::kokkos and Kokkos::kokkoskernels")
-  endif()
-  set(_dmrgpp_kokkos_provenance "package via KokkosKernels")
-  set(_dmrgpp_kokkoskernels_provenance "package")
-
+if(_dmrgpp_kokkoskernels_package_found)
   # Remove values forced for a source build by an earlier configure. Newer
   # installed packages export these as normal variables that can be checked.
   unset(KokkosKernels_ENABLE_TPL_BLAS CACHE)
@@ -62,31 +51,25 @@ if(KokkosKernels_FOUND)
     endif()
   endif()
 else()
-  # No installed pair was selected. Resolve Kokkos on its own, then always
-  # build KokkosKernels against that selected target. Package discovery for
-  # KokkosKernels is disabled so an installed library cannot be substituted.
-  if(TARGET Kokkos::kokkos)
-    set(_dmrgpp_kokkos_provenance "provided")
-  else()
-    list(APPEND CMAKE_MESSAGE_INDENT "[Kokkos] ")
-    FetchContent_Declare(
-      Kokkos
-      GIT_REPOSITORY https://github.com/kokkos/kokkos
-      GIT_TAG 5.2.0
-      SYSTEM FIND_PACKAGE_ARGS 5.1 NAMES Kokkos)
-    FetchContent_MakeAvailable(Kokkos)
-    FetchContent_GetProperties(Kokkos SOURCE_DIR _dmrgpp_kokkos_source_dir)
-    list(POP_BACK CMAKE_MESSAGE_INDENT)
+  # Do not substitute either source dependency with an independently installed
+  # package; the two source builds must use the same Kokkos target.
+  block()
+  set(FETCHCONTENT_TRY_FIND_PACKAGE_MODE NEVER)
+  FetchContent_Declare(
+    Kokkos
+    GIT_REPOSITORY https://github.com/kokkos/kokkos
+    GIT_TAG 5.2.0
+    SYSTEM)
+  FetchContent_Declare(
+    KokkosKernels
+    GIT_REPOSITORY https://github.com/kokkos/kokkos-kernels
+    GIT_TAG 5.2.0
+    SYSTEM)
+  endblock()
 
-    if(NOT TARGET Kokkos::kokkos)
-      message(FATAL_ERROR "Kokkos did not provide the required Kokkos::kokkos target")
-    endif()
-    if(_dmrgpp_kokkos_source_dir)
-      set(_dmrgpp_kokkos_provenance "source")
-    else()
-      set(_dmrgpp_kokkos_provenance "package or provider")
-    endif()
-  endif()
+  list(APPEND CMAKE_MESSAGE_INDENT "[Kokkos] ")
+  FetchContent_MakeAvailable(Kokkos)
+  list(POP_BACK CMAKE_MESSAGE_INDENT)
 
   # Since DMRG++ requires BLAS and LAPACK, require the source build to use both
   # as TPLs.
@@ -97,26 +80,12 @@ else()
       ON
       CACHE BOOL "Whether to enable the LAPACK TPL" FORCE)
   list(APPEND CMAKE_MESSAGE_INDENT "[KokkosKernels] ")
-  block()
-  set(FETCHCONTENT_TRY_FIND_PACKAGE_MODE NEVER)
-  FetchContent_Declare(
-    KokkosKernels
-    GIT_REPOSITORY https://github.com/kokkos/kokkos-kernels
-    GIT_TAG 5.2.0
-    SYSTEM)
-  endblock()
   FetchContent_MakeAvailable(KokkosKernels)
-  FetchContent_GetProperties(KokkosKernels SOURCE_DIR _dmrgpp_kokkoskernels_source_dir)
   list(POP_BACK CMAKE_MESSAGE_INDENT)
+endif()
 
-  if(NOT TARGET Kokkos::kokkoskernels)
-    message(FATAL_ERROR "KokkosKernels did not provide the required Kokkos::kokkoskernels target")
-  endif()
-  if(_dmrgpp_kokkoskernels_source_dir)
-    set(_dmrgpp_kokkoskernels_provenance "source")
-  else()
-    set(_dmrgpp_kokkoskernels_provenance "provider")
-  endif()
+if(NOT TARGET Kokkos::kokkos OR NOT TARGET Kokkos::kokkoskernels)
+  message(FATAL_ERROR "Kokkos and KokkosKernels did not provide their required CMake targets")
 endif()
 
 # Third-party targets should not inherit this project's clang-tidy checks.
@@ -129,15 +98,6 @@ endforeach()
 if(TARGET kokkoskernels)
   set_target_properties(kokkoskernels PROPERTIES CXX_CLANG_TIDY "")
 endif()
-
-set(DMRGPP_KOKKOS_PROVENANCE
-    "${_dmrgpp_kokkos_provenance}"
-    CACHE INTERNAL "How Kokkos was resolved" FORCE)
-set(DMRGPP_KOKKOSKERNELS_PROVENANCE
-    "${_dmrgpp_kokkoskernels_provenance}"
-    CACHE INTERNAL "How KokkosKernels was resolved" FORCE)
-message(
-  STATUS "Kokkos dependency pair: Kokkos=${DMRGPP_KOKKOS_PROVENANCE}, KokkosKernels=${DMRGPP_KOKKOSKERNELS_PROVENANCE}")
 
 target_link_libraries(psimaglite PUBLIC Kokkos::kokkoskernels)
 target_sources(psimaglite PRIVATE PsimagLite/KokkosGemm.cpp)
