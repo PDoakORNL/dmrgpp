@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """Summarize completed Garcia-2004 star-DMFT runs using only the Python stdlib."""
 
-from __future__ import annotations
-
 import argparse
 import math
 import re
 from pathlib import Path
+from typing import List, Tuple
 
 
-def read_table(path: Path) -> list[tuple[float, float, float]]:
+def read_table(path: Path) -> List[Tuple[float, float, float]]:
     rows = []
     if not path.exists():
         return rows
@@ -38,7 +37,7 @@ def manifest_value(text: str, key: str, default: str = "-") -> str:
     return match.group(1).strip() if match else default
 
 
-def summarize(run_dir: Path) -> tuple[list[str], bool]:
+def summarize(run_dir: Path) -> Tuple[List[str], bool]:
     input_text = (run_dir / "input.ain").read_text() if (run_dir / "input.ain").exists() else ""
     manifest = (run_dir / "manifest.txt").read_text() if (run_dir / "manifest.txt").exists() else ""
     log = (run_dir / "cincuenta.log").read_text(errors="replace") if (run_dir / "cincuenta.log").exists() else ""
@@ -92,7 +91,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    run_dirs: list[Path] = []
+    run_dirs: List[Path] = []
     for path in args.paths:
         if (path / "input.ain").exists():
             run_dirs.append(path)
