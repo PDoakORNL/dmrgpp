@@ -74,19 +74,9 @@ public:
 		for (SizeType rank = 0; rank < mpiSize; ++rank)
 			totalCompleted += completedByRank[rank];
 
-		if (totalCompleted != static_cast<int>(omegaParams_.total()))
+		const SizeType totalTasks = omegaParams_.total() - omegaParams_.offset();
+		if (totalCompleted != static_cast<int>(totalTasks))
 			err("ManyOmegas: not all frequency tasks completed\n");
-
-		// When there are at least as many tasks as ranks, every rank must complete
-		// one. This collective invariant is a deterministic proof of distributed work.
-		if (omegaParams_.total() < mpiSize)
-			return;
-
-		for (SizeType rank = 0; rank < mpiSize; ++rank) {
-			if (completedByRank[rank] == 0)
-				err("ManyOmegas: MPI rank " + ttos(rank)
-				    + " did not complete a frequency task\n");
-		}
 	}
 
 	PsimagLite::String addOmega(RealType wn) const

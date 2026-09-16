@@ -31,10 +31,10 @@ matrix FiniteLoopsOmega=[[@auto, 20, 2],[@auto, 20, 2]];
 TargetElectronsUp=2;
 TargetElectronsDown=2;
 
-# Four real frequencies also permit an optional four-rank preflight run.
+# Five real frequencies deliberately exercise a non-divisible four-rank run.
 real OmegaBegin=-6.;
-integer OmegaTotal=4;
-real OmegaStep=4.0;
+integer OmegaTotal=5;
+real OmegaStep=3.0;
 real OmegaDelta=0.1;
 
 integer TridiagSteps=100;
