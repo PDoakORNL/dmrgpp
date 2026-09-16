@@ -85,6 +85,7 @@ DISCLOSED WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.
 #include "ObserverHelper.h"
 #include "OnePointCorrelations.h"
 #include "Parallel4PointDs.h"
+#include "PermutationParity.h"
 #include "TwoPointCorrelations.h"
 #include "Utils.h"
 #include "VectorWithOffsets.h" // for operator*
@@ -596,32 +597,6 @@ private:
 		}
 
 		return statistics;
-	}
-
-	static int parityOfPermutation(const std::vector<SizeType>& perm)
-	{
-		return (swapCountSmall(perm) & 1) ? -1 : 1;
-	}
-
-	// Inspired by
-	// https://stackoverflow.com/questions/20702782/efficiently-determine-the-parity-of-a-permutation
-	static SizeType swapCountSmall(const std::vector<SizeType>& perm)
-	{
-		SizeType          n     = perm.size();
-		SizeType          swaps = 0;
-		unsigned long int seen  = 0;
-		for (SizeType i = 0; i < n; ++i) {
-			unsigned long int mask = (1L << i);
-			if ((seen & mask) != 0)
-				continue;
-			seen |= mask;
-			for (SizeType j = perm[i]; (seen & (1L << j)) == 0; j = perm[j]) {
-				seen |= (1L << j);
-				++swaps;
-			}
-		}
-
-		return swaps;
 	}
 
 	const ObserverHelperType        helper_;

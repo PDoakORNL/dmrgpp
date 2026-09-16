@@ -8,6 +8,11 @@ target_link_libraries(testVectorWithOffsets PRIVATE Catch2::Catch2WithMain dmrgp
 target_include_directories(testVectorWithOffsets PRIVATE ${CMAKE_SOURCE_DIR}/dmrg ${CMAKE_SOURCE_DIR}/dmrg/Engine)
 catch_discover_tests(testVectorWithOffsets)
 
+add_executable(test_PermutationParity test_PermutationParity.cpp)
+target_link_libraries(test_PermutationParity PRIVATE Catch2::Catch2WithMain psimaglite)
+target_include_directories(test_PermutationParity PRIVATE ${CMAKE_SOURCE_DIR}/dmrg/Engine)
+catch_discover_tests(test_PermutationParity)
+
 # BatchedGemm test
 add_executable(test_BatchedGemm test_BatchedGemm.cpp)
 target_link_libraries(test_BatchedGemm PRIVATE Catch2::Catch2WithMain dmrgpp_utils psimaglite)
