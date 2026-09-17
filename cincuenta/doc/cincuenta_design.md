@@ -352,7 +352,7 @@ Initial bath guess (`Fit::InitResults`, all optional — pick **one** family, no
 | `InitBathRa` | real | Constant initial value for the hopping (V) half of the bath-parameter vector |
 | `InitBathRb` | real | Constant initial value for the on-site-energy (ε) half |
 | `InitBathVector` | vector | Explicit initial bath-parameter vector (length `NumberOfBathPoints` or `2*NumberOfBathPoints`) — mutually exclusive with `InitBathRa`/`InitBathRb` |
-| `InitBathReset` | int (0/1) | If 1, restart every bath fit from the configured initial values; if 0 (default), warm-start from the preceding optimized bath |
+| `InitBathReset` | int (0/1) | Reset behavior between DMFT iterations |
 
 If none of these are given, `InitBathRa` defaults to 1.
 
