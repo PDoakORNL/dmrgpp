@@ -13,9 +13,11 @@ Environment:
   RUN_NAME       output directory basename (default: CASE_UTC-TIMESTAMP)
   MPIEXEC        MPI launcher outside Slurm (default: mpiexec)
   MPIEXEC_NFLAG  rank-count flag outside Slurm (default: -n)
+  SRUN_ARGS      extra whitespace-separated srun arguments inside Slurm
   EXTRA_ARGS     extra whitespace-separated cincuenta arguments
 
 Inside a Slurm allocation the script uses srun. Outside Slurm it uses mpiexec.
+Arguments containing spaces are unsupported in SRUN_ARGS and EXTRA_ARGS.
 Every invocation creates a new directory and refuses to overwrite an old one.
 EOF
 }
@@ -59,13 +61,16 @@ fi
 cp "$input_source" "$run_dir/input.ain"
 
 if [[ -n ${SLURM_JOB_ID:-} ]]; then
-    launcher=(srun --ntasks="$ranks")
+    srun_args=()
+    if [[ -n ${SRUN_ARGS:-} ]]; then
+        read -r -a srun_args <<<"$SRUN_ARGS"
+    fi
+    launcher=(srun --ntasks="$ranks" "${srun_args[@]}")
 else
     launcher=("${MPIEXEC:-mpiexec}" "${MPIEXEC_NFLAG:--n}" "$ranks")
 fi
 extra_args=()
 if [[ -n ${EXTRA_ARGS:-} ]]; then
-    # EXTRA_ARGS is intentionally simple; arguments containing spaces are unsupported.
     read -r -a extra_args <<<"$EXTRA_ARGS"
 fi
 command=("${launcher[@]}" "$exe" -f input.ain -p 12 -l cincuenta.log "${extra_args[@]}")

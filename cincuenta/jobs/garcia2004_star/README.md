@@ -76,8 +76,13 @@ launcher, environment, elapsed time, and exit status.
 # In a 16-rank Slurm allocation:
 cincuenta/jobs/garcia2004_star/run_case.sh nb7_u2p5 16
 
-# In a 32-rank allocation:
-cincuenta/jobs/garcia2004_star/run_case.sh nb11_u2p5 32
+# In a 32-rank allocation, with explicit Frontier CPU placement:
+SRUN_ARGS='--distribution=block:block --cpu-bind=cores' \
+  cincuenta/jobs/garcia2004_star/run_case.sh nb11_u2p5 32
+
+# One rank per Frontier GPU/GCD on a single node:
+SRUN_ARGS='--ntasks-per-node=8 --cpus-per-task=1 --distribution=block:block --cpu-bind=cores --gpus-per-task=1 --gpu-bind=closest' \
+  cincuenta/jobs/garcia2004_star/run_case.sh nb7_u2p5 8
 
 # Non-Slurm MPI, with an out-of-tree executable:
 CINCUENTA_EXE=/path/to/build/cincuenta/src/cincuenta \
@@ -90,9 +95,12 @@ Useful overrides are documented by:
 cincuenta/jobs/garcia2004_star/run_case.sh --help
 ```
 
-In particular, `RUN_ROOT` can point at a large scratch filesystem. Keep each
-run in its own directory: DMRG restart and frequency filenames are not safe to
-share between simultaneous cases.
+In particular, `RUN_ROOT` can point at a large scratch filesystem and
+`SRUN_ARGS` can supply site-specific CPU/GPU placement options. `SRUN_ARGS` is
+split on whitespace, so its arguments cannot themselves contain spaces. The
+fully expanded launch command is recorded in `manifest.txt`. Keep each run in
+its own directory: DMRG restart and frequency filenames are not safe to share
+between simultaneous cases.
 
 ## Slurm batch submission
 
