@@ -30,7 +30,7 @@ if(NOT FETCHCONTENT_TRY_FIND_PACKAGE_MODE STREQUAL "NEVER"
    AND NOT FETCHCONTENT_SOURCE_DIR_KOKKOS
    AND NOT FETCHCONTENT_SOURCE_DIR_KOKKOSKERNELS)
   list(APPEND CMAKE_MESSAGE_INDENT "[KokkosKernels] ")
-  find_package(KokkosKernels 5.1 QUIET CONFIG NAMES KokkosKernels)
+  find_package(KokkosKernels 5.2 QUIET CONFIG NAMES KokkosKernels)
   list(POP_BACK CMAKE_MESSAGE_INDENT)
   if(KokkosKernels_FOUND)
     set(_dmrgpp_kokkoskernels_package_found TRUE)
@@ -54,6 +54,7 @@ else()
   # Do not substitute either source dependency with an independently installed
   # package; the two source builds must use the same Kokkos target.
   block()
+  # variable setting local to the block, fetchcontent... setting outside of this block is preservered
   set(FETCHCONTENT_TRY_FIND_PACKAGE_MODE NEVER)
   FetchContent_Declare(
     Kokkos
