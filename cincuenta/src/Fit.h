@@ -145,6 +145,8 @@ public:
 
 			assert(nBath_ + offset2 + one_or_zero == 2 * nBath_);
 		}
+
+		hasFitted_ = true;
 	}
 
 	const VectorRealType& result() const { return results_; }
@@ -160,6 +162,11 @@ private:
 
 	void setResults(VectorRealType& results)
 	{
+		if (hasFitted_ && !initResults_.reset) {
+			setResultsFromPreviousFit(results);
+			return;
+		}
+
 		bool nonConstant = (initResults_.result.size() > 0);
 		bool isConstant  = (initResults_.ra != 0 || initResults_.rb != 0);
 		if (isConstant && nonConstant)
@@ -177,9 +184,28 @@ private:
 			                          : initResults_.result[i];
 	}
 
+	void setResultsFromPreviousFit(VectorRealType& results) const
+	{
+		assert(results_.size() == 2 * nBath_);
+		if (results.size() == 2 * nBath_) {
+			results = results_;
+			return;
+		}
+
+		assert(results.size() == nBath_);
+		SizeType numberOfIndependentVs = (nBath_ & 1) ? (nBath_ + 1) / 2 : nBath_ / 2;
+		for (SizeType i = 0; i < numberOfIndependentVs; ++i)
+			results[i] = results_[i];
+
+		SizeType energyOffset = nBath_ - numberOfIndependentVs;
+		for (SizeType i = numberOfIndependentVs; i < nBath_; ++i)
+			results[i] = results_[i + energyOffset];
+	}
+
 	const SizeType       nBath_; // number of bath sites
 	const MinParamsType& minParams_; // parameters for fitting algorithm
 	VectorRealType       results_; // stores bath parameters
+	bool                 hasFitted_ = false;
 	RngType              rng_;
 	const InitResults&   initResults_;
 };
