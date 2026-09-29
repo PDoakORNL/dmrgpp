@@ -39,7 +39,10 @@ All inputs use:
 - `FitOptions=particleholesymmetric`, which enforces mirrored bath energies
   and hybridizations around a zero-energy bath site;
 - a constrained initial star bath whose expanded hybridizations satisfy
-  `sum(V_i^2)=1/4=t^2`.
+  `sum(V_i^2)=1/4=t^2`;
+- five correction-vector finite sweeps. The former three-sweep schedule gave
+  nonreproducible Nb7 DMFT updates; this setting was validated by repeated
+  8- and 16-rank Frontier GPU runs.
 
 These jobs require the centered-equilibrium particle-hole fix merged into this
 branch. In that corrected convention, the impurity Hamiltonian already contains

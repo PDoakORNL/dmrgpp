@@ -27,7 +27,7 @@ SolverOptions=doNotCheckDmEigs;
 RootOutputname="GHR2004StarNb7U2p5";
 InfiniteLoopKeptStates=128;
 matrix FiniteLoopsGs=[[@auto,128,0],[@auto,128,0],[@auto,128,0]];
-matrix FiniteLoopsOmega=[[@auto,128,2],[@auto,128,2],[@auto,128,2]];
+matrix FiniteLoopsOmega=[[@auto,256,2],[@auto,256,2],[@auto,256,2],[@auto,256,2],[@auto,256,2]];
 TargetElectronsUp=4;
 TargetElectronsDown=4;
 
