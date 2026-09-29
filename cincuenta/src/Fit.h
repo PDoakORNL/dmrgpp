@@ -89,9 +89,9 @@ public:
 		VectorRealType results(f.size());
 		setResults(results);
 
-		PsimagLite::Minimizer<RealType, FitFunctionType> min(
-		    f, minParams_.maxIter, minParams_.verbose);
-		int iter = 0;
+		using MinimizerType = PsimagLite::Minimizer<RealType, FitFunctionType>;
+		MinimizerType min(f, minParams_.maxIter, minParams_.verbose);
+		int           iter = 0;
 		if (minParams_.method == MinParamsType::Method::CONJUGATE_GRADIENT) {
 			iter = min.conjugateGradient(
 			    results, minParams_.delta, minParams_.delta2, minParams_.tolerance);
@@ -99,8 +99,21 @@ public:
 			iter = min.simplex(results, minParams_.delta, minParams_.tolerance);
 		}
 
-		if (iter < 0)
-			std::cerr << "No minimum found\n";
+		const int minStatus = min.status();
+		const bool minimizerFailed
+		    = (minParams_.method == MinParamsType::Method::CONJUGATE_GRADIENT
+		       && minParams_.maxIter > 0 && minStatus != MinimizerType::GSL_SUCCESS
+		       && minStatus != MinimizerType::GSL_CONTINUE);
+		if (minimizerFailed) {
+			const PsimagLite::String method
+			    = (minParams_.method == MinParamsType::Method::CONJUGATE_GRADIENT)
+			          ? "conjugate-gradient"
+			          : "simplex";
+			PsimagLite::String msg("Bath fit failed with ");
+			msg += method + " after " + ttos(iter) + " iterations: GSL status "
+			    + ttos(minStatus) + " (" + gsl_strerror(minStatus) + ")\n";
+			err(msg);
+		}
 
 		assert(results.size() == nBath_ || results.size() == 2 * nBath_);
 		if (results.size() == 2 * nBath_) {
