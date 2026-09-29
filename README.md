@@ -15,7 +15,7 @@ You are welcomed to use it and publish data
 
 ## License and Disclaimers
 
-The full software license for DMRG++ v7.00
+The full software license for DMRG++ v7.1
 can be found in file LICENSE in the root directory of the code,
 along with disclaimers.
 
@@ -109,6 +109,22 @@ Example: `-DBoost_ROOT=/path/to/boost`
 > -DFETCHCONTENT_UPDATES_DISCONNECTED=ON
 > ```
 > which might be especially useful when there is limited access to the internet.
+
+* `-DDMRG_BATCHED_GEMM_TYPE=<type>`: Specifies which library to use for batched matrix products. Available options
+  `Kokkos` (default) using the KokkosKernels library, `Plugin` using the MAGMA library, and the legacy `CPU` code
+  calling BLAS.
+
+  To enable accelerator support, we recommend setting either `-DKokkos_ENABLE_CUDA=ON` and `-DKokkosKernels_ENABLE_TPL_CUBLAS=ON`(NVIDIA), or
+  `-DKokkos_ENABLE_HIP=ON` and `-DKokkosKernels_ENABLE_TPL_ROCBLAS=ON`(AMD). If `Kokkos` and `KokkosKernels` are externally provided, those options have to be used when configuring the respective project.
+
+  The `Plugin` option has a dependent option `-DDMRG_BUILD_BATCHED_MAGMA=ON` to search for MAGMA. Build and
+  install MAGMA with either `-DMAGMA_ENABLE_CUDA=ON` or `-DMAGMA_ENABLE_HIP=ON`. For DMRG++ to find MAGMA,
+  set
+  ```
+  export PKG_CONFIG_PATH=<MAGMA_INSTALL_PREFIX>/lib/pkgconfig:$PKG_CONFIG_PATH
+  ```
+  replacing `<MAGMA_INSTALL_PREFIX>` with the appropriate directory. Kokkos is used for memory managment, so
+  either `-DKokkos_ENABLE_CUDA=ON`(NVIDIA) or `-DKokkos_ENABLE_HIP=ON`(AMD) must be set.
 
 ### Build and Test
 After the configuration step succeeded, build using
