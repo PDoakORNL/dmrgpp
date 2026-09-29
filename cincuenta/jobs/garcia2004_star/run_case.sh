@@ -15,6 +15,7 @@ Environment:
   MPIEXEC_NFLAG  rank-count flag outside Slurm (default: -n)
   SRUN_ARGS      extra whitespace-separated srun arguments inside Slurm
   EXTRA_ARGS     extra whitespace-separated cincuenta arguments
+  SHOW_ALL_LAUNCHER_OUTPUT=1  disable interactive filtering of known benign DMRG diagnostics
 
 Inside a Slurm allocation the script uses srun. Outside Slurm it uses mpiexec.
 Arguments containing spaces are unsupported in SRUN_ARGS and EXTRA_ARGS.
@@ -100,12 +101,42 @@ printf 'Launching: '
 printf '%q ' "${command[@]}"
 printf '\n'
 
+filter_terminal_output() {
+    awk '
+        /^MPI_INFO_ENV key=/ { next }
+        /^ManyOmegas\.h:: omega = / { next }
+        /^VectorWithOffsets: non-zero sector index [0-9]+ read[[:space:]]*$/ { next }
+        /WARNING: No intent found \(given your Intent\)/ { next }
+        /^WFT Factory: norm[12] = .* < 1e-5$/ { next }
+        /^WARNING: Group Def\/.*\/TimeSerializer\/ was not found in file / {
+            skip_time_serializer_continuation = 1
+            next
+        }
+        skip_time_serializer_continuation && /^ Data was not read\.$/ {
+            skip_time_serializer_continuation = 0
+            next
+        }
+        {
+            skip_time_serializer_continuation = 0
+            print
+        }
+    '
+}
+
+run_command() {
+    (
+        cd "$run_dir"
+        "${command[@]}"
+    ) 2>&1
+}
+
 start_epoch=$(date +%s)
 set +e
-(
-    cd "$run_dir"
-    "${command[@]}"
-) 2>&1 | tee "$run_dir/launcher.log"
+if [[ ${SHOW_ALL_LAUNCHER_OUTPUT:-0} == 1 ]]; then
+    run_command | tee "$run_dir/launcher.log"
+else
+    run_command | tee "$run_dir/launcher.log" | filter_terminal_output
+fi
 status=${PIPESTATUS[0]}
 set -e
 end_epoch=$(date +%s)
