@@ -2,6 +2,7 @@
 #define MANYOMEGAS_H
 #include "DmrgRunner.h"
 #include "OmegaParams.h"
+#include <algorithm>
 #include <PsimagLite/InputNg.h>
 #include <PsimagLite/InterNode.h>
 #include <PsimagLite/LanczosSolver.h>
@@ -20,6 +21,12 @@ public:
 	using InputNgType     = typename DmrgRunnerType::InputNgType;
 	using ApplicationType = PsimagLite::PsiApp;
 
+	struct Timing {
+		double   secondsMax = 0.0;
+		double   secondsSum = 0.0;
+		SizeType calls      = 0;
+	};
+
 	ManyOmegas(PsimagLite::String     data,
 	           const OmegaParamsType& omegaParams,
 	           const ApplicationType& app)
@@ -28,16 +35,19 @@ public:
 	    , app_(app)
 	{ }
 
-	void run(bool dryRun, PsimagLite::String root, const CmdLineOptions& cmdline_options)
+	Timing run(bool dryRun, PsimagLite::String root, const CmdLineOptions& cmdline_options)
 	{
 		// lambda
 		PsimagLite::InterNode<> internode(PsimagLite::MPI::COMM_WORLD);
-		int                     completed = 0;
+		int    completed       = 0;
+		double runnerSeconds   = 0.0;
+		int    runnerCallCount = 0;
 
 		internode.parallelFor(
 		    omegaParams_.offset(),
 		    omegaParams_.total(),
-		    [this, root, dryRun, cmdline_options, &completed](SizeType i, SizeType)
+		    [this, root, dryRun, cmdline_options, &completed, &runnerSeconds,
+		     &runnerCallCount](SizeType i, SizeType)
 		    {
 			    const RealType     omega = omegaParams_.omega(i);
 			    PsimagLite::String data2 = addOmega(omega);
@@ -62,6 +72,8 @@ public:
 
 			    DmrgRunnerType runner(app_, data2, cmdline_options2);
 			    runner.doOneRun();
+			    runnerSeconds += runner.timing().totalSeconds;
+			    ++runnerCallCount;
 			    ++completed;
 		    });
 
@@ -77,6 +89,23 @@ public:
 		const SizeType totalTasks = omegaParams_.total() - omegaParams_.offset();
 		if (totalCompleted != static_cast<int>(totalTasks))
 			err("ManyOmegas: not all frequency tasks completed\n");
+
+		PsimagLite::Vector<double>::Type secondsByRank(mpiSize, 0.0);
+		PsimagLite::Vector<int>::Type    callsByRank(mpiSize, 0);
+		const SizeType mpiRank = PsimagLite::MPI::commRank(PsimagLite::MPI::COMM_WORLD);
+		secondsByRank[mpiRank] = runnerSeconds;
+		callsByRank[mpiRank]   = runnerCallCount;
+		PsimagLite::MPI::allReduce(secondsByRank);
+		PsimagLite::MPI::allReduce(callsByRank);
+
+		Timing timing;
+		for (SizeType rank = 0; rank < mpiSize; ++rank) {
+			timing.secondsSum += secondsByRank[rank];
+			timing.secondsMax = std::max(timing.secondsMax, secondsByRank[rank]);
+			timing.calls += callsByRank[rank];
+		}
+
+		return timing;
 	}
 
 	PsimagLite::String addOmega(RealType wn) const

@@ -147,8 +147,11 @@ Important files in each run directory are:
 The interactive launcher suppresses only known high-volume benign DMRG
 restart diagnostics, while retaining them in `launcher.log`. Rank-zero
 `DMFT_PROGRESS` lines identify each SCF iteration and the final real-axis
-solve. Set `SHOW_ALL_LAUNCHER_OUTPUT=1` to show the unfiltered stream in the
-terminal when diagnosing a failure.
+solve. Rank-zero `DMFT_TIMING` lines report the GS-run wall time, distributed
+correction-vector runner time (slowest rank and summed work), and rank-zero
+text-output processing time for each Matsubara or real-axis solve. Set
+`SHOW_ALL_LAUNCHER_OUTPUT=1` to show the unfiltered stream in the terminal
+when diagnosing a failure.
 
 Summarize one run or every child of the run root:
 
