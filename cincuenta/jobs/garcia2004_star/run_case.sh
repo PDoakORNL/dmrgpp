@@ -105,6 +105,9 @@ filter_terminal_output() {
     awk '
         /^MPI_INFO_ENV key=/ { next }
         /^ManyOmegas\.h:: omega = / { next }
+        /^OutputFile="dmftDynamics[0-9]+";$/ { next }
+        /^ logfile=runForinput[0-9]+\.cout$/ { next }
+        /^Standard output sent to runForinput[0-9]+\.cout$/ { next }
         /^VectorWithOffsets: non-zero sector index [0-9]+ read[[:space:]]*$/ { next }
         /WARNING: No intent found \(given your Intent\)/ { next }
         /^WFT Factory: norm[12] = .* < 1e-5$/ { next }
