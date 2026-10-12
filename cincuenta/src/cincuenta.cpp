@@ -15,13 +15,13 @@ protected:
 	int overflow(int c) override { return c; }
 };
 
-std::streambuf*  GlobalCoutBuffer = 0;
+std::streambuf*  GlobalCoutBuffer = nullptr;
 std::ofstream    GlobalCoutStream;
 NullStreamBuffer GlobalNullStream;
 
 void restoreCoutBuffer()
 {
-	if (GlobalCoutBuffer == 0)
+	if (GlobalCoutBuffer == nullptr)
 		return;
 	GlobalCoutStream.close();
 	std::cout.rdbuf(GlobalCoutBuffer);

@@ -97,7 +97,7 @@ public:
 		{
 			startTime_.tv_sec  = 0;
 			startTime_.tv_usec = 0;
-			gettimeofday(&startTime_, 0);
+			gettimeofday(&startTime_, nullptr);
 		}
 
 		TimeHandle(time_t s, suseconds_t u)
@@ -167,7 +167,7 @@ public:
 			return "NOT_FOUND";
 
 		x += label.length();
-		long unsigned int y   = data_.find("\n", x);
+		long unsigned int y   = data_.find('\n', x);
 		SizeType          len = y - x;
 		if (y == String::npos)
 			len = data_.length() - x;

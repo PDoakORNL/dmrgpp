@@ -15,7 +15,7 @@ public:
 
 	Array()
 	    : size_(0)
-	    , data_(0)
+	    , data_(nullptr)
 	{ }
 
 	Array(SizeType n)
@@ -27,7 +27,7 @@ public:
 
 	Array(const Array& other)
 	    : size_(0)
-	    , data_(0)
+	    , data_(nullptr)
 	{
 		assert(other.data_ || other.size_ == 0);
 		clear();
@@ -37,7 +37,7 @@ public:
 
 	Array(const std::vector<T>& other)
 	    : size_(0)
-	    , data_(0)
+	    , data_(nullptr)
 	{
 		fromStdVector(other);
 	}
@@ -45,7 +45,7 @@ public:
 	~Array()
 	{
 		delete[] data_;
-		data_ = 0;
+		data_ = nullptr;
 	}
 
 	Array& operator=(const Array& other)
@@ -61,7 +61,7 @@ public:
 	{
 		size_ = 0;
 		delete[] data_;
-		data_ = 0;
+		data_ = nullptr;
 	}
 
 	void resize(SizeType n)
@@ -96,7 +96,7 @@ public:
 		if (size_ == 0)
 			return;
 		v.resize(size_);
-		memcpy(&(v[0]), data_, sizeof(SizeType) * size_);
+		memcpy(v.data(), data_, sizeof(SizeType) * size_);
 	}
 
 	void fromStdVector(const std::vector<T>& v)
@@ -108,7 +108,7 @@ public:
 		}
 
 		allocate(v.size());
-		memcpy(data_, &(v[0]), size_ * sizeof(T));
+		memcpy(data_, v.data(), size_ * sizeof(T));
 	}
 
 private:

@@ -358,8 +358,8 @@ public:
 			for (SizeType i = 0; i < m; ++i) {
 				newline += a + ttos(i) + b + "=" + tokens[i];
 				if (ainurMode_)
-					newline += ";";
-				newline += "\n";
+					newline += ';';
+				newline += '\n';
 			}
 
 			return newline;
@@ -583,7 +583,7 @@ public:
 		Readable(const Writeable& inputWriteable)
 		    : file_(inputWriteable.filename())
 		    , data_(inputWriteable.data())
-		    , ainur_(0)
+		    , ainur_(nullptr)
 		    , dummy_("")
 		{
 			inputWriteable.set(mapStrStr_, mapStrVec_, labelsForRemoval_);
@@ -603,7 +603,7 @@ public:
 		~Readable()
 		{
 			delete ainur_;
-			ainur_ = 0;
+			ainur_ = nullptr;
 		}
 
 		void rewind() { }
