@@ -91,7 +91,7 @@ public:
 
 		using MinimizerType = PsimagLite::Minimizer<RealType, FitFunctionType>;
 		MinimizerType min(f, minParams_.maxIter, minParams_.verbose);
-		int iter = 0;
+		int           iter = 0;
 		if (minParams_.method == MinParamsType::Method::CONJUGATE_GRADIENT) {
 			iter = min.conjugateGradient(
 			    results, minParams_.delta, minParams_.delta2, minParams_.tolerance);
@@ -99,8 +99,9 @@ public:
 			if (minimizerFailed(min)) {
 				if (PsimagLite::Concurrency::root()) {
 					std::cerr << "Bath fit conjugate-gradient stalled after "
-					          << completedIterations(iter) << " iterations: GSL status "
-					          << min.status() << " (" << gsl_strerror(min.status())
+					          << completedIterations(iter)
+					          << " iterations: GSL status " << min.status()
+					          << " (" << gsl_strerror(min.status())
 					          << "); retrying simplex from the warm bath\n";
 				}
 
@@ -170,26 +171,26 @@ public:
 
 private:
 
-	template <typename MinimizerType>
-	bool minimizerFailed(const MinimizerType& min) const
+	template <typename MinimizerType> bool minimizerFailed(const MinimizerType& min) const
 	{
 		return minParams_.maxIter > 0 && min.status() != MinimizerType::GSL_SUCCESS
-		       && min.status() != MinimizerType::GSL_CONTINUE;
+		    && min.status() != MinimizerType::GSL_CONTINUE;
 	}
 
 	static int completedIterations(int iter) { return (iter < 0) ? -iter : iter; }
 
 	template <typename MinimizerType>
-	void throwIfMinimizerFailed(const MinimizerType&       min,
+	void throwIfMinimizerFailed(const MinimizerType&      min,
 	                            const PsimagLite::String& method,
-	                            int                         iter) const
+	                            int                       iter) const
 	{
 		if (!minimizerFailed(min))
 			return;
 
 		PsimagLite::String msg("Bath fit failed with ");
-		msg += method + " after " + ttos(completedIterations(iter)) + " iterations: GSL status "
-		    + ttos(min.status()) + " (" + gsl_strerror(min.status()) + ")\n";
+		msg += method + " after " + ttos(completedIterations(iter))
+		    + " iterations: GSL status " + ttos(min.status()) + " ("
+		    + gsl_strerror(min.status()) + ")\n";
 		err(msg);
 	}
 

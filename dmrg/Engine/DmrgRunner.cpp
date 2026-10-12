@@ -87,7 +87,8 @@ void DmrgRunner<RealType>::doOneRun(OptionsForIntrospect& op_options) const
 	else
 		doOneRun2<RealType>(op_options);
 
-	timing_.totalSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+	timing_.totalSeconds
+	    = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
 }
 
 template <typename RealType>

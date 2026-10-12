@@ -20,7 +20,14 @@ set(PATH_TO_INPUTS ${CMAKE_CURRENT_SOURCE_DIR}/../TestSuite/inputs)
 # Scoped helper for Cincuenta's captured-output checks.  Keep it here because
 # the branch's MPI preflights use check_value while master intentionally does
 # not define a project-wide add_check function.
-function(add_check name pattern expected tolerance file parent_test)
+function(
+  add_check
+  name
+  pattern
+  expected
+  tolerance
+  file
+  parent_test)
   add_test(NAME ${name} COMMAND $<TARGET_FILE:check_value> "${pattern}" "${expected}" "${tolerance}" "${file}")
   set_tests_properties(${name} PROPERTIES DEPENDS ${parent_test})
 endfunction()

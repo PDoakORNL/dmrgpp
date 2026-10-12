@@ -172,10 +172,10 @@ TEST_CASE("BatchedGemm matrixVector", "[BatchedGemm]")
 {
 	// Match the normal DMRG++ application lifecycle: MPI must be initialized
 	// before Kokkos touches the MPI-aware profiling/runtime facilities.
-	int   argc = 1;
-	char  appName[] = "test_BatchedGemm";
-	char* argvValues[] = { appName, nullptr };
-	char** argv = argvValues;
+	int                argc         = 1;
+	char               appName[]    = "test_BatchedGemm";
+	char*              argvValues[] = { appName, nullptr };
+	char**             argv         = argvValues;
 	PsimagLite::PsiApp app("test_BatchedGemm", &argc, &argv, 1);
 
 	// Build fake initKron for 1 patch, 1 operator

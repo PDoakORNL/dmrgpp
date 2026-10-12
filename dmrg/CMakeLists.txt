@@ -129,12 +129,11 @@ add_test(NAME introspect0_0 COMMAND diff -q ${PATH_TO_INPUTS}/introspect_ref0.tx
 set(_dmrg_version_test_args -DDMRG_EXECUTABLE=$<TARGET_FILE:dmrg> -DEXPECTED_VERSION=7.1)
 if(DMRGPP_USE_MPI)
   list(APPEND _dmrg_version_test_args -DMPIEXEC_EXECUTABLE=${MPIEXEC_EXECUTABLE}
-                                      -DMPIEXEC_NUMPROC_FLAG=${MPIEXEC_NUMPROC_FLAG}
-                                      "-DMPIEXEC_PREFLAGS=${MPIEXEC_PREFLAGS}"
-                                      "-DMPIEXEC_POSTFLAGS=${MPIEXEC_POSTFLAGS}")
+       -DMPIEXEC_NUMPROC_FLAG=${MPIEXEC_NUMPROC_FLAG} "-DMPIEXEC_PREFLAGS=${MPIEXEC_PREFLAGS}"
+       "-DMPIEXEC_POSTFLAGS=${MPIEXEC_POSTFLAGS}")
 endif()
-add_test(NAME dmrg_version_output COMMAND ${CMAKE_COMMAND} ${_dmrg_version_test_args}
-                                          -P ${CMAKE_SOURCE_DIR}/TestSuite/checkVersionOutput.cmake)
+add_test(NAME dmrg_version_output COMMAND ${CMAKE_COMMAND} ${_dmrg_version_test_args} -P
+                                          ${CMAKE_SOURCE_DIR}/TestSuite/checkVersionOutput.cmake)
 
 function(add_lowest_eigenvalue_check_test name dependent_name expected output_file)
   set(options SHOULD_FAIL)

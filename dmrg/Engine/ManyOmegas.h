@@ -2,13 +2,13 @@
 #define MANYOMEGAS_H
 #include "DmrgRunner.h"
 #include "OmegaParams.h"
-#include <algorithm>
 #include <PsimagLite/InputNg.h>
 #include <PsimagLite/InterNode.h>
 #include <PsimagLite/LanczosSolver.h>
 #include <PsimagLite/PsiBase64.h>
 #include <PsimagLite/PsimagLite.h>
 #include <PsimagLite/Vector.h>
+#include <algorithm>
 
 namespace Dmrg {
 
@@ -39,43 +39,48 @@ public:
 	{
 		// lambda
 		PsimagLite::InterNode<> internode(PsimagLite::MPI::COMM_WORLD);
-		int    completed       = 0;
-		double runnerSeconds   = 0.0;
-		int    runnerCallCount = 0;
+		int                     completed       = 0;
+		double                  runnerSeconds   = 0.0;
+		int                     runnerCallCount = 0;
 
-		internode.parallelFor(
-		    omegaParams_.offset(),
-		    omegaParams_.total(),
-		    [this, root, dryRun, cmdline_options, &completed, &runnerSeconds,
-		     &runnerCallCount](SizeType i, SizeType)
-		    {
-			    const RealType     omega = omegaParams_.omega(i);
-			    PsimagLite::String data2 = addOmega(omega);
-			    PsimagLite::String outputfile
-			        = "\nOutputFile=\"" + root + ttos(i) + "\";\n";
-			    data2 += outputfile;
+		internode.parallelFor(omegaParams_.offset(),
+		                      omegaParams_.total(),
+		                      [this,
+		                       root,
+		                       dryRun,
+		                       cmdline_options,
+		                       &completed,
+		                       &runnerSeconds,
+		                       &runnerCallCount](SizeType i, SizeType)
+		                      {
+			                      const RealType     omega = omegaParams_.omega(i);
+			                      PsimagLite::String data2 = addOmega(omega);
+			                      PsimagLite::String outputfile
+			                          = "\nOutputFile=\"" + root + ttos(i) + "\";\n";
+			                      data2 += outputfile;
 
-			    CmdLineOptions cmdline_options2 = cmdline_options;
+			                      CmdLineOptions cmdline_options2 = cmdline_options;
 
-			    cmdline_options2.logfile
-			        = std::string("runForinput") + ttos(i) + ".cout";
+			                      cmdline_options2.logfile
+			                          = std::string("runForinput") + ttos(i) + ".cout";
 
-			    std::cerr << "ManyOmegas.h:: omega = " << omega;
-			    std::cerr << " output=" << outputfile;
-			    std::cerr << " logfile=" << cmdline_options2.logfile << "\n";
+			                      std::cerr << "ManyOmegas.h:: omega = " << omega;
+			                      std::cerr << " output=" << outputfile;
+			                      std::cerr << " logfile=" << cmdline_options2.logfile
+			                                << "\n";
 
-			    if (dryRun) {
-				    std::cerr << "NOT done because -d\n";
-				    ++completed;
-				    return;
-			    }
+			                      if (dryRun) {
+				                      std::cerr << "NOT done because -d\n";
+				                      ++completed;
+				                      return;
+			                      }
 
-			    DmrgRunnerType runner(app_, data2, cmdline_options2);
-			    runner.doOneRun();
-			    runnerSeconds += runner.timing().totalSeconds;
-			    ++runnerCallCount;
-			    ++completed;
-		    });
+			                      DmrgRunnerType runner(app_, data2, cmdline_options2);
+			                      runner.doOneRun();
+			                      runnerSeconds += runner.timing().totalSeconds;
+			                      ++runnerCallCount;
+			                      ++completed;
+		                      });
 
 		const SizeType mpiSize = PsimagLite::MPI::commSize(PsimagLite::MPI::COMM_WORLD);
 		PsimagLite::Vector<int>::Type completedByRank(mpiSize, 0);

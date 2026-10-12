@@ -82,7 +82,7 @@ public:
 
 		SizeType impurity_site = model_params.impuritySite();
 
-		double procOmegasSeconds = 0.0;
+		double            procOmegasSeconds = 0.0;
 		const OmegaTiming type0Timing
 		    = doType(DmrgType::TYPE_0, data3, impurity_site, freq_enum, procOmegasSeconds);
 		const OmegaTiming type1Timing
@@ -119,11 +119,11 @@ private:
 	}
 
 	static void emitTiming(PsimagLite::FreqEnum freq_enum,
-	                       SizeType              iter,
-	                       double                groundStateSeconds,
-	                       const OmegaTiming&    type0Timing,
-	                       const OmegaTiming&    type1Timing,
-	                       double                procOmegasSeconds)
+	                       SizeType             iter,
+	                       double               groundStateSeconds,
+	                       const OmegaTiming&   type0Timing,
+	                       const OmegaTiming&   type1Timing,
+	                       double               procOmegasSeconds)
 	{
 		const char* axis = timingAxis(freq_enum);
 		std::cerr << "DMFT_TIMING axis=" << axis << " iter=" << iter
@@ -257,7 +257,7 @@ private:
 	                   PsimagLite::String   data,
 	                   SizeType             impurity_site,
 	                   PsimagLite::FreqEnum freq_enum,
-	                   double&               procOmegasSeconds)
+	                   double&              procOmegasSeconds)
 	{
 		std::string obs   = (t == DmrgType::TYPE_0) ? "c" : "c'";
 		std::string data2 = addTypeAndObs(t, impurity_site, data);
@@ -316,7 +316,8 @@ private:
 		}
 
 		readGimp(rootOname, total, t);
-		return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+		return std::chrono::duration<double>(std::chrono::steady_clock::now() - start)
+		    .count();
 	}
 
 	void broadcastGimp(PsimagLite::FreqEnum freq_enum)

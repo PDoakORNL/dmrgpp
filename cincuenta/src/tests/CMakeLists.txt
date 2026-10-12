@@ -54,4 +54,5 @@ if(DMRGPP_USE_MPI)
 else()
   add_test(NAME test_DmftSolverEquilibriumInitialData COMMAND test_DmftSolverEquilibriumInitialData)
 endif()
-set_tests_properties(test_DmftSolverEquilibriumInitialData PROPERTIES WORKING_DIRECTORY ${DMFT_EQUILIBRIUM_INITIAL_DATA_DIR})
+set_tests_properties(test_DmftSolverEquilibriumInitialData PROPERTIES WORKING_DIRECTORY
+                                                                      ${DMFT_EQUILIBRIUM_INITIAL_DATA_DIR})
