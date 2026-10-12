@@ -18,3 +18,7 @@ cincuenta -f input.ain -p 12 -l cincuenta.log
 The profile records ROMIO settings `romio_no_indep_rw=true;cb_nodes=4` and is
 kept as the unmodified parser summary so its detailed I/O counters remain
 available for later comparison.
+
+This was cincuenta mpi job cut down to last around 10 minutes.  My
+intepretation of the output is that IO was almost insignificant order
+of less than 1/100 of the the total time.
