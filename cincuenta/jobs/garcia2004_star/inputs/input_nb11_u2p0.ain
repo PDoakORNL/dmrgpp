@@ -23,7 +23,7 @@ MinParamsVerbose=0;
 
 int ImpuritySite=0;
 real HubbardU=2.0;
-SolverOptions=doNotCheckDmEigs;
+SolverOptions=BatchedGemm,doNotCheckDmEigs;
 RootOutputname="GHR2004StarNb11U2p0";
 InfiniteLoopKeptStates=300;
 matrix FiniteLoopsGs=[[@auto,300,0],[@auto,300,0],[@auto,300,0]];

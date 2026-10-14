@@ -40,8 +40,8 @@ cmake -S "$repo" -B "$build" \
   -DDMRG_BATCHED_GEMM_TYPE=Kokkos \
   -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=NEVER \
   -DKokkos_ENABLE_HIP=ON \
-  -DKokkos_ENABLE_SERIAL=ON \
   -DKokkos_ARCH_AMD_GFX90A=ON \
+  -DKokkosKernels_ENABLE_TPL_ROCBLAS=ON \
   -DBLA_VENDOR=All \
   -DHDF5_ROOT="$HDF5_ROOT" \
   -Dhip_DIR="$ROCM_PATH/lib/cmake/hip" \
