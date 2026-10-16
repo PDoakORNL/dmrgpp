@@ -51,17 +51,7 @@ the `-U/2` shift and the fit therefore requires `ChemicalPotential=0`. Each
 `(Nb-1)/2` positive bath energies; cincuenta expands it to `2*Nb` scalar
 parameters describing `Nb` symmetric bath sites.
 
-## Build
-
-Configure a clean cluster build with the site's MPI compiler and dependencies.
-For example, from the repository root:
-
-```bash
-cmake -S . -B build -DDMRGPP_USE_MPI=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j 8 --target cincuenta
-```
-
-The launcher defaults to `build/cincuenta/src/cincuenta`. Set
+Set
 `CINCUENTA_EXE=/absolute/path/to/cincuenta` if the cluster build is elsewhere.
 Do not invoke an MPI-linked executable directly; even a one-rank run should go
 through `srun` or `mpiexec`.
@@ -114,19 +104,13 @@ site-specific account, partition, node count, memory, and wall time on the
 
 ```bash
 # Pilot
-sbatch --ntasks=16 --time=04:00:00 \
-  --export=ALL,CASE=nb7_u2p5,RANKS=16 \
-  cincuenta/jobs/garcia2004_star/slurm_job.sh
+sbatch -A cph102 -N2 --ntasks=16 --time=00:30:00 \
+--export=ALL,CASE=nb7_u2p5,RANKS=16 -p service -q develop ./slurm_job.sh
 
-# Primary run (add the site's --nodes/--partition/--account/--mem options)
-sbatch --ntasks=32 --time=24:00:00 \
-  --export=ALL,CASE=nb11_u2p5,RANKS=32 \
-  cincuenta/jobs/garcia2004_star/slurm_job.sh
+# Primary run 
+sbatch -A cph102 -N4 --ntasks=32 --time=00:30:00 \
+--export=ALL,CASE=nb11_u2p5,RANKS=32 -p batch -q debug ./slurm_job.sh
 
-# Large stress case
-sbatch --ntasks=64 --time=48:00:00 \
-  --export=ALL,CASE=nb15_u2p5,RANKS=64 \
-  cincuenta/jobs/garcia2004_star/slurm_job.sh
 ```
 
 For multiple nodes, request enough nodes for the task count according to the
